@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "260701724847",
+    "project_id": "imperial-deab7",
+    "storage_bucket": "imperial-deab7.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:260701724847:android:e455dd522c594e5442745a",
+        "android_client_info": {
+          "package_name": "com.imperial.exchange"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "260701724847-qbpu91sgsfvghq3ps20aa25kg38bhgco.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.imperial.exchange",
+            "certificate_hash": "cec8261fa6cc215674e3ed4d1762ea7343e9462d"
+          }
+        },
+        {
+          "client_id": "260701724847-4dmpdsvuask749l2rvs215n35mcfsro5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDoYSWMtjm84v6PwxB2bfLB9aWpIzKSQik"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "260701724847-4dmpdsvuask749l2rvs215n35mcfsro5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

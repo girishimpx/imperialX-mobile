@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>260701724847-m03t6s0ss2r3fe5fdla866vrlp2u08e0.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.260701724847-m03t6s0ss2r3fe5fdla866vrlp2u08e0</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>260701724847-6i4invu0ap8qdlv2hus7s11jupc8q60v.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyBznweyurwtn2jzShDfG-UGWv3hDYGbC9k</string>
+	<key>GCM_SENDER_ID</key>
+	<string>260701724847</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.imperial.exchange</string>
+	<key>PROJECT_ID</key>
+	<string>imperial-deab7</string>
+	<key>STORAGE_BUCKET</key>
+	<string>imperial-deab7.appspot.com</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:260701724847:ios:012b432667ec4f1242745a</string>
+</dict>
+</plist>
