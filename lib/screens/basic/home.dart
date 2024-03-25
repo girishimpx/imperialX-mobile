@@ -152,7 +152,7 @@ class _Home_ScreenState extends State<Home_Screen> {
     verifysubAcc();
     walletDepoAdd();
     channelOpenOrder = IOWebSocketChannel.connect(
-        Uri.parse("wss://ws.okex.com:8443/ws/v5/public?brokerId=197"),
+        Uri.parse("wss://ws.okx.com:8443/ws/v5/public?brokerId=197"),
         pingInterval: Duration(seconds: 30));
 
     webViewController?.loadUrl(
@@ -195,7 +195,7 @@ class _Home_ScreenState extends State<Home_Screen> {
 
 
         channelOpenOrder = IOWebSocketChannel.connect(
-            Uri.parse("wss://ws.okex.com:8443/ws/v5/public?brokerId=197"),
+            Uri.parse("wss://ws.okx.com:8443/ws/v5/public?brokerId=197"),
             pingInterval: Duration(seconds: 30));
 
         channelOpenOrder!.sink.add(json.encode(messageJSON));
@@ -1317,7 +1317,7 @@ class _Home_ScreenState extends State<Home_Screen> {
             "args": arrData,
           };
           channelOpenOrder = IOWebSocketChannel.connect(
-              Uri.parse("wss://ws.okex.com:8443/ws/v5/public?brokerId=197"),
+              Uri.parse("wss://ws.okx.com:8443/ws/v5/public?brokerId=197"),
               pingInterval: Duration(seconds: 30));
           channelOpenOrder!.sink.add(json.encode(messageJSON));
 
