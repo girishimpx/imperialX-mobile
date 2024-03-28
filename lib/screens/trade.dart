@@ -127,7 +127,7 @@ class _SellTradeScreenState extends State<TradeScreen>
     getFutureCoinList();
 
     channelOpenOrder = IOWebSocketChannel.connect(
-        Uri.parse("wss://ws.okex.com:8443/ws/v5/public?brokerId=197"),
+        Uri.parse("wss://ws.okx.com:8443/ws/v5/public?brokerId=197"),
         pingInterval: Duration(seconds: 30));
 
     // if (Platform.isAndroid) {
@@ -6910,7 +6910,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         channelOpenOrder =
                                             IOWebSocketChannel.connect(
                                                 Uri.parse(
-                                                    "wss://ws.okex.com:8443/ws/v5/public?brokerId=197"),
+                                                    "wss://ws.okx.com:8443/ws/v5/public?brokerId=197"),
                                                 pingInterval:
                                                     Duration(seconds: 5));
                                         var messageJSON = {
@@ -7179,7 +7179,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         channelOpenOrder =
                                             IOWebSocketChannel.connect(
                                                 Uri.parse(
-                                                    "wss://ws.okex.com:8443/ws/v5/public?brokerId=197"),
+                                                    "wss://ws.okx.com:8443/ws/v5/public?brokerId=197"),
                                                 pingInterval:
                                                     Duration(seconds: 5));
                                         var messageJSON = {

@@ -75,7 +75,7 @@ class _MarketTrade_DetailsState extends State<MarketTrade_Details> {
     "args": arrData,
   };
     channelOpenOrder = IOWebSocketChannel.connect(
-        Uri.parse("wss://ws.okex.com:8443/ws/v5/public?brokerId=197"),
+        Uri.parse("wss://ws.okx.com:8443/ws/v5/public?brokerId=197"),
         pingInterval: Duration(seconds: 30));
     channelOpenOrder!.sink.add(json.encode(messageJSON));
 
@@ -118,7 +118,7 @@ class _MarketTrade_DetailsState extends State<MarketTrade_Details> {
         print(messageJSON);
 
         channelOpenOrder = IOWebSocketChannel.connect(
-            Uri.parse("wss://ws.okex.com:8443/ws/v5/public?brokerId=197"),
+            Uri.parse("wss://ws.okx.com:8443/ws/v5/public?brokerId=197"),
             pingInterval: Duration(seconds: 30));
 
         channelOpenOrder!.sink.add(json.encode(messageJSON));
