@@ -41,7 +41,7 @@ dependencies:
   http:
   simple_gradient_text:
   country_calling_code_picker:
-  image_picker:
+  image_picker: ^1.0.7
   permission_handler:
   intl:
   barcode_scan2:
@@ -49,10 +49,10 @@ dependencies:
   timeago:
   flutter_switch:
   modal_bottom_sheet: ^3.0.0-pre
-  google_sign_in:
-  firebase_auth:
-  firebase_core:
   flutter_inappwebview:
+  qr_flutter:
+  google_sign_in:
+  carousel_slider:
 
 
 dev_dependencies:
@@ -66,7 +66,7 @@ dev_dependencies:
   # activated in the `analysis_options.yaml` file located at the root of your
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
-  flutter_lints: ^2.0.0
+  flutter_lints: ^3.0.1
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

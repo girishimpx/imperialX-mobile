@@ -27,7 +27,10 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
   ScrollController controller = ScrollController();
   APIUtils apiUtils = APIUtils();
   List<GetWalletAll> walletPair = [];
+  List<GetWalletAll> searchWalletPair = [];
   String walletBalance = "0.000";
+  TextEditingController searchController = TextEditingController();
+  FocusNode searchFocus = FocusNode();
 
   @override
   void initState() {
@@ -320,110 +323,187 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
                   const SizedBox(
                     height: 20.0,
                   ),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.start,
-                    children: [
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            frozen = true;
-                            mSell = false;
-                            mBuy = false;
-                          });
-                        },
-                        child: Container(
-                          alignment: Alignment.center,
-                          padding: EdgeInsets.only(
-                              left: 12.0, right: 12.0, top: 6.0, bottom: 8.0),
-                          decoration: frozen
-                              ? BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6.0),
-                                  color: Theme.of(context).canvasColor,
-                                )
-                              : BoxDecoration(),
-                          child: Text(
-                            "Frozen Balance",
-                            style: CustomWidget(context: context)
-                                .CustomSizedTextStyle(
-                                    12.0,
-                                    frozen
-                                        ? Theme.of(context).disabledColor
-                                        : Theme.of(context).dividerColor,
-                                    frozen ? FontWeight.w600 : FontWeight.w400,
-                                    'FontRegular'),
-                          ),
+                  // Row(
+                  //   crossAxisAlignment: CrossAxisAlignment.center,
+                  //   mainAxisAlignment: MainAxisAlignment.start,
+                  //   children: [
+                  //     InkWell(
+                  //       onTap: () {
+                  //         setState(() {
+                  //           frozen = true;
+                  //           mSell = false;
+                  //           mBuy = false;
+                  //         });
+                  //       },
+                  //       child: Container(
+                  //         alignment: Alignment.center,
+                  //         padding: EdgeInsets.only(
+                  //             left: 12.0, right: 12.0, top: 6.0, bottom: 8.0),
+                  //         decoration: frozen
+                  //             ? BoxDecoration(
+                  //                 borderRadius: BorderRadius.circular(6.0),
+                  //                 color: Theme.of(context).canvasColor,
+                  //               )
+                  //             : BoxDecoration(),
+                  //         child: Text(
+                  //           "Frozen Balance",
+                  //           style: CustomWidget(context: context)
+                  //               .CustomSizedTextStyle(
+                  //                   12.0,
+                  //                   frozen
+                  //                       ? Theme.of(context).disabledColor
+                  //                       : Theme.of(context).dividerColor,
+                  //                   frozen ? FontWeight.w600 : FontWeight.w400,
+                  //                   'FontRegular'),
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(
+                  //       width: 15.0,
+                  //     ),
+                  //     InkWell(
+                  //       onTap: () {
+                  //         setState(() {
+                  //           frozen = false;
+                  //           mSell = true;
+                  //           mBuy = false;
+                  //         });
+                  //       },
+                  //       child: Container(
+                  //         alignment: Alignment.center,
+                  //         padding: EdgeInsets.only(
+                  //             left: 12.0, right: 12.0, top: 6.0, bottom: 8.0),
+                  //         decoration: mSell
+                  //             ? BoxDecoration(
+                  //                 borderRadius: BorderRadius.circular(6.0),
+                  //                 color: Theme.of(context).canvasColor,
+                  //               )
+                  //             : BoxDecoration(),
+                  //         child: Text(
+                  //           "Margin Sell",
+                  //           style: CustomWidget(context: context)
+                  //               .CustomSizedTextStyle(
+                  //                   14.0,
+                  //                   mSell
+                  //                       ? Theme.of(context).disabledColor
+                  //                       : Theme.of(context).dividerColor,
+                  //                   mSell ? FontWeight.w600 : FontWeight.w400,
+                  //                   'FontRegular'),
+                  //         ),
+                  //       ),
+                  //     ),
+                  //     const SizedBox(
+                  //       width: 15.0,
+                  //     ),
+                  //     InkWell(
+                  //       onTap: () {
+                  //         setState(() {
+                  //           frozen = false;
+                  //           mSell = false;
+                  //           mBuy = true;
+                  //         });
+                  //       },
+                  //       child: Container(
+                  //         alignment: Alignment.center,
+                  //         padding: EdgeInsets.only(
+                  //             left: 12.0, right: 12.0, top: 6.0, bottom: 8.0),
+                  //         decoration: mBuy
+                  //             ? BoxDecoration(
+                  //                 borderRadius: BorderRadius.circular(6.0),
+                  //                 color: Theme.of(context).canvasColor,
+                  //               )
+                  //             : BoxDecoration(),
+                  //         child: Text(
+                  //           "Margin Buy",
+                  //           style: CustomWidget(context: context)
+                  //               .CustomSizedTextStyle(
+                  //                   12.0,
+                  //                   mBuy
+                  //                       ? Theme.of(context).disabledColor
+                  //                       : Theme.of(context).dividerColor,
+                  //                   mBuy ? FontWeight.w600 : FontWeight.w400,
+                  //                   'FontRegular'),
+                  //         ),
+                  //       ),
+                  //     )
+                  //   ],
+                  // ),
+                  Container(
+                    decoration: BoxDecoration(
+                        border: Border.all(
+                          width: 1.0,
+                          color: Theme.of(context).disabledColor,
+                        ),
+                        borderRadius: BorderRadius.circular(25.0)),
+                    height: 45.0,
+                    padding: EdgeInsets.only(left: 10.0, right: 10.0),
+                    width: MediaQuery.of(context).size.width,
+                    child: TextField(
+                      controller: searchController,
+                      focusNode: searchFocus,
+                      enabled: true,
+                      onEditingComplete: () {
+                        setState(() {
+                          searchFocus.unfocus();
+                        });
+                      },
+                      onChanged: (value) {
+                        setState(() {
+                          searchWalletPair = [];
+                          for (int m = 0; m < walletPair.length; m++) {
+                            if (walletPair[m].coinname.toString().toLowerCase().contains(value.toLowerCase()) ||
+                                walletPair[m].coinname.toString().toLowerCase().contains(value.toLowerCase())) {
+                              searchWalletPair.add(walletPair[m]);
+                            }
+                          }
+                        });
+                      },
+                      decoration: InputDecoration(
+                        contentPadding: const EdgeInsets.only(
+                            left: 10, right: 0, top: 8, bottom: 8),
+                        hintText: "Search",
+                        hintStyle: TextStyle(
+                            fontFamily: "FontRegular",
+                            color: Theme.of(context).highlightColor,
+                            fontSize: 14.0,
+                            fontWeight: FontWeight.w500),
+                        filled: true,
+                        fillColor: Colors.transparent,
+                        border: OutlineInputBorder(
+                          borderRadius:
+                          BorderRadius.all(Radius.circular(10.0)),
+                          borderSide: BorderSide(
+                              color: Colors.transparent, width: 1.0),
+                        ),
+                        disabledBorder: OutlineInputBorder(
+                          borderRadius:
+                          BorderRadius.all(Radius.circular(10.0)),
+                          borderSide: BorderSide(
+                              color: Colors.transparent, width: 1.0),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius:
+                          BorderRadius.all(Radius.circular(10.0)),
+                          borderSide: BorderSide(
+                              color: Colors.transparent, width: 1.0),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius:
+                          BorderRadius.all(Radius.circular(10.0)),
+                          borderSide: BorderSide(
+                              color: Colors.transparent, width: 1.0),
+                        ),
+                        errorBorder: const OutlineInputBorder(
+                          borderRadius:
+                          BorderRadius.all(Radius.circular(5)),
+                          borderSide:
+                          BorderSide(color: Colors.red, width: 0.0),
                         ),
                       ),
-                      const SizedBox(
-                        width: 15.0,
-                      ),
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            frozen = false;
-                            mSell = true;
-                            mBuy = false;
-                          });
-                        },
-                        child: Container(
-                          alignment: Alignment.center,
-                          padding: EdgeInsets.only(
-                              left: 12.0, right: 12.0, top: 6.0, bottom: 8.0),
-                          decoration: mSell
-                              ? BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6.0),
-                                  color: Theme.of(context).canvasColor,
-                                )
-                              : BoxDecoration(),
-                          child: Text(
-                            "Margin Sell",
-                            style: CustomWidget(context: context)
-                                .CustomSizedTextStyle(
-                                    14.0,
-                                    mSell
-                                        ? Theme.of(context).disabledColor
-                                        : Theme.of(context).dividerColor,
-                                    mSell ? FontWeight.w600 : FontWeight.w400,
-                                    'FontRegular'),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(
-                        width: 15.0,
-                      ),
-                      InkWell(
-                        onTap: () {
-                          setState(() {
-                            frozen = false;
-                            mSell = false;
-                            mBuy = true;
-                          });
-                        },
-                        child: Container(
-                          alignment: Alignment.center,
-                          padding: EdgeInsets.only(
-                              left: 12.0, right: 12.0, top: 6.0, bottom: 8.0),
-                          decoration: mBuy
-                              ? BoxDecoration(
-                                  borderRadius: BorderRadius.circular(6.0),
-                                  color: Theme.of(context).canvasColor,
-                                )
-                              : BoxDecoration(),
-                          child: Text(
-                            "Margin Buy",
-                            style: CustomWidget(context: context)
-                                .CustomSizedTextStyle(
-                                    12.0,
-                                    mBuy
-                                        ? Theme.of(context).disabledColor
-                                        : Theme.of(context).dividerColor,
-                                    mBuy ? FontWeight.w600 : FontWeight.w400,
-                                    'FontRegular'),
-                          ),
-                        ),
-                      )
-                    ],
+                    ),
+                  ),
+                  SizedBox(
+                    height: 10.0,
                   ),
                 ],
               ),
@@ -434,14 +514,14 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
                     .loadingIndicator(Theme.of(context).disabledColor)
                 : Container(
                     margin: EdgeInsets.only(
-                        top: MediaQuery.of(context).size.height * 0.34),
+                        top: MediaQuery.of(context).size.height * 0.30),
                     child: SingleChildScrollView(
                         child: frozen ? Container(
                       width: MediaQuery.of(context).size.width,
-                      child: walletPair.length > 0
+                      child: searchWalletPair.length > 0
                           ? ListView.builder(
                               padding: EdgeInsets.zero,
-                              itemCount: walletPair.length,
+                              itemCount: searchWalletPair.length,
                               shrinkWrap: true,
                               controller: controller,
                               itemBuilder: (BuildContext context, int index) {
@@ -460,31 +540,32 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
                                               MainAxisAlignment.spaceBetween,
                                           children: [
                                             Flexible(
+                                              flex: 4,
                                               child: Container(
                                                 child: Row(
                                                   crossAxisAlignment:
                                                       CrossAxisAlignment.center,
                                                   children: [
                                                     // SvgPicture.network(image, height: 35.0,),
-                                                    Container(
-                                                      padding:
-                                                          EdgeInsets.all(1.0),
-                                                      decoration: BoxDecoration(
-                                                        shape: BoxShape.circle,
-                                                      ),
-                                                      child: Image.network(
-                                                        // "assets/icons/btc.svg",
-                                                        walletPair[index]
-                                                            .assetId!
-                                                            .image
-                                                            .toString(),
-                                                        height: 40.0,
-                                                        // color: Theme.of(context).disabledColor,
-                                                      ),
-                                                    ),
-                                                    const SizedBox(
-                                                      width: 10.0,
-                                                    ),
+                                                    // Container(
+                                                    //   padding:
+                                                    //       EdgeInsets.all(1.0),
+                                                    //   decoration: BoxDecoration(
+                                                    //     shape: BoxShape.circle,
+                                                    //   ),
+                                                    //   child: Image.network(
+                                                    //     // "assets/icons/btc.svg",
+                                                    //     walletPair[index]
+                                                    //         .assetId!
+                                                    //         .image
+                                                    //         .toString(),
+                                                    //     height: 40.0,
+                                                    //     // color: Theme.of(context).disabledColor,
+                                                    //   ),
+                                                    // ),
+                                                    // const SizedBox(
+                                                    //   width: 10.0,
+                                                    // ),
                                                     Column(
                                                       crossAxisAlignment:
                                                           CrossAxisAlignment
@@ -493,10 +574,7 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
                                                         Text(
                                                           // name,
                                                           // "Bitcoin",
-                                                          walletPair[index]
-                                                              .assetId!
-                                                              .coinname
-                                                              .toString(),
+                                                          searchWalletPair[index].coinname.toString(),
                                                           style: CustomWidget(
                                                                   context:
                                                                       context)
@@ -514,67 +592,158 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
                                                         const SizedBox(
                                                           height: 4.0,
                                                         ),
-                                                        Text(
-                                                          // tradePairList[index].baseAsset.toString().toUpperCase(),
-                                                          "Balance : " +
-                                                              double.parse( walletPair[index]
-                                                                  .balance
-                                                                  .toString()).toStringAsFixed(2),
-                                                          style: CustomWidget(
+                                                        Text.rich(
+                                                          TextSpan(
+                                                            children: [
+                                                              TextSpan(text: 'Balance : ',  style: CustomWidget(
                                                                   context:
-                                                                      context)
-                                                              .CustomSizedTextStyle(
+                                                                  context)
+                                                                  .CustomSizedTextStyle(
                                                                   12.0,
                                                                   Theme.of(
-                                                                          context)
-                                                                      .bottomAppBarColor,
+                                                                      context)
+                                                                      .primaryColorDark,
                                                                   FontWeight
                                                                       .w400,
-                                                                  'FontRegular'),
-                                                          textAlign:
-                                                              TextAlign.start,
+                                                                  'FontRegular'), ),
+                                                              TextSpan(
+                                                                text: double.parse( searchWalletPair[index]
+                                                                    .balance
+                                                                    .toString()).toStringAsFixed(6),
+                                                                style: CustomWidget(
+                                                                    context:
+                                                                    context)
+                                                                    .CustomSizedTextStyle(
+                                                                    12.0,
+                                                                    Theme.of(
+                                                                        context)
+                                                                        .focusColor,
+                                                                    FontWeight
+                                                                        .w400,
+                                                                    'FontRegular'),
+                                                              )
+                                                            ],
+                                                          ),
+                                                        ),
+                                                        const SizedBox(
+                                                          height: 4.0,
+                                                        ),
+                                                        Text.rich(
+                                                          TextSpan(
+                                                            children: [
+                                                              TextSpan(text: 'Funding Balance : ',  style: CustomWidget(
+                                                                  context:
+                                                                  context)
+                                                                  .CustomSizedTextStyle(
+                                                                  12.0,
+                                                                  Theme.of(
+                                                                      context)
+                                                                      .primaryColorDark,
+                                                                  FontWeight
+                                                                      .w400,
+                                                                  'FontRegular'), ),
+                                                              TextSpan(
+                                                                text: double.parse( searchWalletPair[index]
+                                                                    .entryBal
+                                                                    .toString()).toStringAsFixed(6),
+                                                                style: CustomWidget(
+                                                                    context:
+                                                                    context)
+                                                                    .CustomSizedTextStyle(
+                                                                    12.0,
+                                                                    Theme.of(
+                                                                        context)
+                                                                        .focusColor,
+                                                                    FontWeight
+                                                                        .w400,
+                                                                    'FontRegular'),
+                                                              )
+                                                            ],
+                                                          ),
                                                         ),
                                                       ],
                                                     )
                                                   ],
                                                 ),
                                               ),
-                                              flex: 4,
                                             ),
                                             Flexible(
-                                              child: Text(
-                                                mSell
-                                                    ? double.parse(
-                                                            walletPair[index]
-                                                                .maxLoan![0]
-                                                                .maxLoan
-                                                                .toString())
-                                                        .toStringAsFixed(6)
-                                                    : mBuy
-                                                        ? double.parse(
-                                                                walletPair[
-                                                                        index]
-                                                                    .maxLoan![1]
-                                                                    .maxLoan
-                                                                    .toString())
-                                                            .toStringAsFixed(6)
-                                                        : double.parse(walletPair[
-                                                                    index]
-                                                                .escrowBalance
-                                                                .toString())
-                                                            .toStringAsFixed(6),
-                                                // "0.006862",
-                                                style: CustomWidget(
-                                                        context: context)
-                                                    .CustomSizedTextStyle(
-                                                        14.0,
-                                                        Theme.of(context)
-                                                            .focusColor,
-                                                        FontWeight.w400,
-                                                        'FontRegular'),
-                                                textAlign: TextAlign.center,
-                                              ),
                                               flex: 2,
+                                              child:
+                                              Column(
+                                                crossAxisAlignment: CrossAxisAlignment.end,
+                                                children: [
+                                                  Text.rich(
+                                                    TextSpan(
+                                                      children: [
+                                                        TextSpan(text: 'Margin Balance : ',  style: CustomWidget(
+                                                            context:
+                                                            context)
+                                                            .CustomSizedTextStyle(
+                                                            12.0,
+                                                            Theme.of(
+                                                                context)
+                                                                .primaryColorDark,
+                                                            FontWeight
+                                                                .w400,
+                                                            'FontRegular'), ),
+                                                        TextSpan(
+                                                          text: double.parse( searchWalletPair[index]
+                                                              .marginLoan
+                                                              .toString()).toStringAsFixed(6),
+                                                          style: CustomWidget(
+                                                              context:
+                                                              context)
+                                                              .CustomSizedTextStyle(
+                                                              12.0,
+                                                              Theme.of(
+                                                                  context)
+                                                                  .focusColor,
+                                                              FontWeight
+                                                                  .w400,
+                                                              'FontRegular'),
+                                                        )
+                                                      ],
+                                                    ),
+                                                  ),
+                                                  const SizedBox(
+                                                    height: 4.0,
+                                                  ),
+                                                  Text.rich(
+                                                    TextSpan(
+                                                      children: [
+                                                        TextSpan(text: 'Frozen Balance : ',  style: CustomWidget(
+                                                            context:
+                                                            context)
+                                                            .CustomSizedTextStyle(
+                                                            12.0,
+                                                            Theme.of(
+                                                                context)
+                                                                .primaryColorDark,
+                                                            FontWeight
+                                                                .w400,
+                                                            'FontRegular'), ),
+                                                        TextSpan(
+                                                          text: double.parse( searchWalletPair[index]
+                                                              .escrowBalance
+                                                              .toString()).toStringAsFixed(6),
+                                                          style: CustomWidget(
+                                                              context:
+                                                              context)
+                                                              .CustomSizedTextStyle(
+                                                              12.0,
+                                                              Theme.of(
+                                                                  context)
+                                                                  .focusColor,
+                                                              FontWeight
+                                                                  .w400,
+                                                              'FontRegular'),
+                                                        )
+                                                      ],
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
                                             ),
                                             // Flexible(
                                             //   child: Container(
@@ -663,6 +832,7 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
       if (loginData.success!) {
         setState(() {
           walletPair = loginData.result!;
+          searchWalletPair= walletPair;
           walletBalance = loginData.totalPriceInUsd!.toString();
           loading = false;
         });

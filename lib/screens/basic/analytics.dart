@@ -250,7 +250,7 @@ class _Analytics_ScreenState extends State<Analytics_Screen> {
                                                   .CustomSizedTextStyle(
                                                   12.0,
                                                   Theme.of(context)
-                                                      .bottomAppBarColor,
+                                                      .primaryColorDark,
                                                   FontWeight.w400,
                                                   'FontRegular'),
                                               textAlign: TextAlign.start,

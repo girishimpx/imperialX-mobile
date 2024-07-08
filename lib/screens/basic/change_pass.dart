@@ -111,7 +111,7 @@ class _Change_PasswordState extends State<Change_Password> {
                               suffix:  IconButton(
                                 icon: Icon(
                                   cPassVisible ? Icons.visibility : Icons.visibility_off,
-                                  color: Theme.of(context).bottomAppBarColor,
+                                  color: Theme.of(context).primaryColorDark,
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -172,7 +172,7 @@ class _Change_PasswordState extends State<Change_Password> {
                               suffix: IconButton(
                                 icon: Icon(
                                   nPassVisible ? Icons.visibility : Icons.visibility_off,
-                                  color: Theme.of(context).bottomAppBarColor,
+                                  color: Theme.of(context).primaryColorDark,
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -204,11 +204,11 @@ class _Change_PasswordState extends State<Change_Password> {
                               height: 5.0,
                             ),
                             Text(
-                              "At least 8 characters with uppercase letters and numbers",
+                              "At least 5 characters with uppercase letters and numbers",
                               style: CustomWidget(context: context)
                                   .CustomSizedTextStyle(
                                   12.0,
-                                  Theme.of(context).bottomAppBarColor,
+                                  Theme.of(context).primaryColorDark,
                                   FontWeight.w400,
                                   'FontRegular'),
                               textAlign: TextAlign.start,
@@ -245,7 +245,7 @@ class _Change_PasswordState extends State<Change_Password> {
                               suffix: IconButton(
                                 icon: Icon(
                                   conPassVisible ? Icons.visibility : Icons.visibility_off,
-                                  color: Theme.of(context).bottomAppBarColor,
+                                  color: Theme.of(context).primaryColorDark,
                                 ),
                                 onPressed: () {
                                   setState(() {
@@ -316,7 +316,7 @@ class _Change_PasswordState extends State<Change_Password> {
                                 style: CustomWidget(context: context)
                                     .CustomSizedTextStyle(
                                     16.0,
-                                    Theme.of(context).backgroundColor,
+                                    Theme.of(context).primaryColorLight,
                                     FontWeight.w500,
                                     'FontRegular'),
                               ),

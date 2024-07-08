@@ -21,12 +21,14 @@ class _Signup_ScreenState extends State<Signup_Screen> {
 
 
   bool check = false;
+  bool refCheck = false;
 
   final regformKey = GlobalKey<FormState>();
   FocusNode nameFocus = FocusNode();
   FocusNode emailFocus = FocusNode();
   FocusNode PasswordFocus = FocusNode();
   FocusNode conPassFocus = FocusNode();
+  FocusNode referralFocus = FocusNode();
   bool passVisible = false;
   bool conpassVisible = false;
   bool loading=false;
@@ -35,6 +37,7 @@ class _Signup_ScreenState extends State<Signup_Screen> {
   TextEditingController emailController = TextEditingController();
   TextEditingController PasswordController = TextEditingController();
   TextEditingController conPasswordController = TextEditingController();
+  TextEditingController referralController = TextEditingController();
   APIUtils apiUtils=APIUtils();
 
 
@@ -134,7 +137,7 @@ class _Signup_ScreenState extends State<Signup_Screen> {
                                     focusNode: nameFocus,
                                     maxlines: 1,
                                     text: '',
-                                    hintText: "Enter your Name",
+                                    hintText: "Enter your name",
                                     obscureText: false,
                                     suffix: Container(
                                       width: 0.0,
@@ -281,7 +284,7 @@ class _Signup_ScreenState extends State<Signup_Screen> {
                                     style: CustomWidget(context: context)
                                         .CustomSizedTextStyle(
                                         12.0,
-                                        CustomTheme.of(context).bottomAppBarColor,
+                                        CustomTheme.of(context).primaryColorDark,
                                         FontWeight.w400,
                                         'FontRegular'),
                                     textAlign: TextAlign.start,
@@ -361,9 +364,96 @@ class _Signup_ScreenState extends State<Signup_Screen> {
                                           shape: RoundedRectangleBorder(
                                             borderRadius: BorderRadius.circular(5.0),
                                           ),
+                                          value: refCheck,
+                                          activeColor: Theme.of(context).focusColor,
+                                          checkColor: Theme.of(context).primaryColorDark,
+                                          onChanged: (bool? value) {
+                                            setState(() {
+                                              refCheck = value!;
+                                            });
+                                          },
+                                        ),
+                                      ),
+                                      const SizedBox(
+                                        width: 5.0,
+                                      ),
+                                      Flexible(child: RichText(
+                                        text: TextSpan(
+                                          text: 'Do you have Referal Code ',
+                                          style: CustomWidget(context: context)
+                                              .CustomSizedTextStyle(
+                                              14.0,
+                                              Theme.of(context).disabledColor,
+                                              FontWeight.w400,
+                                              'FontRegular'),
+                                          // children: <TextSpan>[
+                                          //   TextSpan(text: 'Terms of Use & Privacy Policy', style: CustomWidget(context: context)
+                                          //       .CustomSizedTextStyle(
+                                          //       14.0,
+                                          //       Theme.of(context).disabledColor,
+                                          //       FontWeight.w400,
+                                          //       'FontRegular')),
+                                          // ],
+                                        ),
+                                      ),),
+                                      //Checkbox
+                                    ],
+                                  ),
+                                  const SizedBox(
+                                    height: 8.0,
+                                  ),
+                                  refCheck ? TextFormFieldCustom(
+                                    onEditComplete: () {
+                                      referralFocus.unfocus();
+                                      // FocusScope.of(context).requestFocus(emailFocus);
+                                    },
+                                    radius: 8.0,
+                                    error: "Enter Referral Code",
+                                    textColor: CustomTheme.of(context).focusColor,
+                                    borderColor: Colors.transparent,
+                                    fillColor: CustomTheme.of(context).canvasColor,
+                                    hintStyle: CustomWidget(context: context).CustomSizedTextStyle(
+                                        16.0, CustomTheme.of(context).dividerColor, FontWeight.w400, 'FontRegular'),
+                                    textStyle: CustomWidget(context: context).CustomSizedTextStyle(
+                                        16.0,
+                                        CustomTheme.of(context).focusColor, FontWeight.w500, 'FontRegular'),
+                                    textInputAction: TextInputAction.next,
+                                    focusNode: referralFocus,
+                                    maxlines: 1,
+                                    text: '',
+                                    hintText: "Enter referral code",
+                                    obscureText: false,
+                                    suffix: Container(
+                                      width: 0.0,
+                                    ),
+                                    textChanged: (value) {},
+                                    onChanged: () {},
+                                    validator: (value) {
+                                      if (value!.isEmpty) {
+                                        return "Please Enter Referral Code";
+                                      }
+                                      return null;
+                                    },
+                                    enabled: true,
+                                    textInputType: TextInputType.number,
+                                    controller: referralController,
+                                  ) : Container(),
+                                  refCheck ?  const SizedBox(
+                                    height: 20.0,
+                                  ) : SizedBox(),
+                                  Row(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      SizedBox(
+                                        height: 23.0,
+                                        width: 23.0,
+                                        child: Checkbox(
+                                          shape: RoundedRectangleBorder(
+                                            borderRadius: BorderRadius.circular(5.0),
+                                          ),
                                           value: check,
                                           activeColor: Theme.of(context).focusColor,
-                                          checkColor: Theme.of(context).bottomAppBarColor,
+                                          checkColor: Theme.of(context).primaryColorDark,
                                           onChanged: (bool? value) {
                                             setState(() {
                                               check = value!;
@@ -380,7 +470,7 @@ class _Signup_ScreenState extends State<Signup_Screen> {
                                           style: CustomWidget(context: context)
                                               .CustomSizedTextStyle(
                                               14.0,
-                                              Theme.of(context).bottomAppBarColor,
+                                              Theme.of(context).primaryColorDark,
                                               FontWeight.w400,
                                               'FontRegular'),
                                           children: <TextSpan>[
@@ -406,12 +496,13 @@ class _Signup_ScreenState extends State<Signup_Screen> {
                                       InkWell(
                                         onTap: (){
                                           setState(() {
-
-                                            if(regformKey.currentState!.validate())
+                                            if(regformKey.currentState!.validate() || refCheck)
                                             {
                                               if(check){
                                                 loading=true;
                                                 registerMail();
+                                              } else if(refCheck){
+                                                CustomWidget(context: context).showSuccessAlertDialog("Register", "Fill the referral code", "error");
                                               } else{
                                                 CustomWidget(context: context).showSuccessAlertDialog("Register", "Accept Terms of Use & Privacy Policy", "error");
                                               }
@@ -505,7 +596,7 @@ registerMail() {
       .doVerifyRegister(
       nameController.text.toString(),
       emailController.text.toString(),
-      PasswordController.text.toString(),
+      PasswordController.text.toString(), referralController.text.toString()
      )
       .then((CommonModel loginData) {
     if (loginData.status!) {

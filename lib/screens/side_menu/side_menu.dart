@@ -1,6 +1,10 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:imperial/screens/side_menu/google_tfa.dart';
+import 'package:imperial/screens/side_menu/kyc_info.dart';
+import 'package:imperial/screens/side_menu/support_menu.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:simple_gradient_text/simple_gradient_text.dart';
 
@@ -27,6 +31,8 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
   APIUtils apiUtils = APIUtils();
   bool loading = false;
   String name= "";
+  bool googleUpdate = false;
+  String secret  = "";
 
   @override
   void initState() {
@@ -235,7 +241,7 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                                   Flexible(child: Icon(
                                     Icons.arrow_forward_ios_rounded,
                                     size: 18.0,
-                                    color: Theme.of(context).bottomAppBarColor,
+                                    color: Theme.of(context).primaryColorDark,
                                   ),)
                                 ],
                               ),
@@ -244,7 +250,7 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                           Container(
                             height: 1.5,
                             width: MediaQuery.of(context).size.width,
-                            color: Theme.of(context).bottomAppBarColor.withOpacity(0.5),
+                            color: Theme.of(context).primaryColorDark.withOpacity(0.5),
                           ),
                           InkWell(
                             onTap: (){
@@ -279,7 +285,7 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                                   Flexible(child: Icon(
                                     Icons.arrow_forward_ios_rounded,
                                     size: 18.0,
-                                    color: Theme.of(context).bottomAppBarColor,
+                                    color: Theme.of(context).primaryColorDark,
                                   ),)
                                 ],
                               ),
@@ -288,7 +294,7 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                           Container(
                             height: 1.5,
                             width: MediaQuery.of(context).size.width,
-                            color: Theme.of(context).bottomAppBarColor.withOpacity(0.5),
+                            color: Theme.of(context).primaryColorDark.withOpacity(0.5),
                           ),
                           InkWell(
                             onTap: (){
@@ -323,7 +329,59 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                                   Flexible(child: Icon(
                                     Icons.arrow_forward_ios_rounded,
                                     size: 18.0,
-                                    color: Theme.of(context).bottomAppBarColor,
+                                    color: Theme.of(context).primaryColorDark,
+                                  ),)
+                                ],
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 15.0,),
+                    Container(
+                      padding: EdgeInsets.only(top: 15.0, bottom: 15.0, right: 15.0, left: 15.0),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10.0),
+                        color: Theme.of(context).canvasColor,
+                      ),
+                      child: Column(
+                        children: [
+                          InkWell(
+                            onTap: (){
+                              Navigator.of(context).push(
+                                  MaterialPageRoute(builder: (context) => KYCPage()));
+                            },
+                            child: Container(
+                              padding: EdgeInsets.only(top: 5.0, bottom: 15.0),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Flexible(child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        height: 20.0,
+                                        width: 20.0,
+                                        child: SvgPicture.asset("assets/images/feed.svg", height: 18.0, color: Theme.of(context).disabledColor,),
+                                        // child: Icon(Icons.file_present_outlined, size: 22.0,color: Theme.of(context).disabledColor),
+                                      ),
+                                      const SizedBox(width: 10.0,),
+                                      Text(
+                                        "KYC",
+                                        style: CustomWidget(context: context).CustomSizedTextStyle(
+                                            14.0,
+                                            Theme.of(context).focusColor,
+                                            FontWeight.w400,
+                                            'FontRegular'),
+                                        textAlign: TextAlign.start,
+                                      ),
+                                    ],), ),
+                                  Flexible(child: Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 18.0,
+                                    color: Theme.of(context).primaryColorDark,
                                   ),)
                                 ],
                               ),
@@ -332,46 +390,53 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                           Container(
                             height: 1.5,
                             width: MediaQuery.of(context).size.width,
-                            color: Theme.of(context).bottomAppBarColor.withOpacity(0.5),
+                            color: Theme.of(context).primaryColorDark.withOpacity(0.5),
                           ),
-                          // Container(
-                          //   padding: EdgeInsets.only(top: 15.0, bottom: 15.0),
-                          //   child: Row(
-                          //     crossAxisAlignment: CrossAxisAlignment.center,
-                          //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          //     children: [
-                          //       Flexible(child: Row(
-                          //         crossAxisAlignment: CrossAxisAlignment.center,
-                          //         children: [
-                          //           SizedBox(
-                          //             height: 20.0,
-                          //             width: 20.0,
-                          //             child: SvgPicture.asset("assets/sidemenu/convert.svg", height: 18.0, color: Theme.of(context).disabledColor,),
-                          //           ),
-                          //           const SizedBox(width: 10.0,),
-                          //           Text(
-                          //             "Converter",
-                          //             style: CustomWidget(context: context).CustomSizedTextStyle(
-                          //                 14.0,
-                          //                 Theme.of(context).focusColor,
-                          //                 FontWeight.w400,
-                          //                 'FontRegular'),
-                          //             textAlign: TextAlign.start,
-                          //           ),
-                          //         ],), ),
-                          //       Flexible(child: Icon(
-                          //         Icons.arrow_forward_ios_rounded,
-                          //         size: 18.0,
-                          //         color: Theme.of(context).bottomAppBarColor,
-                          //       ),)
-                          //     ],
-                          //   ),
-                          // ),
-                          // Container(
-                          //   height: 1.5,
-                          //   width: MediaQuery.of(context).size.width,
-                          //   color: Theme.of(context).bottomAppBarColor.withOpacity(0.5),
-                          // ),
+                          InkWell(
+                            onTap: (){
+                              Navigator.of(context).push(
+                                MaterialPageRoute(builder: (_) => GoogleTFAScreen()),
+                              );
+                            },
+                            child: Container(
+                              padding: EdgeInsets.only(top: 15.0, bottom: 15.0),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  Container(child: Row(
+                                    crossAxisAlignment: CrossAxisAlignment.center,
+                                    children: [
+                                      SizedBox(
+                                        height: 20.0,
+                                        width: 20.0,
+                                        child: SvgPicture.asset("assets/sidemenu/security.svg", height: 18.0, color: Theme.of(context).disabledColor,),
+                                      ),
+                                      const SizedBox(width: 10.0,),
+                                      Text(
+                                        "Google Authenticator",
+                                        style: CustomWidget(context: context).CustomSizedTextStyle(
+                                            14.0,
+                                            Theme.of(context).focusColor,
+                                            FontWeight.w400,
+                                            'FontRegular'),
+                                        textAlign: TextAlign.start,
+                                      ),
+                                    ],), ),
+                                  Icon(
+                                    Icons.arrow_forward_ios_rounded,
+                                    size: 18.0,
+                                    color: Theme.of(context).primaryColorDark,
+                                  )
+                                ],
+                              ),
+                            ),
+                          ),
+                          Container(
+                            height: 1.5,
+                            width: MediaQuery.of(context).size.width,
+                            color: Theme.of(context).primaryColorDark.withOpacity(0.5),
+                          ),
                           Container(
                             padding: EdgeInsets.only(top: 15.0, bottom: 15.0),
                             child: Row(
@@ -402,10 +467,10 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                                   mainAxisAlignment: MainAxisAlignment.end,
                                   children: [
                                     Text(
-                                      "USD & BTC",
+                                      "USDT & BTC",
                                       style: CustomWidget(context: context).CustomSizedTextStyle(
-                                          12.0,
-                                          Theme.of(context).bottomAppBarColor,
+                                          10.0,
+                                          Theme.of(context).primaryColorDark,
                                           FontWeight.w400,
                                           'FontRegular'),
                                       textAlign: TextAlign.start,
@@ -414,17 +479,17 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                                     Icon(
                                       Icons.arrow_forward_ios_rounded,
                                       size: 18.0,
-                                      color: Theme.of(context).bottomAppBarColor,
+                                      color: Theme.of(context).primaryColorDark,
                                     )
                                   ],
                                 ),flex: 2,)
                               ],
                             ),
                           ),
+
                         ],
                       ),
-                    )
-
+                    ),
                   ],
                 ),
               ),
@@ -480,53 +545,63 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                                 Flexible(child: Icon(
                                   Icons.arrow_forward_ios_rounded,
                                   size: 18.0,
-                                  color: Theme.of(context).bottomAppBarColor,
+                                  color: Theme.of(context).primaryColorDark,
                                 ),)
                               ],
                             ),
                           ),
-                          // Container(
-                          //   height: 1.5,
-                          //   width: MediaQuery.of(context).size.width,
-                          //   color: Theme.of(context).bottomAppBarColor.withOpacity(0.5),
-                          // ),
-                          // Container(
-                          //   padding: EdgeInsets.only(top: 15.0, bottom: 10.0),
-                          //   child: Row(
-                          //     crossAxisAlignment: CrossAxisAlignment.center,
-                          //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          //     children: [
-                          //       Flexible(child: Row(
-                          //         crossAxisAlignment: CrossAxisAlignment.center,
-                          //         children: [
-                          //           SizedBox(
-                          //             height: 20.0,
-                          //             width: 20.0,
-                          //             child: SvgPicture.asset("assets/sidemenu/notify.svg", height: 18.0, color: Theme.of(context).disabledColor,),
-                          //           ),
-                          //           const SizedBox(width: 10.0,),
-                          //           Text(
-                          //             "Help",
-                          //             style: CustomWidget(context: context).CustomSizedTextStyle(
-                          //                 14.0,
-                          //                 Theme.of(context).focusColor,
-                          //                 FontWeight.w400,
-                          //                 'FontRegular'),
-                          //             textAlign: TextAlign.start,
-                          //           ),
-                          //         ],), ),
-                          //       Flexible(child: Icon(
-                          //         Icons.arrow_forward_ios_rounded,
-                          //         size: 18.0,
-                          //         color: Theme.of(context).bottomAppBarColor,
-                          //       ),)
-                          //     ],
-                          //   ),
-                          // ),
                           Container(
                             height: 1.5,
                             width: MediaQuery.of(context).size.width,
-                            color: Theme.of(context).bottomAppBarColor.withOpacity(0.5),
+                            color: Theme.of(context).primaryColorDark.withOpacity(0.5),
+                          ),
+                         InkWell(
+                           onTap: (){
+                             Navigator.of(context).push(
+                               MaterialPageRoute(
+                                 builder: (context) => Support_Menu_Screen(),
+                               ),
+                             );
+                           },
+                           child:  Container(
+                             padding: EdgeInsets.only(top: 15.0, bottom: 10.0),
+                             child: Row(
+                               crossAxisAlignment: CrossAxisAlignment.center,
+                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                               children: [
+                                 Flexible(child: Row(
+                                   crossAxisAlignment: CrossAxisAlignment.center,
+                                   children: [
+                                     SizedBox(
+                                       height: 20.0,
+                                       width: 20.0,
+                                       // child: SvgPicture.asset("assets/sidemenu/notify.svg", height: 18.0, color: Theme.of(context).disabledColor,),
+                                       child: Icon(Icons.support_agent_outlined, size: 22.0,color: Theme.of(context).disabledColor),
+                                     ),
+                                     const SizedBox(width: 10.0,),
+                                     Text(
+                                       "Support",
+                                       style: CustomWidget(context: context).CustomSizedTextStyle(
+                                           14.0,
+                                           Theme.of(context).focusColor,
+                                           FontWeight.w400,
+                                           'FontRegular'),
+                                       textAlign: TextAlign.start,
+                                     ),
+                                   ],), ),
+                                 Flexible(child: Icon(
+                                   Icons.arrow_forward_ios_rounded,
+                                   size: 18.0,
+                                   color: Theme.of(context).primaryColorDark,
+                                 ),)
+                               ],
+                             ),
+                           ),
+                         ),
+                          Container(
+                            height: 1.5,
+                            width: MediaQuery.of(context).size.width,
+                            color: Theme.of(context).primaryColorDark.withOpacity(0.5),
                           ),
                           InkWell(
                             onTap: (){
@@ -561,7 +636,7 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                                   Flexible(child: Icon(
                                     Icons.arrow_forward_ios_rounded,
                                     size: 18.0,
-                                    color: Theme.of(context).bottomAppBarColor,
+                                    color: Theme.of(context).primaryColorDark,
                                   ),)
                                 ],
                               ),
@@ -735,6 +810,7 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
         setState(() {
           loading = false;
           name = loginData.result!.name.toString();
+          googleUpdate=loginData.result!.f2AStatus.toString()=="1"?true:false;
         });
       } else {
         setState(() {

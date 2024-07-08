@@ -6,11 +6,13 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:imperial/common/localization/localizations.dart';
 import 'package:imperial/common/theme/custom_theme.dart';
+import 'package:imperial/data/crypt_model/adress_coin_list_model.dart';
+import 'package:imperial/data/crypt_model/common_model.dart';
 import 'package:permission_handler/permission_handler.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../common/custom_widget.dart';
 import '../../data/api_utils.dart';
 import '../../data/crypt_model/all_wallet_pairs.dart';
-import '../../data/crypt_model/wallet_address_model.dart';
 
 class Deposit_Screen extends StatefulWidget {
   final List<GetWalletAll> coinList;
@@ -35,7 +37,7 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
   bool? selectImg = false;
   File? imageFile;
   final ImagePicker picker = ImagePicker();
-  List<WalletAddressResult> networkAddress = [];
+  List<AddressMugavari> networkAddress = [];
   GetWalletAll? selectedCoin;
   APIUtils apiUtils = APIUtils();
   TextEditingController searchController = TextEditingController();
@@ -50,6 +52,7 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
     super.initState();
     loading = true;
     coinPair=widget.coinList;
+    walletPair=widget.coinList;
     // selectPair= walletPair.first;
     selectPair= coinPair.first;
     getAddressDetails();
@@ -123,8 +126,7 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
                                 MainAxisAlignment.spaceBetween,
                                 children: [
                                   Text(
-                                    // widget.coinList[0].assetId!.symbol.toString(),
-                                    selectPair!.assetId!.symbol.toString(),
+                                    selectPair!.coinname!.toString(),
                                     // "BTC",
                                     style: CustomWidget(context: context)
                                         .CustomSizedTextStyle(
@@ -180,19 +182,34 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
       children: [
         Center(
           child: Container(
-            padding: EdgeInsets.all(1),
+            padding: EdgeInsets.all(3),
             decoration: BoxDecoration(
                 boxShadow: kElevationToShadow[2],
                 borderRadius: BorderRadius.circular(5),
                 color: Colors.white),
-            child: Image.network(
-              "https://chart.googleapis.com/chart?chs=250x250&cht=qr&chl=" +
+            child:QrImageView(
+              data:  "https://chart.googleapis.com/chart?chs=250x250&cht=qr&chl=" +
                   address.toString(),
-              height: 155.0,
-              width: 150.0,
+              version: QrVersions.auto,
+              size: 155.0,
             ),
           ),
         ),
+        // Center(
+        //   child: Container(
+        //     padding: EdgeInsets.all(1),
+        //     decoration: BoxDecoration(
+        //         boxShadow: kElevationToShadow[2],
+        //         borderRadius: BorderRadius.circular(5),
+        //         color: Colors.white),
+        //     child: Image.network(
+        //       "https://chart.googleapis.com/chart?chs=250x250&cht=qr&chl=" +
+        //           address.toString(),
+        //       height: 155.0,
+        //       width: 150.0,
+        //     ),
+        //   ),
+        // ),
         const SizedBox(
           height: 20.0,
         ),
@@ -251,7 +268,7 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
                     onTap: () {
                       setState(() {
                         indexVal = index;
-                        address = networkAddress[index].addr.toString();
+                        address = networkAddress[index].address.toString();
                       });
                     },
                     child: Container(
@@ -355,9 +372,148 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
         const SizedBox(
           height: 30.0,
         ),
+        address == "" ? InkWell(
+          onTap: (){
+            setState(() {
+              loading = true;
+              getAddress();
+            });
+          },
+          child: Container(
+            padding: EdgeInsets.only(top: 5.0, bottom: 5.0),
+            width: MediaQuery.of(context).size.width * 0.5,
+            decoration: BoxDecoration(
+              boxShadow: kElevationToShadow[2],
+              color: CustomTheme.of(context).disabledColor,
+              borderRadius: BorderRadius.all(
+                Radius.circular(3.0),
+              ),
+            ),
+            child: Text("Address not generated",
+              style: CustomWidget(context: context).CustomSizedTextStyle(
+                  14.0,
+                  Theme.of(context).focusColor,
+                  FontWeight.w500,
+                  'FontRegular'),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ) : Container(),
         const SizedBox(
           height: 15.0,
         ),
+       Column(
+         crossAxisAlignment: CrossAxisAlignment.start,
+         children: [
+           Text(
+             "Notice: ",
+             style: CustomWidget(
+                 context: context)
+                 .CustomSizedTextStyle(
+                 12.0,
+                 Theme.of(context).hoverColor,
+                 FontWeight.w500,
+                 'FontRegular'),
+           ),
+           const SizedBox(
+             height: 5.0,
+           ),
+           Text(
+             "* Deposits will be automatically redirected to the Funding Account. Your deposit history can be viewed under the Funding Account.",
+             style: CustomWidget(
+                 context: context)
+                 .CustomSizedTextStyle(
+                 10.0,
+                 Theme
+                     .of(context)
+                     .focusColor,
+                 FontWeight.w500,
+                 'FontRegular'),
+             textAlign: TextAlign.start,
+           ),
+           const SizedBox(
+             height: 5.0,
+           ),
+           Text(
+             "* Please confirm that you are depositing BTC to this address on the BTC network. Mismatched address information may result in the permanent loss of your assets.",
+             style: CustomWidget(
+                 context: context)
+                 .CustomSizedTextStyle(
+                 10.0,
+                 Theme
+                     .of(context)
+                     .focusColor,
+                 FontWeight.w500,
+                 'FontRegular'),
+             textAlign: TextAlign.start,
+           ),
+           const SizedBox(
+             height: 5.0,
+           ),
+           Text(
+             "* In upholding the integrity and safety of our platform's trading environment, ImperialX is dedicated to combating financial crime and ensuring adherence to anti-money laundering measures.",
+             style: CustomWidget(
+                 context: context)
+                 .CustomSizedTextStyle(
+                 10.0,
+                 Theme
+                     .of(context)
+                     .focusColor,
+                 FontWeight.w500,
+                 'FontRegular'),
+             textAlign: TextAlign.start,
+           ),
+           const SizedBox(
+             height: 5.0,
+           ),
+           Text(
+             "* Please make sure that only BTC deposit is made via this address. Otherwise, your deposited funds will not be added to your available balance — nor will it be refunded.",
+             style: CustomWidget(
+                 context: context)
+                 .CustomSizedTextStyle(
+                 10.0,
+                 Theme
+                     .of(context)
+                     .focusColor,
+                 FontWeight.w500,
+                 'FontRegular'),
+             textAlign: TextAlign.start,
+           ),
+           const SizedBox(
+             height: 5.0,
+           ),
+           Text(
+             "Please make sure that your ImperialX deposit address is correct. Otherwise, your deposited funds will not be added to your available balance — nor will it be refunded.",
+             style: CustomWidget(
+                 context: context)
+                 .CustomSizedTextStyle(
+                 10.0,
+                 Theme
+                     .of(context)
+                     .focusColor,
+                 FontWeight.w500,
+                 'FontRegular'),
+             textAlign: TextAlign.start,
+           ),
+           const SizedBox(
+             height: 5.0,
+           ),
+           Text(
+             "* BEP2 and BEP20 (BSC) deposits not supported.",
+             style: CustomWidget(
+                 context: context)
+                 .CustomSizedTextStyle(
+                 10.0,
+                 Theme.of(context).focusColor,
+                 FontWeight.w500,
+                 'FontRegular'),
+             textAlign: TextAlign.start,
+           ),
+           const SizedBox(
+             height: 5.0,
+           ),
+         ],
+       )
       ],
     );
   }
@@ -946,7 +1102,7 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
                                 setStates(() {
                                   coinPair = [];
                                   for (int m = 0; m < walletPair.length; m++) {
-                                    if (walletPair[m].assetId!.symbol.toString().toLowerCase().contains(value.toString().toLowerCase()))
+                                    if (walletPair[m].symbol!.toString().toLowerCase().contains(value.toString().toLowerCase())|| walletPair[m].coinname!.toString().toLowerCase().contains(value.toString().toLowerCase()))
                                     {
                                       coinPair.add(walletPair[m]);
                                     }
@@ -959,12 +1115,12 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
                                 hintText: "Search",
                                 hintStyle: TextStyle(
                                     fontFamily: "FontRegular",
-                                    color: Theme.of(context).focusColor,
+                                    color: Theme.of(context).focusColor.withOpacity(0.5),
                                     fontSize: 14.0,
                                     fontWeight: FontWeight.w400),
                                 filled: true,
                                 fillColor: CustomTheme.of(context)
-                                    .backgroundColor
+                                    .primaryColorLight
                                     .withOpacity(0.5),
                                 border: OutlineInputBorder(
                                   borderRadius:
@@ -1064,22 +1220,22 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
                                         const SizedBox(
                                           width: 20.0,
                                         ),
-                                        Container(
-                                          height: 25.0,
-                                          width: 25.0,
-                                          child: Image.network(
-                                            coinPair[index].assetId!.image.toString(),
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                        const SizedBox(
-                                          width: 10.0,
-                                        ),
+                                        // Container(
+                                        //   height: 25.0,
+                                        //   width: 25.0,
+                                        //   child: Image.network(
+                                        //     coinPair[index].assetId!.image.toString(),
+                                        //     fit: BoxFit.cover,
+                                        //   ),
+                                        // ),
+                                        // const SizedBox(
+                                        //   width: 10.0,
+                                        // ),
                                         Text(
-                                          coinPair[index].assetId!.symbol.toString(),
+                                          coinPair[index].coinname!.toString(),
                                           style: CustomWidget(context: context)
                                               .CustomSizedTextStyle(
-                                              16.0,
+                                              14.0,
                                               Theme.of(context).focusColor,
                                               FontWeight.w500,
                                               'FontRegular'),
@@ -1094,7 +1250,7 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
                                     height: 1.0,
                                     width: MediaQuery.of(context).size.width,
                                     color:
-                                    CustomTheme.of(context).backgroundColor,
+                                    CustomTheme.of(context).primaryColorLight,
                                   ),
                                   const SizedBox(
                                     height: 5.0,
@@ -1109,7 +1265,8 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
           );
         });
   }
-  //
+
+
   // getCoinList() {
   //   apiUtils.getTradePairList().then((TradePairListModel loginData) {
   //     if (loginData.success!) {
@@ -1130,23 +1287,41 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
 
   getAddressDetails() {
     print(selectPair!.symbol.toString());
-    apiUtils.walletAddressInfo(selectPair!.symbol.toString())
-        .then((WalletAddressModel loginData) {
+    apiUtils.walletAddressInfo(selectPair!.symbol.toString(),selectPair!.coinname.toString()).then((CommonModel loginData) {
+      setState(() {
+        // loading = false;
+
+        if (loginData.status!) {
+          setState(() {
+            getAddress();
+          });
+        } else {
+          address = "";
+          getAddress();
+        }
+      });
+    }).catchError((Object error) {
+      print(error);
+      print("Mano ");
+    });
+  }
+
+  getAddress() {
+    print(selectPair!.symbol.toString());
+    apiUtils.walletAddressDetails(selectPair!.coinname.toString()).then((GetAddressListCoinModel loginData) {
       setState(() {
         loading = false;
         if (loginData.success!) {
-          address = loginData.result![0].addr.toString();
-          networkAddress = loginData.result!;
-          // if (loginData.result![0].addr!.length > 0) {
-          //   networkAddress = loginData.result!;
-          //   address = loginData.result![0].addr.toString();
-          // }
+          address = loginData.result![0].mugavari![0].address.toString();
+          networkAddress=[];
+          networkAddress = loginData.result![0].mugavari!;
         } else {
           address = "";
         }
       });
     }).catchError((Object error) {
       print(error);
+      print("Mano 1");
     });
   }
 
@@ -1293,8 +1468,8 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
                                     begin: Alignment.centerLeft,
                                     end: Alignment.centerRight,
                                     colors: <Color>[
-                                      CustomTheme.of(context).backgroundColor,
-                                      CustomTheme.of(context).bottomAppBarColor,
+                                      CustomTheme.of(context).primaryColorLight,
+                                      CustomTheme.of(context).primaryColorDark,
                                     ],
                                     tileMode: TileMode.mirror,
                                   ),
@@ -1330,8 +1505,8 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
                                       begin: Alignment.centerLeft,
                                       end: Alignment.centerRight,
                                       colors: <Color>[
-                                        CustomTheme.of(context).backgroundColor,
-                                        CustomTheme.of(context).bottomAppBarColor,
+                                        CustomTheme.of(context).primaryColorLight,
+                                        CustomTheme.of(context).primaryColorDark,
                                       ],
                                       tileMode: TileMode.mirror,
                                     ),

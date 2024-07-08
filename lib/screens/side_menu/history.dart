@@ -137,17 +137,21 @@ class _History_ScreenState extends State<History_Screen> {
                                               'FontRegular'),
                                           textAlign: TextAlign.center,
                                         ),
-                                        Text(
-                                          historyList[index].orderId.toString(),
-                                          style: CustomWidget(
-                                              context: context)
-                                              .CustomSizedTextStyle(
-                                              14.0,
-                                              Theme.of(context)
-                                                  .focusColor,
-                                              FontWeight.w600,
-                                              'FontRegular'),
-                                          textAlign: TextAlign.center,
+                                        Container(
+                                          child: Text(
+                                            historyList[index].orderId.toString(),
+                                            style: CustomWidget(
+                                                context: context)
+                                                .CustomSizedTextStyle(
+                                                14.0,
+                                                Theme.of(context)
+                                                    .focusColor,
+                                                FontWeight.w600,
+                                                'FontRegular'),
+                                            textAlign: TextAlign.start,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          width: MediaQuery.of(context).size.width *0.4,
                                         ),
                                       ],
                                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -168,9 +172,7 @@ class _History_ScreenState extends State<History_Screen> {
                                           textAlign: TextAlign.center,
                                         ),
                                         Text(
-                                          historyList[index]
-                                              .createdAt
-                                              .toString(),
+                                          historyList[index].createdAt.toString().substring(0,16),
                                           style: CustomWidget(
                                               context: context)
                                               .CustomSizedTextStyle(
@@ -179,7 +181,8 @@ class _History_ScreenState extends State<History_Screen> {
                                                   .focusColor,
                                               FontWeight.w500,
                                               'FontRegular'),
-                                          textAlign: TextAlign.center,
+                                          textAlign: TextAlign.start,
+                                          overflow: TextOverflow.ellipsis,
                                         ),
                                       ],
                                       crossAxisAlignment: CrossAxisAlignment.end,

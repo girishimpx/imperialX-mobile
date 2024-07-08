@@ -31,11 +31,12 @@ class _MarketTrade_DetailsState extends State<MarketTrade_Details> {
   bool loading = false;
   bool info = false;
   bool earn = false;
-  IOWebSocketChannel? channelOpenOrder;
+  IOWebSocketChannel? channelOpenOrder,channelFutureOpenOrder;
 
   APIUtils apiUtils = APIUtils();
   ScrollController _controller = ScrollController();
   List arrData = [];
+  List arrFutureData = [];
   List<CoinList> tradePairListAll = [];
   InAppWebViewController? webViewController;
   String coinName="";
@@ -74,15 +75,12 @@ class _MarketTrade_DetailsState extends State<MarketTrade_Details> {
     "op": "subscribe",
     "args": arrData,
   };
-    channelOpenOrder = IOWebSocketChannel.connect(
-        Uri.parse("wss://ws.okx.com:8443/ws/v5/public?brokerId=197"),
-        pingInterval: Duration(seconds: 30));
-    channelOpenOrder!.sink.add(json.encode(messageJSON));
+    channelOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/spot"),);
+    channelFutureOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/linear"),);
 
     socketData();
-    webViewController?.loadUrl(urlRequest: URLRequest(
-      url: Uri.parse("https://app.imperialx.exchange/chart/"+widget.coinName),
-    ));
+    socketFutureData();
+    webViewController?.loadUrl(urlRequest: URLRequest(url: Uri.parse("https://app.imperialx.exchange/chart/"+widget.coinName),));
 
   }
 
@@ -118,12 +116,61 @@ class _MarketTrade_DetailsState extends State<MarketTrade_Details> {
         print(messageJSON);
 
         channelOpenOrder = IOWebSocketChannel.connect(
-            Uri.parse("wss://ws.okx.com:8443/ws/v5/public?brokerId=197"),
+            Uri.parse("wss://stream.bybit.com/v5/public/spot"),
             pingInterval: Duration(seconds: 30));
 
         channelOpenOrder!.sink.add(json.encode(messageJSON));
         channelOpenOrder!.sink.add(json.encode(messageJSON));
         socketData();
+      },
+      onError: (error) => print("Err" + error),
+    );
+  }
+
+  socketFutureData() {
+    channelFutureOpenOrder!.stream.listen(
+          (data) {
+        if (data != null || data != "null") {
+          var decode = jsonDecode(data);
+          // print(decode);
+          if (mounted) {
+            setState(() {
+              coinPrice = decode["data"]['lastPrice'].toString();
+              coinhigh24h = decode["data"]['highPrice24h'].toString();
+              coinlow24l = decode["data"]['lowPrice24h'].toString();
+              coinAskP = decode["data"]['turnover24h'].toString();
+              coinBitP = decode["data"]['volume24h'].toString();
+              double val = double.parse(coinPrice) - double.parse(coinhigh24h);
+              double lastChangge = (val / double.parse(coinhigh24h)) * 100;
+              // for (int m = 0; m < marketFutureList.length; m++) {
+              //   if (marketFutureList[m].name.toString().toLowerCase() ==
+              //       decode["data"]['symbol'].toString().toLowerCase()) {
+              //     marketFutureList[m].last = last;
+              //     marketFutureList[m].change = lastChangge;
+              //     marketFutureList[m].high = high24h;
+              //     marketFutureList[m].low = low24h;
+              //     marketFutureList[m].askP = askPrice;
+              //     marketFutureList[m].bitP = bitPrice;
+              //   }
+              // }
+            });
+          }
+
+          // print("Mano");
+        }
+      },
+      onDone: () async {
+        await Future.delayed(Duration(seconds: 10));
+        var futuremessageJSON = {
+          "op": "subscribe",
+          "args": arrFutureData,
+        };
+
+
+        channelFutureOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/linear"),);
+
+        channelFutureOpenOrder!.sink.add(json.encode(futuremessageJSON));
+        socketFutureData();
       },
       onError: (error) => print("Err" + error),
     );

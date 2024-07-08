@@ -5,6 +5,7 @@ import 'package:imperial/common/localization/localizations.dart';
 import 'package:imperial/common/textformfield_custom.dart';
 import 'package:imperial/data/crypt_model/common_model.dart';
 import 'package:imperial/data/crypt_model/my_subscription_model.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../common/custom_widget.dart';
 import '../common/theme/custom_theme.dart';
@@ -39,6 +40,7 @@ class _Copy_TradeState extends State<Copy_Trade> {
   FocusNode searchFocus = FocusNode();
   String userID="";
   String masterId="";
+  String traderType="";
   FocusNode amountFocus = new FocusNode();
   TextEditingController amountController = TextEditingController();
 
@@ -51,6 +53,15 @@ class _Copy_TradeState extends State<Copy_Trade> {
     getMastersList();
     getWallList();
   }
+
+  getDetails() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    setState(() {
+      traderType = preferences.getString("trader_type").toString();
+      print(traderType);
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return MediaQuery(
@@ -106,7 +117,7 @@ class _Copy_TradeState extends State<Copy_Trade> {
                   ),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       InkWell(
                         onTap: (){
@@ -159,6 +170,38 @@ class _Copy_TradeState extends State<Copy_Trade> {
                       //     ),
                       //   ),
                       // ),
+                      traderType=="user"?
+                      InkWell(
+                        onTap:(){
+                          setState(() {
+                            loading = true;
+                            getRequestMaster();
+                          });
+                        },
+                        child: Container(
+
+                          padding: EdgeInsets.only(top: 8.0, bottom: 8.0, right: 10.0, left: 10.0),
+                          decoration: BoxDecoration(
+                              color: Theme.of(context).focusColor,
+                              borderRadius: BorderRadius.circular(8.0)
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Text(
+                                "Join as Trader",
+                                style: CustomWidget(context: context)
+                                    .CustomSizedTextStyle(
+                                    10.0,
+                                    Theme.of(context).disabledColor,
+                                    FontWeight.w600,
+                                    'FontRegular'),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ) : Container()
                     ],
                   ),
                   const SizedBox(
@@ -333,7 +376,7 @@ class _Copy_TradeState extends State<Copy_Trade> {
                                                     .CustomSizedTextStyle(
                                                     16.0,
                                                     Theme.of(context)
-                                                        .bottomAppBarColor,
+                                                        .primaryColorDark,
                                                     FontWeight.w900,
                                                     'FontRegular'),
                                                 textAlign: TextAlign.start,
@@ -1111,7 +1154,7 @@ class _Copy_TradeState extends State<Copy_Trade> {
           getMastersList();
           // loading = false;
           CustomWidget(context: context).showSuccessAlertDialog(
-              "Login", loginData.message.toString(), "success");
+              "Copy Trade", loginData.message.toString(), "success");
         });
       } else {
         setState(() {
@@ -1120,6 +1163,25 @@ class _Copy_TradeState extends State<Copy_Trade> {
       }
     }).catchError((Object error) {
       print("Jeeva");
+      print(error);
+    });
+  }
+
+  getRequestMaster() {
+    apiUtils.createUserToMaster().then((CommonModel loginData) {
+      if (loginData.status!) {
+        setState(() {
+          loading = false;
+          CustomWidget(context: context).showSuccessAlertDialog(
+              "Copy Trade", loginData.message.toString(), "success");
+          getMastersList();
+        });
+      } else {
+        setState(() {
+          loading = false;
+        });
+      }
+    }).catchError((Object error) {
       print(error);
     });
   }

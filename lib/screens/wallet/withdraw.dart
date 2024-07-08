@@ -63,6 +63,7 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
     super.initState();
     loading = true;
     coinPair=widget.coinList;
+    walletPair=widget.coinList;
     selectPair= coinPair.first;
     getWallList();
   }
@@ -122,19 +123,19 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                         crossAxisAlignment: CrossAxisAlignment.center,
                         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                         children: [
-                          Container(
-                            height: 40.0,
-                            width: 40.0,
-                            child: Image.network(
-                              selectPair!.assetId!.image.toString(),
-                              fit: BoxFit.cover,
-                            ),
-                          ),
-                          const SizedBox(
-                            height: 2.0,
-                          ),
+                          // Container(
+                          //   height: 40.0,
+                          //   width: 40.0,
+                          //   child: Image.network(
+                          //     selectPair!.assetId!.image.toString(),
+                          //     fit: BoxFit.cover,
+                          //   ),
+                          // ),
+                          // const SizedBox(
+                          //   height: 2.0,
+                          // ),
                           Text(
-                            selectPair!.assetId!.symbol.toString(),
+                            selectPair!.coinname!.toString(),
                             style: CustomWidget(context: context)
                                 .CustomSizedTextStyle(
                                 14.0,
@@ -198,7 +199,7 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                                         MainAxisAlignment.spaceBetween,
                                         children: [
                                           Text(
-                                            selectPair!.symbol.toString().toUpperCase(),
+                                            selectPair!.coinname.toString().toUpperCase(),
                                             // "Btc",
                                             style:
                                             CustomWidget(context: context)
@@ -381,7 +382,7 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                                                 color: indexVal == index
                                                     ? CustomTheme.of(
                                                     context)
-                                                    .backgroundColor
+                                                    .primaryColorLight
                                                     : CustomTheme.of(
                                                     context)
                                                     .disabledColor
@@ -583,10 +584,7 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                                           padding:
                                           EdgeInsets.fromLTRB(0, 0, 5, 0),
                                           child: Text(
-                                            // selectedCoin!.symbol
-                                            //     .toString()
-                                            //     .toUpperCase(),
-                                            "BTC",
+                                            selectPair!.coinname.toString().toUpperCase(),
                                             textAlign: TextAlign.center,
                                             style:
                                             CustomWidget(context: context)
@@ -917,7 +915,7 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                                 setStates(() {
                                   coinPair = [];
                                   for (int m = 0; m < walletPair.length; m++) {
-                                    if (walletPair[m].assetId!.symbol.toString().toLowerCase().contains(value.toString().toLowerCase()))
+                                    if (walletPair[m].symbol.toString().toLowerCase().contains(value.toString().toLowerCase()) || walletPair[m].coinname!.toString().toLowerCase().contains(value.toString().toLowerCase()))
                                     {
                                       coinPair.add(walletPair[m]);
                                     }
@@ -935,7 +933,7 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                                     fontWeight: FontWeight.w400),
                                 filled: true,
                                 fillColor: CustomTheme.of(context)
-                                    .backgroundColor
+                                    .primaryColorLight
                                     .withOpacity(0.5),
                                 border: OutlineInputBorder(
                                   borderRadius:
@@ -1035,19 +1033,19 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                                         const SizedBox(
                                           width: 20.0,
                                         ),
-                                        Container(
-                                          height: 25.0,
-                                          width: 25.0,
-                                          child: Image.network(
-                                            coinPair[index].assetId!.image.toString(),
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                        const SizedBox(
-                                          width: 10.0,
-                                        ),
+                                        // Container(
+                                        //   height: 25.0,
+                                        //   width: 25.0,
+                                        //   child: Image.network(
+                                        //     coinPair[index].assetId!.image.toString(),
+                                        //     fit: BoxFit.cover,
+                                        //   ),
+                                        // ),
+                                        // const SizedBox(
+                                        //   width: 10.0,
+                                        // ),
                                         Text(
-                                          coinPair[index].assetId!.symbol.toString(),
+                                          coinPair[index].coinname.toString(),
                                           style: CustomWidget(context: context)
                                               .CustomSizedTextStyle(
                                               16.0,
@@ -1065,7 +1063,7 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                                     height: 1.0,
                                     width: MediaQuery.of(context).size.width,
                                     color:
-                                    CustomTheme.of(context).backgroundColor,
+                                    CustomTheme.of(context).primaryColorLight,
                                   ),
                                   const SizedBox(
                                     height: 5.0,

@@ -9,6 +9,7 @@ import 'package:imperial/data/crypt_model/all_wallet_pairs.dart';
 import 'package:imperial/data/crypt_model/common_model.dart';
 import 'package:imperial/data/crypt_model/wallet_address_model.dart';
 
+import '../../data/crypt_model/transfer_amount_internal_model.dart';
 import '../../data/crypt_model/transfer_history_model.dart';
 import '../side_menu/transfer_history.dart';
 
@@ -38,6 +39,7 @@ class _Transfer_ScreenState extends State<Transfer_Screen> {
   String percentage = "0";
   String coinTwo = "";
   String coinOne = "";
+  String coinBalnce = "0.00";
   APIUtils apiUtils = APIUtils();
   List<String> coinOnelist = ["Funding", "Trading",];   //6-Funding 18-Trading
 String coinOneSelect = "";
@@ -50,10 +52,12 @@ String coinOneSelect = "";
     // TODO: implement initState
     super.initState();
 
+    loading = true;
+
     coinOneSelect=coinOnelist.first;
     coinPair= widget.walletPair;
     walletPair= widget.walletPair;
-
+    getWallList();
     selectPair= coinPair.first;
     if(coinOneSelect=="Funding")
     {
@@ -141,6 +145,76 @@ String coinOneSelect = "";
             mainAxisAlignment: MainAxisAlignment.start,
             children: [
               Text(
+                "Coin",
+                style: CustomWidget(context: context).CustomSizedTextStyle(14.0,
+                    Theme.of(context).focusColor, FontWeight.w500, 'FontRegular'),
+              ),
+              const SizedBox(
+                height: 10.0,
+              ),
+              InkWell(
+                onTap: () {
+                  showSheeet(context);
+                },
+                child: Container(
+                  width: MediaQuery.of(context).size.width,
+                  padding:
+                  EdgeInsets.fromLTRB(12.0, 14.0, 12, 14.0),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(8.0),
+                    color: CustomTheme.of(context).canvasColor,
+                  ),
+                  child: Theme(
+                      data: Theme.of(context).copyWith(
+                        canvasColor:
+                        CustomTheme.of(context).cardColor,
+                      ),
+                      child: Row(
+                        mainAxisAlignment:
+                        MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            selectPair!.coinname.toString(),
+                            style: CustomWidget(context: context)
+                                .CustomSizedTextStyle(
+                                14.0,
+                                Theme.of(context).focusColor,
+                                FontWeight.w500,
+                                'FontRegular'),
+                          ),
+                          Row(
+                            children: [
+                              Text(
+                                // selectedCoin!.asset!.type.toString(),
+                                "***",
+                                style: CustomWidget(context: context)
+                                    .CustomSizedTextStyle(
+                                    14.0,
+                                    Theme.of(context)
+                                        .hintColor
+                                        .withOpacity(0.5),
+                                    FontWeight.w400,
+                                    'FontRegular'),
+                              ),
+                              const SizedBox(
+                                width: 5.0,
+                              ),
+                              Icon(
+                                Icons.arrow_forward_ios_rounded,
+                                size: 15.0,
+                                color:
+                                Theme.of(context).focusColor,
+                              ),
+                            ],
+                          )
+                        ],
+                      )),
+                ),
+              ),
+              const SizedBox(
+                height: 35.0,
+              ),
+              Text(
                 "From",
                 style: CustomWidget(context: context).CustomSizedTextStyle(14.0,
                     Theme.of(context).focusColor, FontWeight.w500, 'FontRegular'),
@@ -189,6 +263,9 @@ String coinOneSelect = "";
                           else{
                             spendController.text=coinOnelist[0];
                           }
+
+                          loading = true;
+                          getTransfer();
 
                           // loading = getSwapBalanceList();
                         });
@@ -312,76 +389,6 @@ String coinOneSelect = "";
                 height: 30.0,
               ),
               Text(
-                "Coin",
-                style: CustomWidget(context: context).CustomSizedTextStyle(14.0,
-                    Theme.of(context).focusColor, FontWeight.w500, 'FontRegular'),
-              ),
-              const SizedBox(
-                height: 10.0,
-              ),
-              InkWell(
-                onTap: () {
-                  showSheeet(context);
-                },
-                child: Container(
-                  width: MediaQuery.of(context).size.width,
-                  padding:
-                  EdgeInsets.fromLTRB(12.0, 14.0, 12, 14.0),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(8.0),
-                    color: CustomTheme.of(context).canvasColor,
-                  ),
-                  child: Theme(
-                      data: Theme.of(context).copyWith(
-                        canvasColor:
-                        CustomTheme.of(context).cardColor,
-                      ),
-                      child: Row(
-                        mainAxisAlignment:
-                        MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text(
-                            selectPair!.assetId!.symbol.toString(),
-                            style: CustomWidget(context: context)
-                                .CustomSizedTextStyle(
-                                14.0,
-                                Theme.of(context).focusColor,
-                                FontWeight.w500,
-                                'FontRegular'),
-                          ),
-                          Row(
-                            children: [
-                              Text(
-                                // selectedCoin!.asset!.type.toString(),
-                                "***",
-                                style: CustomWidget(context: context)
-                                    .CustomSizedTextStyle(
-                                    14.0,
-                                    Theme.of(context)
-                                        .hintColor
-                                        .withOpacity(0.5),
-                                    FontWeight.w400,
-                                    'FontRegular'),
-                              ),
-                              const SizedBox(
-                                width: 5.0,
-                              ),
-                              Icon(
-                                Icons.arrow_forward_ios_rounded,
-                                size: 15.0,
-                                color:
-                                Theme.of(context).focusColor,
-                              ),
-                            ],
-                          )
-                        ],
-                      )),
-                ),
-              ),
-              const SizedBox(
-                height: 35.0,
-              ),
-              Text(
                 "Transfer Amount",
                 style: CustomWidget(context: context).CustomSizedTextStyle(14.0,
                     Theme.of(context).focusColor, FontWeight.w500, 'FontRegular'),
@@ -456,7 +463,7 @@ String coinOneSelect = "";
               ),
               Text(
                 // coinTwoBalance,
-                "Avilable balance: "+double.parse(selectPair!.balance.toString()).toStringAsFixed(8)+" "+selectPair!.symbol.toString(),
+                "Avilable balance: "+double.parse(coinBalnce.toString()).toStringAsFixed(8)+" "+selectPair!.coinname.toString(),
                 style: CustomWidget(context: context).CustomSizedTextStyle(
                     14.0,
                     Theme.of(context).focusColor,
@@ -542,7 +549,7 @@ String coinOneSelect = "";
                                 setStates(() {
                                   coinPair = [];
                                   for (int m = 0; m < walletPair.length; m++) {
-                                    if (walletPair[m].assetId!.symbol.toString().toLowerCase().contains(value.toString().toLowerCase()))
+                                    if (walletPair[m].symbol.toString().toLowerCase().contains(value.toString().toLowerCase()))
                                     {
                                       coinPair.add(walletPair[m]);
                                     }
@@ -560,7 +567,7 @@ String coinOneSelect = "";
                                     fontWeight: FontWeight.w400),
                                 filled: true,
                                 fillColor: CustomTheme.of(context)
-                                    .backgroundColor
+                                    .primaryColorLight
                                     .withOpacity(0.5),
                                 border: OutlineInputBorder(
                                   borderRadius:
@@ -648,28 +655,30 @@ String coinOneSelect = "";
                                         Navigator.pop(context);
                                       });
                                       searchController.clear();
+                                      loading = true;
+                                      getTransfer();
                                     },
                                     child: Row(
                                       children: [
                                         const SizedBox(
                                           width: 20.0,
                                         ),
-                                        Container(
-                                          height: 25.0,
-                                          width: 25.0,
-                                          child: Image.network(
-                                            coinPair[index].assetId!.image.toString(),
-                                            fit: BoxFit.cover,
-                                          ),
-                                        ),
-                                        const SizedBox(
-                                          width: 10.0,
-                                        ),
+                                        // Container(
+                                        //   height: 25.0,
+                                        //   width: 25.0,
+                                        //   child: Image.network(
+                                        //     coinPair[index].assetId!.image.toString(),
+                                        //     fit: BoxFit.cover,
+                                        //   ),
+                                        // ),
+                                        // const SizedBox(
+                                        //   width: 10.0,
+                                        // ),
                                         Text(
-                                          coinPair[index].assetId!.symbol.toString(),
+                                          coinPair[index].coinname.toString(),
                                           style: CustomWidget(context: context)
                                               .CustomSizedTextStyle(
-                                              16.0,
+                                              14.0,
                                               Theme.of(context).focusColor,
                                               FontWeight.w500,
                                               'FontRegular'),
@@ -684,7 +693,7 @@ String coinOneSelect = "";
                                     height: 1.0,
                                     width: MediaQuery.of(context).size.width,
                                     color:
-                                    CustomTheme.of(context).backgroundColor,
+                                    CustomTheme.of(context).primaryColorLight,
                                   ),
                                   const SizedBox(
                                     height: 5.0,
@@ -709,7 +718,7 @@ String coinOneSelect = "";
           walletPair = loginData.result!;
           coinPair = loginData.result!;
           selectPair=coinPair.first;
-
+          getTransfer();
           loading = false;
         });
       } else {
@@ -725,13 +734,36 @@ String coinOneSelect = "";
 
 
   getTransferAmount() {
-    apiUtils.transferAmount(recieveController.text.toString(),selectPair!.assetId!.symbol.toString(),coinOneSelect.toString()=="Funding" ? "6": "18", spendController.text.toString() =="Trading" ? "18": "6").then((CommonModel loginData) {
+    apiUtils.transferAmount(selectPair!.coinname.toString(), recieveController.text.toString(), coinOneSelect.toString()=="Funding" ? "FUND": "UNIFIED", spendController.text.toString() =="Funding" ? "FUND": "UNIFIED",).then((CommonModel loginData) {
       if (loginData.status!) {
         setState(() {
+          recieveController.clear();
           getWallList();
 
           CustomWidget(context: context).showSuccessAlertDialog(
               "Transfer", loginData.message.toString(), "success");
+        });
+      } else {
+        setState(() {
+          loading = false;
+          CustomWidget(context: context).showSuccessAlertDialog(
+              "Transfer", loginData.message.toString(), "error");
+        });
+      }
+    }).catchError((Object error) {
+      print("Mano");
+      print(error);
+    });
+  }
+
+  getTransfer() {
+    apiUtils.transferTypeBalance(coinOneSelect.toString()=="Funding" ? "FUND": "UNIFIED", selectPair!.coinname.toString() ).then((AmountTransferInternalModel loginData) {
+      if (loginData.success!) {
+        setState(() {
+          loading = false;
+          coinBalnce = loginData.result!.walletBalance!.toString();
+          // CustomWidget(context: context).showSuccessAlertDialog(
+          //     "Transfer", loginData.message.toString(), "success");
         });
       } else {
         setState(() {

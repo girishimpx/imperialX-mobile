@@ -20,6 +20,7 @@ class _Profile_SettingsState extends State<Profile_Settings> {
 
   APIUtils apiUtils = APIUtils();
   bool loading = false;
+  bool kycStatus = false;
   // GetProfileResult? details;
   String name= "";
   String email= "";
@@ -106,7 +107,7 @@ class _Profile_SettingsState extends State<Profile_Settings> {
                                         style: CustomWidget(context: context)
                                             .CustomSizedTextStyle(
                                             12.0,
-                                            Theme.of(context).bottomAppBarColor,
+                                            Theme.of(context).primaryColorDark,
                                             FontWeight.w400,
                                             'FontRegular'),
                                         textAlign: TextAlign.start,
@@ -119,7 +120,7 @@ class _Profile_SettingsState extends State<Profile_Settings> {
                                     Icon(
                                       Icons.arrow_forward_ios_rounded,
                                       size: 14.0,
-                                      color: Theme.of(context).bottomAppBarColor,
+                                      color: Theme.of(context).primaryColorDark,
                                     )
                                   ],
                                 )
@@ -158,7 +159,7 @@ class _Profile_SettingsState extends State<Profile_Settings> {
                                   Icon(
                                     Icons.arrow_forward_ios_rounded,
                                     size: 14.0,
-                                    color: Theme.of(context).bottomAppBarColor,
+                                    color: Theme.of(context).primaryColorDark,
                                   )
                                 ],
                               ),
@@ -196,7 +197,7 @@ class _Profile_SettingsState extends State<Profile_Settings> {
                                       style: CustomWidget(context: context)
                                           .CustomSizedTextStyle(
                                           12.0,
-                                          Theme.of(context).bottomAppBarColor,
+                                          Theme.of(context).primaryColorDark,
                                           FontWeight.w400,
                                           'FontRegular'),
                                       textAlign: TextAlign.start,
@@ -207,7 +208,7 @@ class _Profile_SettingsState extends State<Profile_Settings> {
                                     Icon(
                                       Icons.arrow_forward_ios_rounded,
                                       size: 14.0,
-                                      color: Theme.of(context).bottomAppBarColor,
+                                      color: Theme.of(context).primaryColorDark,
                                     )
                                   ],
                                 ), flex: 3,)
@@ -243,7 +244,7 @@ class _Profile_SettingsState extends State<Profile_Settings> {
                                       style: CustomWidget(context: context)
                                           .CustomSizedTextStyle(
                                           12.0,
-                                          Theme.of(context).bottomAppBarColor,
+                                          Theme.of(context).primaryColorDark,
                                           FontWeight.w400,
                                           'FontRegular'),
                                       textAlign: TextAlign.start,
@@ -254,10 +255,44 @@ class _Profile_SettingsState extends State<Profile_Settings> {
                                     Icon(
                                       Icons.arrow_forward_ios_rounded,
                                       size: 14.0,
-                                      color: Theme.of(context).bottomAppBarColor,
+                                      color: Theme.of(context).primaryColorDark,
                                     )
                                   ],
                                 )
+                              ],
+                            ),
+                          ),
+                          Container(
+                            height: 1.5,
+                            width: MediaQuery.of(context).size.width,
+                            color: Theme.of(context).canvasColor,
+                          ),
+                          Container(
+                            padding: EdgeInsets.only(bottom: 15.0, top: 15.0),
+                            child: Row(
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  "Security Level",
+                                  style: CustomWidget(context: context)
+                                      .CustomSizedTextStyle(
+                                      14.0,
+                                      Theme.of(context).focusColor,
+                                      FontWeight.w600,
+                                      'FontRegular'),
+                                  textAlign: TextAlign.start,
+                                ),
+                                Text(
+                                  kycStatus ? "High" : "Low",
+                                  style: CustomWidget(context: context)
+                                      .CustomSizedTextStyle(
+                                      12.0,
+                                      kycStatus ?  Theme.of(context).indicatorColor : Theme.of(context).hoverColor,
+                                      FontWeight.w400,
+                                      'FontRegular'),
+                                  textAlign: TextAlign.start,
+                                ),
                               ],
                             ),
                           ),
@@ -296,6 +331,7 @@ class _Profile_SettingsState extends State<Profile_Settings> {
           loading = false;
           name = loginData.result!.name.toString();
           email = loginData.result!.email.toString();
+          kycStatus = loginData.result!.kycVerify!;
         });
       } else {
         setState(() {

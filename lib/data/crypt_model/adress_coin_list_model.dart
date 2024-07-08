@@ -1,38 +1,34 @@
 import 'dart:convert';
 
-GetWalletAllPairsModel getWalletAllPairsModelFromJson(String str) => GetWalletAllPairsModel.fromJson(json.decode(str));
+GetAddressListCoinModel getAddressListCoinModelFromJson(String str) => GetAddressListCoinModel.fromJson(json.decode(str));
 
-String getWalletAllPairsModelToJson(GetWalletAllPairsModel data) => json.encode(data.toJson());
+String getAddressListCoinModelToJson(GetAddressListCoinModel data) => json.encode(data.toJson());
 
-class GetWalletAllPairsModel {
+class GetAddressListCoinModel {
   bool? success;
-  List<GetWalletAll>? result;
-  dynamic totalPriceInUsd;
+  List<GetAddressList>? result;
   String? message;
 
-  GetWalletAllPairsModel({
+  GetAddressListCoinModel({
     this.success,
     this.result,
-    this.totalPriceInUsd,
     this.message,
   });
 
-  factory GetWalletAllPairsModel.fromJson(Map<String, dynamic> json) => GetWalletAllPairsModel(
+  factory GetAddressListCoinModel.fromJson(Map<String, dynamic> json) => GetAddressListCoinModel(
     success: json["success"],
-    result: List<GetWalletAll>.from(json["result"].map((x) => GetWalletAll.fromJson(x))),
-    totalPriceInUsd: json["total_price_in_usd"],
+    result: List<GetAddressList>.from(json["result"].map((x) => GetAddressList.fromJson(x))),
     message: json["message"],
   );
 
   Map<String, dynamic> toJson() => {
     "success": success,
     "result": List<dynamic>.from(result!.map((x) => x.toJson())),
-    "total_price_in_usd": totalPriceInUsd,
     "message": message,
   };
 }
 
-class GetWalletAll {
+class GetAddressList {
   dynamic balance;
   dynamic escrowBalance;
   String? symbol;
@@ -41,15 +37,15 @@ class GetWalletAll {
   String? exitBal;
   String? marginLoan;
   List<dynamic>? maxLoan;
-  List<Mugavari>? mugavari;
+  List<AddressMugavari>? mugavari;
   String? id;
   String? coinname;
   String? assetId;
-  dynamic userId;
+  String? userId;
   DateTime? createdAt;
   DateTime? updatedAt;
 
-  GetWalletAll ({
+  GetAddressList ({
     this.balance,
     this.escrowBalance,
     this.symbol,
@@ -67,7 +63,7 @@ class GetWalletAll {
     this.updatedAt,
   });
 
-  factory GetWalletAll.fromJson(Map<String, dynamic> json) => GetWalletAll(
+  factory GetAddressList.fromJson(Map<String, dynamic> json) => GetAddressList(
     balance: json["balance"],
     escrowBalance: json["escrow_balance"],
     symbol: json["symbol"],
@@ -76,11 +72,11 @@ class GetWalletAll {
     exitBal: json["Exit_bal"],
     marginLoan: json["margin_loan"],
     maxLoan: List<dynamic>.from(json["max_loan"].map((x) => x)),
-    mugavari: List<Mugavari>.from(json["mugavari"].map((x) => Mugavari.fromJson(x))),
+    mugavari: List<AddressMugavari>.from(json["mugavari"].map((x) => AddressMugavari.fromJson(x))),
     id: json["_id"],
     coinname: json["coinname"],
     assetId: json["asset_id"],
-    userId:json["user_id"],
+    userId: json["user_id"],
     createdAt: DateTime.parse(json["createdAt"]),
     updatedAt: DateTime.parse(json["updatedAt"]),
   );
@@ -104,16 +100,16 @@ class GetWalletAll {
   };
 }
 
-class Mugavari {
+class AddressMugavari {
   String? chain;
   String? address;
 
-  Mugavari({
+  AddressMugavari({
     this.chain,
     this.address,
   });
 
-  factory Mugavari.fromJson(Map<String, dynamic> json) => Mugavari(
+  factory AddressMugavari.fromJson(Map<String, dynamic> json) => AddressMugavari(
     chain: json["chain"],
     address: json["address"],
   );
@@ -123,4 +119,3 @@ class Mugavari {
     "address": address,
   };
 }
-

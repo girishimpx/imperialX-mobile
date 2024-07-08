@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
@@ -8,8 +9,10 @@ import 'package:imperial/data/crypt_model/common_model.dart';
 import 'package:imperial/data/crypt_model/future_trade_pair_model.dart';
 import 'package:imperial/data/crypt_model/trade_his_list_model.dart';
 import 'package:imperial/data/crypt_model/trade_pair_model.dart';
+import 'package:imperial/data/crypt_model/trade_pairs_list_model.dart';
 import 'package:imperial/data/crypt_model/user_wallet_balance_model.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/io.dart';
 
 //import 'package:webview_flutter/webview_flutter.dart';
@@ -28,20 +31,24 @@ class TradeScreen extends StatefulWidget {
 
 class _SellTradeScreenState extends State<TradeScreen>
     with TickerProviderStateMixin {
-  List<String> chartTime = ["Limit", "Market", "Stop-Limit"];
+  List<String> chartTime = ["Limit", "Market",];
+  List<String> chartFutureTime = ["Limit", "Market", "Stop-Limit"];
 
   List<String> tradeType = ["Cross", "Isolated"];
   String selectedTime = "";
+  String selectedFutureTime = "";
 
-  List<TradePairList> tradePair = [];
-  List<TradePairList> searchPair = [];
-  TradePairList? selectPair;
+  List<TradePairsSpot> tradePair = [];
+  List<TradePairsSpot> searchPair = [];
+  TradePairsSpot? selectPair;
   final _formKey = GlobalKey<FormState>();
   List<TradeHistoryList> openOrders = [];
   List<TradeHistoryList> completedOrders = [];
   List<TradeHistoryList> AllopenOrders = [];
+  List<MarketDetailsList> marketList = [];
 
   bool buySell = true;
+  String traderType = "";
 
   late TabController _tabController, tradeTabController;
   bool spotOption = true;
@@ -49,6 +56,8 @@ class _SellTradeScreenState extends State<TradeScreen>
 
   bool futureOption = false;
   TextEditingController priceController = TextEditingController();
+  TextEditingController tppriceController = TextEditingController();
+  TextEditingController slpriceController = TextEditingController();
   TextEditingController stopPriceController = TextEditingController();
   TextEditingController amountController = TextEditingController();
 
@@ -60,7 +69,7 @@ class _SellTradeScreenState extends State<TradeScreen>
 
   ScrollController controller = ScrollController();
   bool loading = false;
-  String pair = "ADA-USDT";
+  String pair = "ADAUSDT";
 
   InAppWebViewController? webViewController;
   TextEditingController searchController = TextEditingController();
@@ -74,8 +83,6 @@ class _SellTradeScreenState extends State<TradeScreen>
   String balance = "0.00";
   String escrow = "0.00";
   String totalBalance = "0.00";
-  String coinName = "";
-  String coinTwoName = "";
   String totalAmount = "0.00";
   String price = "0.00";
   String stopPrice = "0.00";
@@ -84,31 +91,46 @@ class _SellTradeScreenState extends State<TradeScreen>
   String takerFeeValue = "0.00";
   double _currentSliderValue = 0;
 
+  //search function
+  List<String> marketAssetList = ["USDT","USDC","EUR","BTC","ETH","DAI","BRZ"];
+  String selectedMarketAsset = "";
+  int indexVal = 0;
+
+  final GlobalKey<AnimatedListState> _animatedListKey = GlobalKey();
   int _tLevSliderValue = 0;
 
   bool favValue = false;
 
-  String tleverageVal = "1";
-  IOWebSocketChannel? channelOpenOrder;
+  String tleverageVal = "0";
+  IOWebSocketChannel? channelOpenOrder, channelFutureOpenOrder;
+
 
   List<BuySellData> buyData = [];
   List<BuySellData> sellData = [];
 
   String firstCoin = "";
+  String FuturefirstCoin = "";
   String secondCoin = "";
+  String FuturesecondCoin = "";
+  String changePercentage = "0.00";
 
   String livePrice = "0.00";
-
+  bool tpslCheck = false;
   bool socketLoader = false;
   String selectedDecimal = "";
   String selectedHistoryTradeType = "";
   List arrData = [];
+  List arrChangeData = [];
+  List arrFutureData = [];
+  List arrPriceData = [];
+  List arrFuturePriceData = [];
 
   List<FutureTradePair> futuretradePair = [];
   List<FutureTradePair> futuresearchPair = [];
   FutureTradePair? futureselectPair;
-  String currentSymbol = "ADA-USDT";
-
+  int count=0;
+  String currentSymbol = "ADAUSDT";
+  Timer? timer,timerS;
   bool futurelong = true;
 
   //late final WebViewController webcontroller;
@@ -117,145 +139,71 @@ class _SellTradeScreenState extends State<TradeScreen>
   void initState() {
     // TODO: implement initState
     super.initState();
+
     selectedTime = chartTime.first;
+    selectedFutureTime = chartFutureTime.first;
     selectedHistoryTradeType = tradeType.first;
     tradeTabController = TabController(vsync: this, length: 3);
     _tabController = TabController(vsync: this, length: 2);
     selectedDecimal = _decimal.first;
     loading = true;
+    getDetails();
     getCoinList();
     getFutureCoinList();
 
-    channelOpenOrder = IOWebSocketChannel.connect(
-        Uri.parse("wss://ws.okx.com:8443/ws/v5/public?brokerId=197"),
-        pingInterval: Duration(seconds: 30));
+    channelOpenOrder = IOWebSocketChannel.connect( Uri.parse("wss://stream.bybit.com/v5/public/spot"),);
+    // channelFutureOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/linear"),);
 
-    // if (Platform.isAndroid) {
-    //   await AndroidInAppWebViewController.setWebContentsDebuggingEnabled(true);
-    //
-    //   var swAvailable = await AndroidWebViewFeature.isFeatureSupported(
-    //       AndroidWebViewFeature.SERVICE_WORKER_BASIC_USAGE);
-    //   var swInterceptAvailable = await AndroidWebViewFeature.isFeatureSupported(
-    //       AndroidWebViewFeature.SERVICE_WORKER_SHOULD_INTERCEPT_REQUEST);
-    //
-    //   if (swAvailable && swInterceptAvailable) {
-    //     AndroidServiceWorkerController serviceWorkerController =
-    //     AndroidServiceWorkerController.instance();
-    //
-    //     await serviceWorkerController
-    //         .setServiceWorkerClient(AndroidServiceWorkerClient(
-    //       shouldInterceptRequest: (request) async {
-    //         print(request);
-    //         return null;
-    //       },
-    //     ));
-    //   }
-    // }
-
-    // if (Platform.isAndroid) {
-    //   webcontroller = WebViewController()
-    //     ..setJavaScriptMode(JavaScriptMode.unrestricted)
-    //     ..setBackgroundColor(const Color(0xFF242B48))
-    //     ..setNavigationDelegate(
-    //       NavigationDelegate(
-    //         onProgress: (int progress) {
-    //           print(progress);
-    //           // Update loading bar.
-    //         },
-    //         onPageStarted: (String url) {
-    //           print(url);
-    //           print("test1");
-    //         },
-    //         onPageFinished: (String url) {
-    //           print(url);
-    //           setState(() {
-    //             loading = false;
-    //           });
-    //         },
-    //         onWebResourceError: (WebResourceError error) {
-    //           print("test");
-    //           print(error);
-    //         },
-    //       ),
-    //     )
-    //     ..loadRequest(Uri.parse('https://app.imperialx.exchange/chart/ADA-USDT'));
-    // } else if (Platform.isIOS) {
-    //   webcontroller = WebViewController()
-    //     ..setBackgroundColor(const Color(0xFF242B48))
-    //     ..setNavigationDelegate(
-    //       NavigationDelegate(
-    //         onProgress: (int progress) {
-    //           // Update loading bar.
-    //         },
-    //         onPageStarted: (String url) {},
-    //         onPageFinished: (String url) {
-    //           setState(() {
-    //             loading = false;
-    //           });
-    //         },
-    //         onWebResourceError: (WebResourceError error) {
-    //           print("test");
-    //           print(error);
-    //         },
-    //       ),
-    //     )
-    //     ..loadRequest(Uri.parse('https://app.imperialx.exchange/chart/ADA-USDT'));
-    // }
+    selectedMarketAsset= marketAssetList.first;
   }
 
-  // chartload() {
-  //   if (Platform.isAndroid) {
-  //     webcontroller.loadRequest(Uri.parse('https://app.imperialx.exchange/chart/' +
-  //         currentSymbol.toUpperCase()));
-  //   } else if (Platform.isIOS) {
-  //     webcontroller.loadRequest(Uri.parse('https://app.imperialx.exchange/chart/' +
-  //         currentSymbol.toUpperCase()));
-  //   }
-  // }
-
-  //solved with ssl error certificate code
-  // chartload() {
-  //   print(pair);
-  //   webViewController?.loadUrl(urlRequest: URLRequest(
-  //     url: Uri.parse("https://app.imperialx.exchange/chart/"+currentSymbol),
-  //   ));
-  // }
 
   socketData() {
-    setState(() {
-      // buyData.clear();
-      // sellData.clear();
-      // buyData = [];
-      // sellData = [];
-    });
     channelOpenOrder!.stream.listen(
-      (data) {
+          (data) {
         if (data != null || data != "null") {
           var decode = jsonDecode(data);
-
+          // print(decode);
           if (mounted) {
             setState(() {
-              if (decode["arg"]["instId"].toString() ==
-                  selectPair!.tradepair.toString()) {
-                if (decode["arg"]["channel"].toString() == "books") {
-                  loading = false;
+              if(decode['type'].toString()=="snapshot")
+                {
+                 if(spotOption || marginOption){
+                   if (decode["data"][0]["s"].toString() == selectPair!.symbol.toString()) {
+                     livePrice= decode['data'][0]['p'].toString();
+                     print("livePrice");
+                     print(selectPair!.symbol.toString());
+                     print(livePrice);
+                   }
+                 }  else if(decode["data"][0]["s"].toString() == futureselectPair!.symbol.toString())
+                 {
+                   livePrice= decode['data'][0]['p'].toString();
+                   print("Future livePrice");
+                   print(futureselectPair!.symbol.toString());
+                   print(livePrice);
+                 }
 
-                  if (buyData.length > 20) {
-                    buyData.clear();
-                    sellData.clear();
-                    buyData = [];
-                    sellData = [];
+                } else { if (spotOption || marginOption){
+                if (decode["data"]["s"].toString() == selectPair!.symbol.toString()) {
+                  if(buyData.length>30)
+                  {
+                    buyData.removeRange(1, 15);
+                    sellData.removeRange(1, 15);
+                    // buyData.clear();
+                    // sellData.clear();
+                    // buyData = [];
+                    // sellData = [];
                   }
-
-                  var list1 = List<dynamic>.from(decode['data'][0]['bids']);
-                  var list2 = List<dynamic>.from(decode['data'][0]['asks']);
                   //
+                  var list1 = List<dynamic>.from(decode['data']['b']);
+                  var list2 = List<dynamic>.from(decode['data']['a']);
                   for (int m = 0; m < list1.length; m++) {
                     if (double.parse(list1[m][1].toString()) > 0) {
                       buyData.add(BuySellData(
                         list1[m][0].toString(),
                         list1[m][1].toString(),
                       ));
+
                     }
                   }
                   for (int m = 0; m < list2.length; m++) {
@@ -266,45 +214,197 @@ class _SellTradeScreenState extends State<TradeScreen>
                           list2[m][0].toString(),
                           list2[m][1].toString(),
                         ));
+
                       }
                     }
                   }
-                } else {
-                  livePrice = decode['data'][0]['last'].toString();
+
+                } }
+                else if (decode["data"]["s"].toString() == futureselectPair!.symbol.toString()) {
+                  if(buyData.length>30)
+                  {
+                    buyData.removeRange(1, 15);
+                    sellData.removeRange(1, 15);
+                    // buyData.clear();
+                    // sellData.clear();
+                    // buyData = [];
+                    // sellData = [];
+                  }
+                  //
+                  var list1 = List<dynamic>.from(decode['data']['b']);
+                  var list2 = List<dynamic>.from(decode['data']['a']);
+                  for (int m = 0; m < list1.length; m++) {
+                    if (double.parse(list1[m][1].toString()) > 0) {
+                      buyData.add(BuySellData(
+                        list1[m][0].toString(),
+                        list1[m][1].toString(),
+                      ));
+
+                    }
+                  }
+                  for (int m = 0; m < list2.length; m++) {
+                    if (list2[m].toString() != null ||
+                        list2[m].toString() != "null") {
+                      if (double.parse(list2[m][1].toString()) > 0) {
+                        sellData.add(BuySellData(
+                          list2[m][0].toString(),
+                          list2[m][1].toString(),
+                        ));
+
+                      }
+                    }
+                  }
+
                 }
               }
+
             });
           }
+
+          // print("Mano");
         }
       },
       onDone: () async {
         await Future.delayed(Duration(seconds: 10));
-        var messageJSON = {
-          "channel": "tickers",
-          "instId": selectPair!.tradepair.toString()
-        };
-
-        arrData.add(messageJSON);
-
-        var messageLiveJSON = {
-          "channel": "books",
-          "instId": selectPair!.tradepair.toString()
-        };
-        arrData.add(messageLiveJSON);
-
-        var finalJSON = {
+        var messageJSON;
+        messageJSON = {
           "op": "subscribe",
-          "args": arrData,
+          "args": arrData
         };
-        channelOpenOrder!.sink.add(json.encode(finalJSON));
+        channelOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/spot"),);
+
+        channelOpenOrder!.sink.add(json.encode(messageJSON));
         socketData();
       },
-      onError: (error) {
-        print(error);
-        print("Test");
+      onError: (error) => print("Err" + error),
+    );
+  }
+
+  socketLivePriceData() {
+    channelOpenOrder!.stream.listen(
+          (data) {
+        if (data != null || data != "null") {
+          var decode = jsonDecode(data);
+
+          if (mounted) {
+            setState(() {
+              String last = decode["data"]['lastPrice'].toString();
+              String high24h = decode["data"]['highPrice24h'].toString();
+              String valueCh = decode["data"]['price24hPcnt'].toString();
+
+              double val = double.parse(last) - double.parse(high24h);
+              double lastChangge = (val / double.parse(high24h)) * 100;
+
+              for (int m = 0; m < marketList.length; m++) {
+                if (marketList[m].name.toString().toLowerCase() ==
+                    decode["data"]['symbol'].toString().toLowerCase()) {
+                  marketList[m].last = last;
+                  marketList[m].change = lastChangge;
+                  changePercentage= marketList[m].change.toString();
+                }
+              }
+            });
+          }
+
+        }
+      },
+      onDone: () async {
+        await Future.delayed(const Duration(seconds: 10));
+        var messageChangeJSON = {
+          "op": "subscribe",
+          "args": arrChangeData,
+        };
+
+        channelOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/spot"),);
+
+        channelOpenOrder!.sink.add(json.encode(messageChangeJSON));
+        socketLivePriceData();
+      },
+      onError: (error) => {
+
       },
     );
   }
+
+  // socketFutureData() {
+  //   channelFutureOpenOrder!.stream.listen(
+  //         (data) {
+  //           if (data != null || data != "null") {
+  //             var decode = jsonDecode(data);
+  //             // print(decode);
+  //             if (mounted) {
+  //               setState(() {
+  //                 if(decode['type'].toString()=="snapshot")
+  //                 {
+  //                   if (decode["data"][0]["s"].toString() == futureselectPair!.symbol.toString()) {
+  //                     livePrice= decode['data'][0]['p'].toString();
+  //                     print("livePrice");
+  //                     print(futureselectPair!.symbol.toString());
+  //                     print(livePrice);
+  //                   }
+  //
+  //                 }else{
+  //                   if (decode["data"]["s"].toString() == futureselectPair!.symbol.toString()) {
+  //                     if(buyData.length>30)
+  //                     {
+  //                       buyData.removeRange(1, 15);
+  //                       sellData.removeRange(1, 15);
+  //                       // buyData.clear();
+  //                       // sellData.clear();
+  //                       // buyData = [];
+  //                       // sellData = [];
+  //                     }
+  //                     //
+  //                     var list1 = List<dynamic>.from(decode['data']['b']);
+  //                     var list2 = List<dynamic>.from(decode['data']['a']);
+  //                     for (int m = 0; m < list1.length; m++) {
+  //                       if (double.parse(list1[m][1].toString()) > 0) {
+  //                         buyData.add(BuySellData(
+  //                           list1[m][0].toString(),
+  //                           list1[m][1].toString(),
+  //                         ));
+  //
+  //                       }
+  //                     }
+  //                     for (int m = 0; m < list2.length; m++) {
+  //                       if (list2[m].toString() != null ||
+  //                           list2[m].toString() != "null") {
+  //                         if (double.parse(list2[m][1].toString()) > 0) {
+  //                           sellData.add(BuySellData(
+  //                             list2[m][0].toString(),
+  //                             list2[m][1].toString(),
+  //                           ));
+  //
+  //                         }
+  //                       }
+  //                     }
+  //
+  //                   }
+  //                 }
+  //
+  //               });
+  //             }
+  //
+  //             // print("Mano");
+  //           }
+  //     },
+  //     onDone: () async {
+  //       await Future.delayed(Duration(seconds: 10));
+  //       var messageFutureJSON = {
+  //         "op": "subscribe",
+  //         "args": arrFutureData,
+  //       };
+  //
+  //
+  //       channelFutureOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/linear"),);
+  //
+  //       channelFutureOpenOrder!.sink.add(json.encode(messageFutureJSON));
+  //       socketFutureData();
+  //     },
+  //     onError: (error) => print("Err" + error),
+  //   );
+  // }
+
 
   Widget comingsoon() {
     return Container(
@@ -348,25 +448,22 @@ class _SellTradeScreenState extends State<TradeScreen>
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Flexible(
+                                flex: 1,
                                 child: GestureDetector(
                                   onTap: () {
                                     setState(() {
+                                      tpslCheck = false;
                                       spotOption = true;
                                       marginOption = false;
                                       enableStopLimit = false;
 
                                       futureOption = false;
                                       enableTrade = false;
-                                      coinName =
-                                          selectPair!.coinname1.toString();
-                                      coinTwoName =
-                                          selectPair!.coinname2.toString();
 
-                                      firstCoin =
-                                          selectPair!.coinname1.toString();
+
                                       livePrice = "0.000";
-                                      secondCoin =
-                                          selectPair!.coinname2.toString();
+                                      getCoinList();
+
                                     });
                                     setState(() {
                                       buySell = true;
@@ -382,23 +479,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                                       amountController.clear();
                                       stopPriceController.clear();
 
-                                      coinName =
-                                          selectPair!.coinname1.toString();
-                                      coinTwoName =
-                                          selectPair!.coinname2.toString();
-
-                                      getTradeHistory(
-                                          selectPair!.tradepair.toString());
-
-                                      firstCoin =
-                                          selectPair!.coinname1.toString();
-                                      secondCoin =
-                                          selectPair!.coinname2.toString();
                                       futureOption = false;
                                       getBalance(firstCoin);
                                       enableTrade = false;
                                       balance = "0.00";
                                       selectedTime = chartTime.first;
+                                      livePrice = "0.000";
+                                      getCoinList();
                                     });
                                   },
                                   child: Container(
@@ -435,12 +522,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                                     )),
                                   ),
                                 ),
-                                flex: 1,
                               ),
                               Flexible(
+                                flex: 1,
                                 child: GestureDetector(
                                   onTap: () {
                                     setState(() {
+                                      tpslCheck = false;
                                       spotOption = false;
                                       marginOption = true;
                                       enableStopLimit = false;
@@ -448,17 +536,18 @@ class _SellTradeScreenState extends State<TradeScreen>
                                       futureOption = false;
                                       enableTrade = false;
                                       selectPair = tradePair[0];
-                                      coinName =
-                                          selectPair!.coinname1.toString();
-                                      coinTwoName =
-                                          selectPair!.coinname2.toString();
-
+                                      // coinName =
+                                      //     selectPair!.coinname1.toString();
+                                      // coinTwoName =
+                                      //     selectPair!.coinname2.toString();
+                                      //
                                       livePrice = "0.000";
-
-                                      firstCoin =
-                                          selectPair!.coinname1.toString();
-                                      secondCoin =
-                                          selectPair!.coinname2.toString();
+                                      getCoinList();
+                                      //
+                                      // firstCoin =
+                                      //     selectPair!.coinname1.toString();
+                                      // secondCoin =
+                                      //     selectPair!.coinname2.toString();
                                     });
                                     setState(() {
                                       buySell = true;
@@ -471,8 +560,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                       marginOption = true;
                                       enableStopLimit = false;
                                       balance = "0.00";
-                                      getTradeHistory(
-                                          selectPair!.tradepair.toString());
+                                      getTradeHistory(selectPair!.symbol.toString());
 
                                       futureOption = false;
                                       priceController.clear();
@@ -482,6 +570,8 @@ class _SellTradeScreenState extends State<TradeScreen>
                                       enableTrade = false;
                                       selectedTime = chartTime.first;
                                       getBalance(firstCoin);
+                                      livePrice = "0.000";
+                                      getCoinList();
                                     });
                                   },
                                   child: Container(
@@ -518,53 +608,50 @@ class _SellTradeScreenState extends State<TradeScreen>
                                     )),
                                   ),
                                 ),
-                                flex: 1,
                               ),
                               Flexible(
+                                flex: 1,
                                 child: GestureDetector(
                                   onTap: () {
                                     setState(() {
+                                      tpslCheck = false;
+                                      buyData = [];
+                                      sellData = [];
                                       buySell = true;
                                       spotOption = false;
                                       marginOption = false;
-
-                                      livePrice = "0.000";
-                                      enableStopLimit = false;
                                       futureOption = true;
-                                      coinName = futureselectPair!.instId
-                                          .toString()
-                                          .split("-")[0];
-                                      coinTwoName = futureselectPair!.instId
-                                          .toString()
-                                          .split("-")[1];
+                                      livePrice = "0.000";
+                                      getFutureCoinList();
+                                      enableStopLimit = false;
+                                      futureselectPair = futuretradePair[0];
 
-                                      // loading = true;
-                                      firstCoin = futureselectPair!.instId
-                                          .toString()
-                                          .split("-")[0];
-                                      secondCoin = futureselectPair!.instId
-                                          .toString()
-                                          .split("-")[1];
+
+                                      FuturefirstCoin = futureselectPair!.symbol.toString();
+                                      FuturesecondCoin = futureselectPair!.symbol.toString();
                                     });
                                     setState(() {
                                       buySell = true;
-                                      selectPair = tradePair[0];
+                                      futureselectPair = futuretradePair[0];
                                       _currentSliderValue = 0;
+                                      openOrders = [];
                                       tleverageVal = "1";
                                       spotOption = false;
                                       marginOption = false;
                                       enableStopLimit = false;
                                       priceController.clear();
                                       amountController.clear();
+                                      stopPriceController.clear();
 
                                       getTradeHistory(
-                                          futureselectPair!.instId.toString());
+                                          futureselectPair!.symbol.toString());
                                       futureOption = true;
 
-                                      // getCoinList();
+                                      livePrice = "0.000";
+                                      getFutureCoinList();
                                       // getFutureOpenOrder();
                                       enableTrade = false;
-                                      selectedTime = chartTime.first;
+                                      selectedFutureTime = chartFutureTime.first;
                                       totalAmount = "0.0";
                                       balance = "0.00";
                                       getBalance(secondCoin);
@@ -582,9 +669,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                                     child: Center(
                                         child: Padding(
                                       padding: futureOption
-                                          ? EdgeInsets.only(
+                                          ? const EdgeInsets.only(
                                               top: 10.0, bottom: 10.0)
-                                          : EdgeInsets.only(
+                                          : const EdgeInsets.only(
                                               top: 11.0, bottom: 11.0),
                                       child: Text(
                                         AppLocalizations.instance
@@ -604,7 +691,6 @@ class _SellTradeScreenState extends State<TradeScreen>
                                     )),
                                   ),
                                 ),
-                                flex: 1,
                               ),
                             ]),
                       ),
@@ -677,22 +763,39 @@ class _SellTradeScreenState extends State<TradeScreen>
                         child: InkWell(
                           child: Icon(
                             Icons.menu_rounded,
-                            size: 22.0,
+                            size: 20.0,
                             color: Theme.of(context).focusColor,
                           ),
                         ),
                       ),
                       tradePair.length > 0
                           ? Text(
-                              selectPair!.tradepair.toString(),
+                              selectPair!.symbol.toString(),
                               style: CustomWidget(context: context)
                                   .CustomSizedTextStyle(
-                                      16.0,
+                                      14.0,
                                       Theme.of(context).focusColor,
                                       FontWeight.w500,
                                       'FontRegular'),
                             )
                           : Container(),
+                      // const SizedBox(width: 3.0,),
+                      // Container(
+                      //   padding: EdgeInsets.only(left: 6.0, right: 6.0, top: 2.0, bottom: 2.0),
+                      //   decoration: BoxDecoration(
+                      //       borderRadius: BorderRadius.circular(2.0),
+                      //     color: Theme.of(context).indicatorColor.withOpacity(0.3),
+                      //   ),
+                      //   child: Text(
+                      //     double.parse(changePercentage.toString()).toStringAsFixed(2) + " %",
+                      //     style: CustomWidget(context: context)
+                      //         .CustomSizedTextStyle(
+                      //         8.0,
+                      //         Theme.of(context).focusColor,
+                      //         FontWeight.w500,
+                      //         'FontRegular'),
+                      //   ),
+                      // )
                     ],
                   ),
                 ),
@@ -718,161 +821,7 @@ class _SellTradeScreenState extends State<TradeScreen>
               ],
             ),
           ),
-          // const SizedBox(
-          //   height: 15.0,
-          // ),
-          // Row(
-          //   mainAxisAlignment: MainAxisAlignment.end,
-          //   crossAxisAlignment: CrossAxisAlignment.center,
-          //   children: [
-          //     Container(
-          //       height: 35.0,
-          //       padding: const EdgeInsets.only(
-          //           left: 10.0, right: 10.0, top: 0.0, bottom: 0.0),
-          //       decoration: BoxDecoration(
-          //         borderRadius: BorderRadius.circular(5.0),
-          //         border: Border.all(
-          //           width: 1.0,
-          //           color: CustomTheme.of(context).focusColor.withOpacity(0.5),
-          //         ),
-          //         // color: CustomTheme.of(context).disabledColor,
-          //       ),
-          //       child: Center(
-          //         child: Theme(
-          //           data: Theme.of(context).copyWith(
-          //             canvasColor: CustomTheme.of(context).canvasColor,
-          //           ),
-          //           child: DropdownButtonHideUnderline(
-          //             child: DropdownButton(
-          //               items: _decimal
-          //                   .map((value) => DropdownMenuItem(
-          //                         child: Text(
-          //                           value,
-          //                           style: CustomWidget(context: context)
-          //                               .CustomSizedTextStyle(
-          //                                   12.0,
-          //                                   Theme.of(context).focusColor,
-          //                                   FontWeight.w500,
-          //                                   'FontRegular'),
-          //                         ),
-          //                         value: value,
-          //                       ))
-          //                   .toList(),
-          //               onChanged: (value) {
-          //                 setState(() {
-          //                   selectedDecimal = value.toString();
-          //                   for (int m = 0; m < _decimal.length; m++) {
-          //                     if (value == _decimal[m]) {
-          //                       if (m == 0) {
-          //                         decimalIndex = 8;
-          //                       } else if (m == 1) {
-          //                         decimalIndex = 4;
-          //                       } else {
-          //                         decimalIndex = 2;
-          //                       }
-          //                     }
-          //                   }
-          //                 });
-          //               },
-          //               isExpanded: false,
-          //               value: selectedDecimal,
-          //               icon: Icon(
-          //                 Icons.arrow_drop_down,
-          //                 color: CustomTheme.of(context).focusColor,
-          //               ),
-          //             ),
-          //           ),
-          //         ),
-          //       ),
-          //     ),
-          //     InkWell(
-          //       onTap: () {
-          //         showSuccessAlertDialog();
-          //       },
-          //       child: Container(
-          //         padding: EdgeInsets.all(3.0),
-          //         decoration: BoxDecoration(
-          //           borderRadius: BorderRadius.circular(10.0),
-          //           // color: CustomTheme.of(context).disabledColor,
-          //         ),
-          //         child: Icon(
-          //           Icons.settings,
-          //           color: Theme.of(context).disabledColor,
-          //           size: 20.0,
-          //         ),
-          //       ),
-          //     )
-          //   ],
-          // ),
-          // const SizedBox(
-          //   height: 10.0,
-          // ),
-          // Column(
-          //   children: [
-          //     Row(
-          //       crossAxisAlignment: CrossAxisAlignment.start,
-          //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          //       children: [
-          //         Text(
-          //           "Live Price",
-          //           style: CustomWidget(context: context).CustomSizedTextStyle(
-          //               12.0,
-          //               Theme.of(context).focusColor,
-          //               FontWeight.bold,
-          //               'FontRegular'),
-          //         ),
-          //         Text(
-          //           livePrice +
-          //               " " +
-          //               (futureOption
-          //                   ? coinTwoName
-          //                   : (buySell ? coinTwoName : coinName)),
-          //           style: CustomWidget(context: context).CustomSizedTextStyle(
-          //               11.5,
-          //               Theme.of(context).focusColor,
-          //               FontWeight.w500,
-          //               'FontRegular'),
-          //         ),
-          //       ],
-          //     ),
-          //     SizedBox(
-          //       height: 5.0,
-          //     ),
-          //
-          //     SizedBox(
-          //       height: 5.0,
-          //     ),
-          //     Row(
-          //       crossAxisAlignment: CrossAxisAlignment.start,
-          //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          //       children: [
-          //         Text(
-          //           "Total Asset",
-          //           style: CustomWidget(context: context).CustomSizedTextStyle(
-          //               12.0,
-          //               Theme.of(context).focusColor.withOpacity(0.5),
-          //               FontWeight.w500,
-          //               'FontRegular'),
-          //         ),
-          //         Text(
-          //           totalBalance +
-          //               " " +
-          //               (futureOption
-          //                   ? coinTwoName
-          //                   : (buySell ? coinTwoName : coinName)),
-          //           style: CustomWidget(context: context).CustomSizedTextStyle(
-          //               11.5,
-          //               Theme.of(context).focusColor,
-          //               FontWeight.w500,
-          //               'FontRegular'),
-          //         ),
-          //       ],
-          //     ),
-          //     SizedBox(
-          //       height: 5.0,
-          //     ),
-          //   ],
-          // ),
+
           const SizedBox(
             height: 10.0,
           ),
@@ -948,22 +897,22 @@ class _SellTradeScreenState extends State<TradeScreen>
                         child: InkWell(
                           child: Icon(
                             Icons.menu_rounded,
-                            size: 22.0,
+                            size: 20.0,
                             color: Theme.of(context).focusColor,
                           ),
                         ),
                       ),
-                      futuretradePair.length > 0
-                          ? Text(
-                              futureselectPair!.instId.toString(),
+                      // futuretradePair.length > 0 ?
+                      Text(
+                              futureselectPair!.symbol.toString(),
                               style: CustomWidget(context: context)
                                   .CustomSizedTextStyle(
-                                      16.0,
+                                      12.0,
                                       Theme.of(context).focusColor,
                                       FontWeight.w500,
                                       'FontRegular'),
                             )
-                          : Container(),
+                          // : Container(),
                     ],
                   ),
                 ),
@@ -1093,11 +1042,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                         'FontRegular'),
                   ),
                   Text(
-                    livePrice +
-                        " " +
-                        (futureOption
-                            ? coinTwoName
-                            : (buySell ? coinName : coinTwoName)),
+                    livePrice ,
                     style: CustomWidget(context: context).CustomSizedTextStyle(
                         11.5,
                         Theme.of(context).focusColor,
@@ -1122,7 +1067,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                         'FontRegular'),
                   ),
                   Text(
-                    balance + " " + (futureOption ? coinTwoName : coinName),
+                    balance ,
                     style: CustomWidget(context: context).CustomSizedTextStyle(
                         11.5,
                         Theme.of(context).focusColor,
@@ -1134,28 +1079,28 @@ class _SellTradeScreenState extends State<TradeScreen>
               SizedBox(
                 height: 5.0,
               ),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Live Price",
-                    style: CustomWidget(context: context).CustomSizedTextStyle(
-                        12.0,
-                        Theme.of(context).focusColor,
-                        FontWeight.bold,
-                        'FontRegular'),
-                  ),
-                  Text(
-                    livePrice + " " + (futureOption ? coinTwoName : coinName),
-                    style: CustomWidget(context: context).CustomSizedTextStyle(
-                        11.5,
-                        Theme.of(context).focusColor,
-                        FontWeight.w500,
-                        'FontRegular'),
-                  ),
-                ],
-              ),
+              // Row(
+              //   crossAxisAlignment: CrossAxisAlignment.start,
+              //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              //   children: [
+              //     Text(
+              //       "Live Price",
+              //       style: CustomWidget(context: context).CustomSizedTextStyle(
+              //           12.0,
+              //           Theme.of(context).focusColor,
+              //           FontWeight.bold,
+              //           'FontRegular'),
+              //     ),
+              //     Text(
+              //       livePrice ,
+              //       style: CustomWidget(context: context).CustomSizedTextStyle(
+              //           11.5,
+              //           Theme.of(context).focusColor,
+              //           FontWeight.w500,
+              //           'FontRegular'),
+              //     ),
+              //   ],
+              // ),
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -1169,7 +1114,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                         'FontRegular'),
                   ),
                   Text(
-                    escrow + " " + (futureOption ? coinTwoName : coinName),
+                    escrow ,
                     style: CustomWidget(context: context).CustomSizedTextStyle(
                         11.5,
                         Theme.of(context).focusColor,
@@ -1194,9 +1139,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                         'FontRegular'),
                   ),
                   Text(
-                    totalBalance +
-                        " " +
-                        (futureOption ? coinTwoName : coinName),
+                    totalBalance ,
                     style: CustomWidget(context: context).CustomSizedTextStyle(
                         11.5,
                         Theme.of(context).focusColor,
@@ -1224,7 +1167,8 @@ class _SellTradeScreenState extends State<TradeScreen>
                 children: [
                   Text(
                     "Open Orders ( " + (openOrders.length.toString()) + " )",
-                    style: CustomWidget(context: context).CustomTextStyle(
+                    style: CustomWidget(context: context).CustomSizedTextStyle(
+                      13.0,
                         Theme.of(context).focusColor.withOpacity(0.5),
                         FontWeight.w400,
                         'FontRegular'),
@@ -1273,10 +1217,10 @@ class _SellTradeScreenState extends State<TradeScreen>
           children: [
             Expanded(
               child: Text(
-                AppLocalizations.instance.text("loc_sell_trade_price") +
+                spotOption|| marginOption?    (AppLocalizations.instance.text("loc_sell_trade_price") +
                     "\n(" +
-                    secondCoin +
-                    ")",
+                     secondCoin  +
+                    ")"):AppLocalizations.instance.text("loc_sell_trade_price"),
                 style: CustomWidget(context: context).CustomSizedTextStyle(
                     12.0,
                     Theme.of(context).focusColor.withOpacity(0.5),
@@ -1286,10 +1230,10 @@ class _SellTradeScreenState extends State<TradeScreen>
             ),
             Expanded(
               child: Text(
-                AppLocalizations.instance.text("loc_sell_trade_Qty") +
+           spotOption|| marginOption?     (AppLocalizations.instance.text("loc_sell_trade_Qty") +
                     "\n(" +
-                    firstCoin +
-                    ")",
+               firstCoin +
+                    ")"):AppLocalizations.instance.text("loc_sell_trade_Qty"),
                 style: CustomWidget(context: context).CustomSizedTextStyle(
                     12.0,
                     Theme.of(context).focusColor.withOpacity(0.5),
@@ -1321,6 +1265,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                   ? ListView.builder(
                                       controller: controller,
                                       itemCount: sellData.length,
+
                                       itemBuilder:
                                           ((BuildContext context, int index) {
                                         return Column(
@@ -1348,12 +1293,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                                   .text
                                                                   .toString()))
                                                       .toStringAsFixed(4);
-                                                  coinName = selectPair!
-                                                      .coinname1
-                                                      .toString();
-                                                  coinTwoName = selectPair!
-                                                      .coinname2
-                                                      .toString();
+                                                  // coinName = selectPair!
+                                                  //     .coinname1
+                                                  //     .toString();
+                                                  // coinTwoName = selectPair!
+                                                  //     .coinname2
+                                                  //     .toString();
                                                   // getCoinDetailsList(selectPair!
                                                   //     .id
                                                   //     .toString());
@@ -1373,7 +1318,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                     style: CustomWidget(
                                                             context: context)
                                                         .CustomSizedTextStyle(
-                                                            10.0,
+                                                            8.0,
                                                             Theme.of(context)
                                                                 .indicatorColor,
                                                             FontWeight.w500,
@@ -1390,7 +1335,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                     style: CustomWidget(
                                                             context: context)
                                                         .CustomSizedTextStyle(
-                                                            10.0,
+                                                            8.0,
                                                             Theme.of(context)
                                                                 .focusColor,
                                                             FontWeight.w500,
@@ -1475,30 +1420,16 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                                 .text)))
                                                     .toStringAsFixed(4);
                                                 if (futureOption) {
-                                                  firstCoin = futureselectPair!
-                                                      .instId
-                                                      .toString()
-                                                      .split("-")[0];
-                                                  secondCoin = futureselectPair!
-                                                      .instId
-                                                      .toString()
-                                                      .split("-")[1];
+                                                  FuturefirstCoin = futureselectPair!
+                                                      .symbol
+                                                      .toString();
+                                                  FuturesecondCoin = futureselectPair!
+                                                      .symbol
+                                                      .toString();
 
-                                                  coinName = futureselectPair!
-                                                      .instId
-                                                      .toString()
-                                                      .split("-")[0];
-                                                  coinTwoName =
-                                                      futureselectPair!.instId
-                                                          .toString()
-                                                          .split("-")[1];
+
                                                 } else {
-                                                  coinName = selectPair!
-                                                      .coinname1
-                                                      .toString();
-                                                  coinTwoName = selectPair!
-                                                      .coinname2
-                                                      .toString();
+
                                                 }
                                                 // getCoinDetailsList(
                                                 //     selectPair!.id.toString());
@@ -1512,15 +1443,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                   CrossAxisAlignment.start,
                                               children: [
                                                 Text(
-                                                  double.parse(buyData[index]
-                                                          .price
-                                                          .toString())
+                                                  double.parse(buyData[index].price.toString())
                                                       .toStringAsFixed(
                                                           decimalIndex),
                                                   style: CustomWidget(
                                                           context: context)
                                                       .CustomSizedTextStyle(
-                                                          10.0,
+                                                          8.0,
                                                           Theme.of(context)
                                                               .hoverColor,
                                                           FontWeight.w500,
@@ -1536,7 +1465,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                   style: CustomWidget(
                                                           context: context)
                                                       .CustomSizedTextStyle(
-                                                          10.0,
+                                                          8.0,
                                                           Theme.of(context)
                                                               .focusColor,
                                                           FontWeight.w500,
@@ -1592,7 +1521,7 @@ class _SellTradeScreenState extends State<TradeScreen>
       children: [
         openOrders.length > 0
             ? Container(
-                color: Theme.of(context).backgroundColor,
+                color: Theme.of(context).primaryColorLight,
                 width: MediaQuery.of(context).size.width,
                 height: MediaQuery.of(context).size.height * 0.3,
                 child: ListView.builder(
@@ -1955,7 +1884,7 @@ class _SellTradeScreenState extends State<TradeScreen>
               )
             : Container(
                 height: MediaQuery.of(context).size.height * 0.3,
-                color: Theme.of(context).backgroundColor,
+                color: Theme.of(context).primaryColorLight,
                 child: Center(
                   child: Text(
                     "No Records Found..!",
@@ -1981,7 +1910,7 @@ class _SellTradeScreenState extends State<TradeScreen>
           return Align(
             alignment: const Alignment(0, 1),
             child: Material(
-              color: CustomTheme.of(context).backgroundColor,
+              color: CustomTheme.of(context).primaryColorLight,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(5.0)),
               child: Padding(
@@ -2059,6 +1988,7 @@ class _SellTradeScreenState extends State<TradeScreen>
 
   Widget OrderWidget() {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisAlignment: MainAxisAlignment.start,
       children: [
         Container(
@@ -2089,10 +2019,10 @@ class _SellTradeScreenState extends State<TradeScreen>
                         balance = "0.00";
 
                         // getCoinDetailsList(selectPair!.id.toString());
-                        coinName = selectPair!.coinname1.toString();
-                        coinTwoName = selectPair!.coinname2.toString();
-                        print(coinName);
-                        getBalance(coinName);
+                        // coinName = selectPair!.coinname1.toString();
+                        // coinTwoName = selectPair!.coinname2.toString();
+                        // print(coinName);
+                        getBalance(firstCoin);
                       });
                     },
                     child: Stack(
@@ -2138,7 +2068,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                           buySell = false;
                           balance = "0.00";
                         });
-                        print("Test");
+                        // print("Test");
                         setState(() {
                           buySell = false;
                           amountController.clear();
@@ -2148,9 +2078,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                           _currentSliderValue = 0;
                           tleverageVal = "1";
                           // getCoinDetailsList(selectPair!.id.toString());
-                          coinName = selectPair!.coinname1.toString();
-                          coinTwoName = selectPair!.coinname2.toString();
-                          getBalance(coinTwoName);
+                          // coinName = selectPair!.coinname1.toString();
+                          // coinTwoName = selectPair!.coinname2.toString();
+                          getBalance(secondCoin);
                         });
                       },
                       child: Stack(
@@ -2207,34 +2137,19 @@ class _SellTradeScreenState extends State<TradeScreen>
           ),
           child: Theme(
             data: Theme.of(context).copyWith(
-              canvasColor: CustomTheme.of(context).backgroundColor,
+              canvasColor: CustomTheme.of(context).primaryColorLight,
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton(
                 menuMaxHeight: MediaQuery.of(context).size.height * 0.7,
-                items: !futureOption
-                    ? chartTime
+                items: chartTime
                         .map((value) => DropdownMenuItem(
                               child: Text(
                                 value.toString(),
                                 style: CustomWidget(context: context)
                                     .CustomSizedTextStyle(
                                         10.0,
-                                        Theme.of(context).errorColor,
-                                        FontWeight.w500,
-                                        'FontRegular'),
-                              ),
-                              value: value,
-                            ))
-                        .toList()
-                    : chartTime
-                        .map((value) => DropdownMenuItem(
-                              child: Text(
-                                value.toString(),
-                                style: CustomWidget(context: context)
-                                    .CustomSizedTextStyle(
-                                        10.0,
-                                        Theme.of(context).errorColor,
+                                        Theme.of(context).focusColor,
                                         FontWeight.w500,
                                         'FontRegular'),
                               ),
@@ -2276,7 +2191,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                   "Select Category",
                   style: CustomWidget(context: context).CustomSizedTextStyle(
                       12.0,
-                      Theme.of(context).errorColor,
+                      Theme.of(context).focusColor,
                       FontWeight.w500,
                       'FontRegular'),
                 ),
@@ -2309,7 +2224,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                 ),
                 child: Theme(
                   data: Theme.of(context).copyWith(
-                    canvasColor: CustomTheme.of(context).backgroundColor,
+                    canvasColor: CustomTheme.of(context).primaryColorLight,
                   ),
                   child: DropdownButtonHideUnderline(
                     child: DropdownButton(
@@ -2322,7 +2237,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                       style: CustomWidget(context: context)
                                           .CustomSizedTextStyle(
                                               10.0,
-                                              Theme.of(context).errorColor,
+                                              Theme.of(context).focusColor,
                                               FontWeight.w500,
                                               'FontRegular'),
                                     ),
@@ -2336,7 +2251,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                       style: CustomWidget(context: context)
                                           .CustomSizedTextStyle(
                                               10.0,
-                                              Theme.of(context).errorColor,
+                                              Theme.of(context).focusColor,
                                               FontWeight.w500,
                                               'FontRegular'),
                                     ),
@@ -2353,7 +2268,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                         style: CustomWidget(context: context)
                             .CustomSizedTextStyle(
                                 12.0,
-                                Theme.of(context).errorColor,
+                                Theme.of(context).focusColor,
                                 FontWeight.w500,
                                 'FontRegular'),
                       ),
@@ -2429,14 +2344,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                       double.parse(
                                           priceController.text.toString()))
                                   .toStringAsFixed(4);
-                              /*  totalAmount = ((double.parse(
-                                    priceController.text
-                                        .toString()) *
-                                    double.parse(amountController
-                                        .text
-                                        .toString())) -
-                                    double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
+
                             } else {
                               takerFee = ((double.parse(stopPriceController.text
                                               .toString()) *
@@ -2453,14 +2361,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                           stopPriceController.text.toString()))
                                   .toStringAsFixed(4);
 
-                              /*totalAmount = ((double.parse(
-                                    stopPriceController.text
-                                        .toString()) *
-                                    double.parse(amountController
-                                        .text
-                                        .toString())) -
-                                    double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
+
                             }
                           }
                         } else {
@@ -2488,28 +2389,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                             }
                           }
                         }
-                        /* if (!buySell) {
-                              takerFee = ((amount *
-                                  double.parse(amountController.text
-                                      .toString()) *
-                                  double.parse(
-                                      takerFeeValue.toString())) /
-                                  100)
-                                  .toStringAsFixed(4);
 
-                              totalAmount = ((double.parse(amountController.text
-                                  .toString()) *
-                                  double.parse(priceController.text
-                                      .toString())) -
-                                  double.parse(takerFee))
-                                  .toStringAsFixed(4);
-                            } else {*/
-                        /* totalAmount = (double.parse(
-                                  amountController.text.toString()) *
-                                  double.parse(
-                                      priceController.text.toString()))
-                                  .toStringAsFixed(4);*/
-                        // }
                       } else {
                         tradeAmount = "0.00";
                         totalAmount = "0.00";
@@ -2803,7 +2683,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                 height: 5.0,
               ),
         SizedBox(
-          height: 15.0,
+          height: 10.0,
         ),
         Container(
           padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
@@ -2955,607 +2835,318 @@ class _SellTradeScreenState extends State<TradeScreen>
                   textAlign: TextAlign.start,
                 ),
               )),
-              Text(
-                (futureOption
-                    ? coinTwoName
-                    : (!buySell ? coinTwoName : coinName)),
-                style: CustomWidget(context: context).CustomSizedTextStyle(
-                    11.5,
-                    Theme.of(context).focusColor,
-                    FontWeight.w500,
-                    'FontRegular'),
-              ),
-              // InkWell(
-              //   onTap: () {
-              //     setState(() {
-              //       tradeAmount = "0.0";
-              //       totalAmount = "0.0";
-              //       if (enableTrade) {
-              //         if (amountController.text.isNotEmpty) {
-              //           double amount = double.parse(amountController.text);
-              //           if (amount > 0) {
-              //             amount = amount - 0.01;
-              //             amountController.text = amount.toStringAsFixed(2);
-              //             tradeAmount = amountController.text;
-              //             totalAmount =
-              //                 (double.parse(amountController.text.toString()) *
-              //                         double.parse(livePrice))
-              //                     .toStringAsFixed(4);
-              //           }
-              //         } else {
-              //           totalAmount = "0.00";
-              //         }
-              //       } else {
-              //         if (amountController.text.isNotEmpty) {
-              //           double amount = double.parse(amountController.text);
-              //           if (amount > 0) {
-              //             amount = amount - 0.01;
-              //             amountController.text = amount.toStringAsFixed(2);
-              //             tradeAmount = amountController.text;
-              //             if (enableStopLimit) {
-              //               if (stopPriceController.text.isNotEmpty &&
-              //                   priceController.text.isNotEmpty) {
-              //                 if ((double.parse(
-              //                         priceController.text.toString()) >
-              //                     double.parse(
-              //                         stopPriceController.text.toString()))) {
-              //                   takerFee =
-              //                       ((double.parse(priceController.text
-              //                                       .toString()) *
-              //                                   double.parse(amountController
-              //                                       .text
-              //                                       .toString()) *
-              //                                   double.parse(
-              //                                       takerFeeValue.toString())) /
-              //                               100)
-              //                           .toStringAsFixed(4);
-              //
-              //                   totalAmount = (double.parse(
-              //                               amountController.text.toString()) *
-              //                           double.parse(
-              //                               priceController.text.toString()))
-              //                       .toStringAsFixed(4);
-              //                   /*  totalAmount = ((double.parse(
-              //                       priceController.text
-              //                           .toString()) *
-              //                       double.parse(amountController
-              //                           .text
-              //                           .toString())) -
-              //                       double.parse(takerFee))
-              //                       .toStringAsFixed(4);*/
-              //                 } else {
-              //                   takerFee = ((double.parse(stopPriceController
-              //                                   .text
-              //                                   .toString()) *
-              //                               double.parse(amountController.text
-              //                                   .toString()) *
-              //                               double.parse(
-              //                                   takerFeeValue.toString())) /
-              //                           100)
-              //                       .toStringAsFixed(4);
-              //
-              //                   totalAmount = (double.parse(
-              //                               amountController.text.toString()) *
-              //                           double.parse(livePrice))
-              //                       .toStringAsFixed(4);
-              //
-              //                   /*totalAmount = ((double.parse(
-              //                       stopPriceController.text
-              //                           .toString()) *
-              //                       double.parse(amountController
-              //                           .text
-              //                           .toString())) -
-              //                       double.parse(takerFee))
-              //                       .toStringAsFixed(4);*/
-              //                 }
-              //               }
-              //             } else {
-              //               if (priceController.text.isNotEmpty) {
-              //                 if (!buySell) {
-              //                   takerFee = ((amount *
-              //                               double.parse(priceController.text
-              //                                   .toString()) *
-              //                               double.parse(
-              //                                   takerFeeValue.toString())) /
-              //                           100)
-              //                       .toStringAsFixed(4);
-              //
-              //                   totalAmount = (double.parse(
-              //                               amountController.text.toString()) *
-              //                           double.parse(
-              //                               priceController.text.toString()))
-              //                       .toStringAsFixed(4);
-              //                 } else {
-              //                   totalAmount = (double.parse(
-              //                               amountController.text.toString()) *
-              //                           double.parse(
-              //                               priceController.text.toString()))
-              //                       .toStringAsFixed(4);
-              //                 }
-              //               }
-              //             }
-              //           }
-              //         } else {
-              //           amountController.text = "0.01";
-              //           tradeAmount = amountController.text;
-              //           totalAmount = "0.000";
-              //         }
-              //       }
-              //     });
-              //   },
-              //   child: Container(
-              //       height: 40.0,
-              //       width: 35.0,
-              //       padding: const EdgeInsets.only(
-              //         left: 10.0,
-              //         right: 10.0,
-              //       ),
-              //       decoration: BoxDecoration(
-              //         color: CustomTheme.of(context).cardColor,
-              //         borderRadius: BorderRadius.circular(2),
-              //       ),
-              //       child: Center(
-              //         child: Text(
-              //           "-",
-              //           style: CustomWidget(context: context)
-              //               .CustomSizedTextStyle(
-              //                   20.0,
-              //                   Theme.of(context).focusColor,
-              //                   FontWeight.w500,
-              //                   'FontRegular'),
-              //         ),
-              //       )),
-              // ),
+
               const SizedBox(
                 width: 2.0,
               ),
-              // InkWell(
-              //   onTap: () {
-              //     setState(() {
-              //       totalAmount = "0.000";
-              //       if (enableTrade) {
-              //         if (amountController.text.isNotEmpty) {
-              //           double amount = double.parse(amountController.text);
-              //           if (amount > 0) {
-              //             amount = amount + 0.01;
-              //             amountController.text = amount.toStringAsFixed(2);
-              //             tradeAmount = amountController.text;
-              //             totalAmount =
-              //                 (double.parse(amountController.text.toString()) *
-              //                         double.parse(livePrice))
-              //                     .toStringAsFixed(4);
-              //           }
-              //         } else {
-              //           totalAmount = "0.00";
-              //         }
-              //       } else {
-              //         if (amountController.text.isNotEmpty) {
-              //           double amount = double.parse(amountController.text);
-              //           if (amount >= 0) {
-              //             amount = amount + 0.01;
-              //             amountController.text = amount.toStringAsFixed(2);
-              //             tradeAmount = amountController.text;
-              //             if (enableStopLimit) {
-              //               if (stopPriceController.text.isNotEmpty &&
-              //                   priceController.text.isNotEmpty) {
-              //                 if ((double.parse(
-              //                         priceController.text.toString()) >
-              //                     double.parse(
-              //                         stopPriceController.text.toString()))) {
-              //                   takerFee =
-              //                       ((double.parse(priceController.text
-              //                                       .toString()) *
-              //                                   double.parse(amountController
-              //                                       .text
-              //                                       .toString()) *
-              //                                   double.parse(
-              //                                       takerFeeValue.toString())) /
-              //                               100)
-              //                           .toStringAsFixed(4);
-              //
-              //                   totalAmount = (double.parse(
-              //                               amountController.text.toString()) *
-              //                           double.parse(
-              //                               priceController.text.toString()))
-              //                       .toStringAsFixed(4);
-              //                   /*  totalAmount = ((double.parse(
-              //                       priceController.text
-              //                           .toString()) *
-              //                       double.parse(amountController
-              //                           .text
-              //                           .toString())) -
-              //                       double.parse(takerFee))
-              //                       .toStringAsFixed(4);*/
-              //                 } else {
-              //                   takerFee = ((double.parse(stopPriceController
-              //                                   .text
-              //                                   .toString()) *
-              //                               double.parse(amountController.text
-              //                                   .toString()) *
-              //                               double.parse(
-              //                                   takerFeeValue.toString())) /
-              //                           100)
-              //                       .toStringAsFixed(4);
-              //
-              //                   totalAmount = (double.parse(
-              //                               amountController.text.toString()) *
-              //                           double.parse(livePrice))
-              //                       .toStringAsFixed(4);
-              //
-              //                   /*totalAmount = ((double.parse(
-              //                       stopPriceController.text
-              //                           .toString()) *
-              //                       double.parse(amountController
-              //                           .text
-              //                           .toString())) -
-              //                       double.parse(takerFee))
-              //                       .toStringAsFixed(4);*/
-              //                 }
-              //               }
-              //             } else {
-              //               if (priceController.text.isNotEmpty) {
-              //                 if (!buySell) {
-              //                   takerFee = ((amount *
-              //                               double.parse(priceController.text
-              //                                   .toString()) *
-              //                               double.parse(
-              //                                   takerFeeValue.toString())) /
-              //                           100)
-              //                       .toStringAsFixed(4);
-              //
-              //                   totalAmount = (double.parse(
-              //                               amountController.text.toString()) *
-              //                           double.parse(
-              //                               priceController.text.toString()))
-              //                       .toStringAsFixed(4);
-              //                 } else {
-              //                   totalAmount = (double.parse(
-              //                               amountController.text.toString()) *
-              //                           double.parse(
-              //                               priceController.text.toString()))
-              //                       .toStringAsFixed(4);
-              //                 }
-              //               }
-              //             }
-              //           }
-              //         } else {
-              //           amountController.text = "0.01";
-              //           tradeAmount = amountController.text;
-              //           totalAmount = "0.000";
-              //         }
-              //       }
-              //     });
-              //   },
-              //   child: Container(
-              //       height: 40.0,
-              //       width: 35.0,
-              //       padding: const EdgeInsets.only(
-              //         left: 10.0,
-              //         right: 10.0,
-              //       ),
-              //       decoration: BoxDecoration(
-              //         color: CustomTheme.of(context).cardColor,
-              //         borderRadius: BorderRadius.circular(2),
-              //       ),
-              //       child: Center(
-              //         child: Text(
-              //           "+",
-              //           style: CustomWidget(context: context)
-              //               .CustomSizedTextStyle(
-              //                   20.0,
-              //                   Theme.of(context).focusColor,
-              //                   FontWeight.w500,
-              //                   'FontRegular'),
-              //         ),
-              //       )),
-              // ),
+
             ],
           ),
         ),
-        enableStopLimit
-            ? SizedBox(
-                height: 15.0,
-              )
-            : Container(),
-        enableStopLimit
-            ? Container(
-                padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                      color: enableTrade
-                          ? Theme.of(context).focusColor.withOpacity(0.1)
-                          : CustomTheme.of(context).focusColor.withOpacity(0.5),
-                      width: 1.0),
-                  borderRadius: BorderRadius.circular(5.0),
-                  color: Colors.transparent,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                        child: Container(
-                      height: 40.0,
-                      child: TextField(
-                        enabled: !enableTrade,
-                        controller: stopPriceController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        style: CustomWidget(context: context)
-                            .CustomSizedTextStyle(
-                                13.0,
-                                Theme.of(context).focusColor,
-                                FontWeight.w500,
-                                'FontRegular'),
-                        onChanged: (value) {
-                          setState(() {
-                            stopPrice = "0.0";
-                            // price = value.toString();
-                            tradeAmount = "0.00";
-
-                            if (stopPriceController.text.isNotEmpty) {
-                              stopPrice = stopPriceController.text;
-                              tradeAmount = stopPriceController.text.toString();
-                              if (amountController.text.isNotEmpty &&
-                                  priceController.text.isNotEmpty) {
-                                if (!buySell) {
-                                  if ((double.parse(
-                                          priceController.text.toString()) >
-                                      double.parse(stopPriceController.text
-                                          .toString()))) {
-                                    takerFee =
-                                        ((double.parse(priceController.text
-                                                        .toString()) *
-                                                    double.parse(
-                                                        amountController.text
-                                                            .toString()) *
-                                                    double.parse(takerFeeValue
-                                                        .toString())) /
-                                                100)
-                                            .toStringAsFixed(4);
-
-                                    totalAmount = (double.parse(priceController
-                                                .text
-                                                .toString()) *
-                                            double.parse(amountController.text
-                                                .toString()))
-                                        .toStringAsFixed(4);
-                                  } else {
-                                    takerFee = ((double.parse(
-                                                    stopPriceController.text
-                                                        .toString()) *
-                                                double.parse(amountController
-                                                    .text
-                                                    .toString()) *
-                                                double.parse(
-                                                    takerFeeValue.toString())) /
-                                            100)
-                                        .toStringAsFixed(4);
-
-                                    totalAmount = (double.parse(
-                                                stopPriceController.text
-                                                    .toString()) *
-                                            double.parse(amountController.text
-                                                .toString()))
-                                        .toStringAsFixed(4);
-                                  }
-                                } else {
-                                  if ((double.parse(
-                                          priceController.text.toString()) >
-                                      double.parse(stopPriceController.text
-                                          .toString()))) {
-                                    takerFee =
-                                        ((double.parse(priceController.text
-                                                        .toString()) *
-                                                    double.parse(
-                                                        amountController.text
-                                                            .toString()) *
-                                                    double.parse(takerFeeValue
-                                                        .toString())) /
-                                                100)
-                                            .toStringAsFixed(4);
-
-                                    totalAmount = (double.parse(priceController
-                                                .text
-                                                .toString()) *
-                                            double.parse(amountController.text
-                                                .toString()))
-                                        .toStringAsFixed(4);
-                                    ;
-                                  } else {
-                                    takerFee = ((double.parse(amountController
-                                                    .text
-                                                    .toString()) *
-                                                double.parse(stopPriceController
-                                                    .text
-                                                    .toString()) *
-                                                double.parse(
-                                                    takerFeeValue.toString())) /
-                                            100)
-                                        .toStringAsFixed(4);
-
-                                    totalAmount = (double.parse(
-                                                stopPriceController.text
-                                                    .toString()) *
-                                            double.parse(amountController.text
-                                                .toString()))
-                                        .toStringAsFixed(4);
-                                  }
-                                }
-                              }
-                            } else {
-                              tradeAmount = "0.00";
-                              totalAmount = "0.00";
-                            }
-                          });
-                        },
-                        decoration: InputDecoration(
-                            contentPadding: EdgeInsets.only(bottom: 8.0),
-                            hintText: "Stop-Price",
-                            hintStyle: CustomWidget(context: context)
-                                .CustomSizedTextStyle(
-                                    12.0,
-                                    Theme.of(context)
-                                        .focusColor
-                                        .withOpacity(0.5),
-                                    FontWeight.w500,
-                                    'FontRegular'),
-                            border: InputBorder.none),
-                        textAlign: TextAlign.start,
-                      ),
-                    )),
-                    InkWell(
-                      onTap: () {
-                        if (enableTrade) {
-                        } else {
-                          setState(() {
-                            tradeAmount = "0.00";
-                            if (stopPriceController.text.isNotEmpty) {
-                              double amount =
-                                  double.parse(stopPriceController.text);
-
-                              if (amount > 0) {
-                                amount = amount - 0.01;
-                                stopPriceController.text =
-                                    amount.toStringAsFixed(2);
-                                stopPrice = stopPriceController.text;
-
-                                if (amountController.text.isNotEmpty) {
-                                  tradeAmount =
-                                      amountController.text.toString();
-                                  takerFee = ((amount *
-                                              double.parse(amountController.text
-                                                  .toString()) *
-                                              double.parse(
-                                                  takerFeeValue.toString())) /
-                                          100)
-                                      .toStringAsFixed(4);
-
-                                  totalAmount = (double.parse(
-                                              stopPriceController.text
-                                                  .toString()) *
-                                          double.parse(
-                                              amountController.text.toString()))
-                                      .toStringAsFixed(4);
-                                } else {
-                                  totalAmount = "0.00";
-                                }
-                              } else {
-                                stopPriceController.text = "0.01";
-                                totalAmount = "0.00";
-                              }
-                            }
-                          });
-                        }
-                      },
-                      child: Container(
-                          height: 40.0,
-                          width: 35.0,
-                          padding: const EdgeInsets.only(
-                            left: 10.0,
-                            right: 10.0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: enableTrade
-                                ? Theme.of(context).cardColor.withOpacity(0.2)
-                                : CustomTheme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                          child: Center(
-                            child: Text(
-                              "-",
-                              style: CustomWidget(context: context)
-                                  .CustomSizedTextStyle(
-                                      20.0,
-                                      enableTrade
-                                          ? Theme.of(context)
-                                              .cardColor
-                                              .withOpacity(0.5)
-                                          : Theme.of(context).focusColor,
-                                      FontWeight.w500,
-                                      'FontRegular'),
-                            ),
-                          )),
-                    ),
-                    const SizedBox(
-                      width: 2.0,
-                    ),
-                    InkWell(
-                      onTap: () {
-                        if (enableTrade) {
-                        } else {
-                          setState(() {
-                            if (stopPriceController.text.isNotEmpty) {
-                              double amount =
-                                  double.parse(stopPriceController.text);
-                              if (amount >= 0) {
-                                amount = amount + 0.01;
-                                stopPriceController.text =
-                                    amount.toStringAsFixed(2);
-                                stopPrice = stopPriceController.text;
-                                if (amountController.text.isNotEmpty) {
-                                  takerFee = ((double.parse(amountController
-                                                  .text
-                                                  .toString()) *
-                                              double.parse(stopPriceController
-                                                  .text
-                                                  .toString()) *
-                                              double.parse(
-                                                  takerFeeValue.toString())) /
-                                          100)
-                                      .toStringAsFixed(4);
-
-                                  totalAmount = (double.parse(
-                                              stopPriceController.text
-                                                  .toString()) *
-                                          double.parse(
-                                              amountController.text.toString()))
-                                      .toStringAsFixed(4);
-                                } else {
-                                  // priceController.text = "0.01";
-                                  tradeAmount = "0.00";
-                                }
-                              }
-                            } else {
-                              stopPriceController.text = "0.01";
-                              tradeAmount = "0.00";
-                            }
-                          });
-                        }
-                      },
-                      child: Container(
-                          height: 40.0,
-                          width: 35.0,
-                          padding: const EdgeInsets.only(
-                            left: 10.0,
-                            right: 10.0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: enableTrade
-                                ? Theme.of(context).cardColor.withOpacity(0.2)
-                                : CustomTheme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                          child: Center(
-                            child: Text(
-                              "+",
-                              style: CustomWidget(context: context)
-                                  .CustomSizedTextStyle(
-                                      20.0,
-                                      enableTrade
-                                          ? Theme.of(context)
-                                              .cardColor
-                                              .withOpacity(0.2)
-                                          : Theme.of(context).focusColor,
-                                      FontWeight.w500,
-                                      'FontRegular'),
-                            ),
-                          )),
-                    ),
-                  ],
-                ),
-              )
-            : SizedBox(),
+        // enableStopLimit
+        //     ? SizedBox(
+        //         height: 15.0,
+        //       )
+        //     : Container(),
+        // enableStopLimit
+        //     ? Container(
+        //         padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
+        //         decoration: BoxDecoration(
+        //           border: Border.all(
+        //               color: enableTrade
+        //                   ? Theme.of(context).focusColor.withOpacity(0.1)
+        //                   : CustomTheme.of(context).focusColor.withOpacity(0.5),
+        //               width: 1.0),
+        //           borderRadius: BorderRadius.circular(5.0),
+        //           color: Colors.transparent,
+        //         ),
+        //         child: Row(
+        //           crossAxisAlignment: CrossAxisAlignment.center,
+        //           mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        //           children: [
+        //             Flexible(
+        //                 child: Container(
+        //               height: 40.0,
+        //               child: TextField(
+        //                 enabled: !enableTrade,
+        //                 controller: stopPriceController,
+        //                 keyboardType: const TextInputType.numberWithOptions(
+        //                     decimal: true),
+        //                 style: CustomWidget(context: context)
+        //                     .CustomSizedTextStyle(
+        //                         13.0,
+        //                         Theme.of(context).focusColor,
+        //                         FontWeight.w500,
+        //                         'FontRegular'),
+        //                 onChanged: (value) {
+        //                   setState(() {
+        //                     stopPrice = "0.0";
+        //                     // price = value.toString();
+        //                     tradeAmount = "0.00";
+        //
+        //                     if (stopPriceController.text.isNotEmpty) {
+        //                       stopPrice = stopPriceController.text;
+        //                       tradeAmount = stopPriceController.text.toString();
+        //                       if (amountController.text.isNotEmpty &&
+        //                           priceController.text.isNotEmpty) {
+        //                         if (!buySell) {
+        //                           if ((double.parse(
+        //                                   priceController.text.toString()) >
+        //                               double.parse(stopPriceController.text
+        //                                   .toString()))) {
+        //                             takerFee =
+        //                                 ((double.parse(priceController.text
+        //                                                 .toString()) *
+        //                                             double.parse(
+        //                                                 amountController.text
+        //                                                     .toString()) *
+        //                                             double.parse(takerFeeValue
+        //                                                 .toString())) /
+        //                                         100)
+        //                                     .toStringAsFixed(4);
+        //
+        //                             totalAmount = (double.parse(priceController
+        //                                         .text
+        //                                         .toString()) *
+        //                                     double.parse(amountController.text
+        //                                         .toString()))
+        //                                 .toStringAsFixed(4);
+        //                           } else {
+        //                             takerFee = ((double.parse(
+        //                                             stopPriceController.text
+        //                                                 .toString()) *
+        //                                         double.parse(amountController
+        //                                             .text
+        //                                             .toString()) *
+        //                                         double.parse(
+        //                                             takerFeeValue.toString())) /
+        //                                     100)
+        //                                 .toStringAsFixed(4);
+        //
+        //                             totalAmount = (double.parse(
+        //                                         stopPriceController.text
+        //                                             .toString()) *
+        //                                     double.parse(amountController.text
+        //                                         .toString()))
+        //                                 .toStringAsFixed(4);
+        //                           }
+        //                         } else {
+        //                           if ((double.parse(
+        //                                   priceController.text.toString()) >
+        //                               double.parse(stopPriceController.text
+        //                                   .toString()))) {
+        //                             takerFee =
+        //                                 ((double.parse(priceController.text
+        //                                                 .toString()) *
+        //                                             double.parse(
+        //                                                 amountController.text
+        //                                                     .toString()) *
+        //                                             double.parse(takerFeeValue
+        //                                                 .toString())) /
+        //                                         100)
+        //                                     .toStringAsFixed(4);
+        //
+        //                             totalAmount = (double.parse(priceController
+        //                                         .text
+        //                                         .toString()) *
+        //                                     double.parse(amountController.text
+        //                                         .toString()))
+        //                                 .toStringAsFixed(4);
+        //                             ;
+        //                           } else {
+        //                             takerFee = ((double.parse(amountController
+        //                                             .text
+        //                                             .toString()) *
+        //                                         double.parse(stopPriceController
+        //                                             .text
+        //                                             .toString()) *
+        //                                         double.parse(
+        //                                             takerFeeValue.toString())) /
+        //                                     100)
+        //                                 .toStringAsFixed(4);
+        //
+        //                             totalAmount = (double.parse(
+        //                                         stopPriceController.text
+        //                                             .toString()) *
+        //                                     double.parse(amountController.text
+        //                                         .toString()))
+        //                                 .toStringAsFixed(4);
+        //                           }
+        //                         }
+        //                       }
+        //                     } else {
+        //                       tradeAmount = "0.00";
+        //                       totalAmount = "0.00";
+        //                     }
+        //                   });
+        //                 },
+        //                 decoration: InputDecoration(
+        //                     contentPadding: EdgeInsets.only(bottom: 8.0),
+        //                     hintText: "Stop-Price",
+        //                     hintStyle: CustomWidget(context: context)
+        //                         .CustomSizedTextStyle(
+        //                             12.0,
+        //                             Theme.of(context)
+        //                                 .focusColor
+        //                                 .withOpacity(0.5),
+        //                             FontWeight.w500,
+        //                             'FontRegular'),
+        //                     border: InputBorder.none),
+        //                 textAlign: TextAlign.start,
+        //               ),
+        //             )),
+        //             InkWell(
+        //               onTap: () {
+        //                 if (enableTrade) {
+        //                 } else {
+        //                   setState(() {
+        //                     tradeAmount = "0.00";
+        //                     if (stopPriceController.text.isNotEmpty) {
+        //                       double amount =
+        //                           double.parse(stopPriceController.text);
+        //
+        //                       if (amount > 0) {
+        //                         amount = amount - 0.01;
+        //                         stopPriceController.text =
+        //                             amount.toStringAsFixed(2);
+        //                         stopPrice = stopPriceController.text;
+        //
+        //                         if (amountController.text.isNotEmpty) {
+        //                           tradeAmount =
+        //                               amountController.text.toString();
+        //                           takerFee = ((amount *
+        //                                       double.parse(amountController.text
+        //                                           .toString()) *
+        //                                       double.parse(
+        //                                           takerFeeValue.toString())) /
+        //                                   100)
+        //                               .toStringAsFixed(4);
+        //
+        //                           totalAmount = (double.parse(
+        //                                       stopPriceController.text
+        //                                           .toString()) *
+        //                                   double.parse(
+        //                                       amountController.text.toString()))
+        //                               .toStringAsFixed(4);
+        //                         } else {
+        //                           totalAmount = "0.00";
+        //                         }
+        //                       } else {
+        //                         stopPriceController.text = "0.01";
+        //                         totalAmount = "0.00";
+        //                       }
+        //                     }
+        //                   });
+        //                 }
+        //               },
+        //               child: Container(
+        //                   height: 40.0,
+        //                   width: 35.0,
+        //                   padding: const EdgeInsets.only(
+        //                     left: 10.0,
+        //                     right: 10.0,
+        //                   ),
+        //                   decoration: BoxDecoration(
+        //                     color: enableTrade
+        //                         ? Theme.of(context).cardColor.withOpacity(0.2)
+        //                         : CustomTheme.of(context).cardColor,
+        //                     borderRadius: BorderRadius.circular(2),
+        //                   ),
+        //                   child: Center(
+        //                     child: Text(
+        //                       "-",
+        //                       style: CustomWidget(context: context)
+        //                           .CustomSizedTextStyle(
+        //                               20.0,
+        //                               enableTrade
+        //                                   ? Theme.of(context)
+        //                                       .cardColor
+        //                                       .withOpacity(0.5)
+        //                                   : Theme.of(context).focusColor,
+        //                               FontWeight.w500,
+        //                               'FontRegular'),
+        //                     ),
+        //                   )),
+        //             ),
+        //             const SizedBox(
+        //               width: 2.0,
+        //             ),
+        //             InkWell(
+        //               onTap: () {
+        //                 if (enableTrade) {
+        //                 } else {
+        //                   setState(() {
+        //                     if (stopPriceController.text.isNotEmpty) {
+        //                       double amount =
+        //                           double.parse(stopPriceController.text);
+        //                       if (amount >= 0) {
+        //                         amount = amount + 0.01;
+        //                         stopPriceController.text =
+        //                             amount.toStringAsFixed(2);
+        //                         stopPrice = stopPriceController.text;
+        //                         if (amountController.text.isNotEmpty) {
+        //                           takerFee = ((double.parse(amountController
+        //                                           .text
+        //                                           .toString()) *
+        //                                       double.parse(stopPriceController
+        //                                           .text
+        //                                           .toString()) *
+        //                                       double.parse(
+        //                                           takerFeeValue.toString())) /
+        //                                   100)
+        //                               .toStringAsFixed(4);
+        //
+        //                           totalAmount = (double.parse(
+        //                                       stopPriceController.text
+        //                                           .toString()) *
+        //                                   double.parse(
+        //                                       amountController.text.toString()))
+        //                               .toStringAsFixed(4);
+        //                         } else {
+        //                           // priceController.text = "0.01";
+        //                           tradeAmount = "0.00";
+        //                         }
+        //                       }
+        //                     } else {
+        //                       stopPriceController.text = "0.01";
+        //                       tradeAmount = "0.00";
+        //                     }
+        //                   });
+        //                 }
+        //               },
+        //               child: Container(
+        //                   height: 40.0,
+        //                   width: 35.0,
+        //                   padding: const EdgeInsets.only(
+        //                     left: 10.0,
+        //                     right: 10.0,
+        //                   ),
+        //                   decoration: BoxDecoration(
+        //                     color: enableTrade
+        //                         ? Theme.of(context).cardColor.withOpacity(0.2)
+        //                         : CustomTheme.of(context).cardColor,
+        //                     borderRadius: BorderRadius.circular(2),
+        //                   ),
+        //                   child: Center(
+        //                     child: Text(
+        //                       "+",
+        //                       style: CustomWidget(context: context)
+        //                           .CustomSizedTextStyle(
+        //                               20.0,
+        //                               enableTrade
+        //                                   ? Theme.of(context)
+        //                                       .cardColor
+        //                                       .withOpacity(0.2)
+        //                                   : Theme.of(context).focusColor,
+        //                               FontWeight.w500,
+        //                               'FontRegular'),
+        //                     ),
+        //                   )),
+        //             ),
+        //           ],
+        //         ),
+        //       )
+        //     : SizedBox(),
         Container(
           child: SliderTheme(
             data: SliderThemeData(
@@ -3586,13 +3177,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                     print(_tLevSliderValue);
                     setState(() {
                       if (_tLevSliderValue == 25) {
-                        tleverageVal = "1";
+                        tleverageVal = "25";
                       } else if (_tLevSliderValue == 50) {
-                        tleverageVal = "10";
-                      } else if (_tLevSliderValue == 75) {
                         tleverageVal = "50";
-                      } else {
+                      } else if (_tLevSliderValue == 75) {
                         tleverageVal = "75";
+                      } else {
+                        tleverageVal = "100";
                       }
                     });
                     int val = _currentSliderValue.toInt();
@@ -3645,6 +3236,845 @@ class _SellTradeScreenState extends State<TradeScreen>
           ),
         ),
         Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            SizedBox(
+              child: Transform.scale(
+                scale: 0.8,
+                child:  Checkbox(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(5.0),
+                  ),
+                  value: tpslCheck,
+                  activeColor: Theme.of(context).focusColor,
+                  checkColor: Theme.of(context).primaryColorDark,
+                  onChanged: (bool? value) {
+                    setState(() {
+                      tpslCheck = value!;
+                    });
+                  },
+                ),
+              ),
+              width: 18.0,
+              height: 20.0,
+
+            ),
+            const SizedBox(
+              width: 5.0,
+            ),
+            Flexible(child: RichText(
+              text: TextSpan(
+                text: 'TP/SL',
+                style: CustomWidget(context: context)
+                    .CustomSizedTextStyle(
+                    12.0,
+                    Theme.of(context).disabledColor,
+                    FontWeight.w400,
+                    'FontRegular'),
+              ),
+            ),),
+            //Checkbox
+          ],
+        ),
+        const SizedBox(
+          height: 5.0,
+        ),
+        tpslCheck? Container(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                      color: enableTrade
+                          ? Theme.of(context).focusColor.withOpacity(0.1)
+                          : CustomTheme.of(context).focusColor.withOpacity(0.5),
+                      width: 1.0),
+                  borderRadius: BorderRadius.circular(5.0),
+                  color: Colors.transparent,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                        child: Container(
+                          height: 40.0,
+                          child: TextField(
+                            enabled: !enableTrade,
+                            controller: tppriceController,
+                            keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                            style: CustomWidget(context: context).CustomSizedTextStyle(
+                                13.0,
+                                Theme.of(context).focusColor,
+                                FontWeight.w500,
+                                'FontRegular'),
+                            onChanged: (value) {
+                              setState(() {
+                                price = "0.0";
+                                // price = value.toString();
+                                tradeAmount = "0.00";
+
+                                // if (tppriceController.text.isNotEmpty) {
+                                //   double amount = double.parse(priceController.text);
+                                //   price = priceController.text;
+                                //   if (enableStopLimit) {
+                                //     if (priceController.text.isNotEmpty &&
+                                //         stopPriceController.text.isNotEmpty) {
+                                //       if ((double.parse(priceController.text.toString()) >
+                                //           double.parse(
+                                //               stopPriceController.text.toString()))) {
+                                //         takerFee = ((double.parse(
+                                //             priceController.text.toString()) *
+                                //             double.parse(amountController.text
+                                //                 .toString()) *
+                                //             double.parse(
+                                //                 takerFeeValue.toString())) /
+                                //             100)
+                                //             .toStringAsFixed(4);
+                                //
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 priceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //
+                                //       } else {
+                                //         takerFee = ((double.parse(stopPriceController.text
+                                //             .toString()) *
+                                //             double.parse(amountController.text
+                                //                 .toString()) *
+                                //             double.parse(
+                                //                 takerFeeValue.toString())) /
+                                //             100)
+                                //             .toStringAsFixed(4);
+                                //
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 stopPriceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //
+                                //
+                                //       }
+                                //     }
+                                //   } else {
+                                //     if (priceController.text.isNotEmpty) {
+                                //       if (!buySell) {
+                                //         takerFee = ((amount *
+                                //             double.parse(
+                                //                 priceController.text.toString()) *
+                                //             double.parse(
+                                //                 takerFeeValue.toString())) /
+                                //             100)
+                                //             .toStringAsFixed(4);
+                                //
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 priceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //       } else {
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 priceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //       }
+                                //     }
+                                //   }
+                                //
+                                // } else {
+                                //   tradeAmount = "0.00";
+                                //   totalAmount = "0.00";
+                                // }
+                              });
+                            },
+                            decoration: InputDecoration(
+                                contentPadding: EdgeInsets.only(bottom: 8.0),
+                                hintText: "TP trigger price",
+                                hintStyle: CustomWidget(context: context)
+                                    .CustomSizedTextStyle(
+                                    12.0,
+                                    Theme.of(context).focusColor.withOpacity(0.5),
+                                    FontWeight.w500,
+                                    'FontRegular'),
+                                border: InputBorder.none),
+                            textAlign: TextAlign.start,
+                          ),
+                        )),
+                    // InkWell(
+                    //   onTap: () {
+                    //     if (enableTrade) {
+                    //     } else {
+                    //       setState(() {
+                    //         if (priceController.text.isNotEmpty) {
+                    //           double amount = double.parse(priceController.text);
+                    //           if (amount > 0) {
+                    //             amount = amount - 0.01;
+                    //             priceController.text = amount.toStringAsFixed(2);
+                    //             tradeAmount = priceController.text;
+                    //             if (enableStopLimit) {
+                    //               if (stopPriceController.text.isNotEmpty &&
+                    //                   priceController.text.isNotEmpty) {
+                    //                 if ((double.parse(
+                    //                         priceController.text.toString()) >
+                    //                     double.parse(
+                    //                         stopPriceController.text.toString()))) {
+                    //                   takerFee =
+                    //                       ((double.parse(priceController.text
+                    //                                       .toString()) *
+                    //                                   double.parse(amountController
+                    //                                       .text
+                    //                                       .toString()) *
+                    //                                   double.parse(
+                    //                                       takerFeeValue.toString())) /
+                    //                               100)
+                    //                           .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                   /*  totalAmount = ((double.parse(
+                    //                       priceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 } else {
+                    //                   takerFee = ((double.parse(stopPriceController
+                    //                                   .text
+                    //                                   .toString()) *
+                    //                               double.parse(amountController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(livePrice))
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   /*totalAmount = ((double.parse(
+                    //                       stopPriceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 }
+                    //               }
+                    //             } else {
+                    //               if (priceController.text.isNotEmpty) {
+                    //                 if (!buySell) {
+                    //                   takerFee = ((amount *
+                    //                               double.parse(priceController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 } else {
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 }
+                    //               }
+                    //             }
+                    //           }
+                    //         } else {
+                    //           priceController.text = "0.01";
+                    //           tradeAmount = amountController.text;
+                    //           totalAmount = "0.000";
+                    //         }
+                    //       });
+                    //     }
+                    //   },
+                    //   child: Container(
+                    //       height: 40.0,
+                    //       width: 35.0,
+                    //       padding: const EdgeInsets.only(
+                    //         left: 10.0,
+                    //         right: 10.0,
+                    //       ),
+                    //       decoration: BoxDecoration(
+                    //         color: enableTrade
+                    //             ? Theme.of(context).cardColor.withOpacity(0.2)
+                    //             : CustomTheme.of(context).cardColor,
+                    //         borderRadius: BorderRadius.circular(2),
+                    //       ),
+                    //       child: Center(
+                    //         child: Text(
+                    //           "-",
+                    //           style: CustomWidget(context: context)
+                    //               .CustomSizedTextStyle(
+                    //                   20.0,
+                    //                   enableTrade
+                    //                       ? Theme.of(context)
+                    //                           .cardColor
+                    //                           .withOpacity(0.5)
+                    //                       : Theme.of(context).focusColor,
+                    //                   FontWeight.w500,
+                    //                   'FontRegular'),
+                    //         ),
+                    //       )),
+                    // ),
+                    const SizedBox(
+                      width: 2.0,
+                    ),
+                    // InkWell(
+                    //   onTap: () {
+                    //     if (enableTrade) {
+                    //     } else {
+                    //       setState(() {
+                    //         if (priceController.text.isNotEmpty) {
+                    //           double amount = double.parse(priceController.text);
+                    //           if (amount >= 0) {
+                    //             amount = amount + 0.01;
+                    //             priceController.text = amount.toStringAsFixed(2);
+                    //             tradeAmount = priceController.text;
+                    //             if (enableStopLimit) {
+                    //               if (stopPriceController.text.isNotEmpty &&
+                    //                   priceController.text.isNotEmpty) {
+                    //                 if ((double.parse(
+                    //                         priceController.text.toString()) >
+                    //                     double.parse(
+                    //                         stopPriceController.text.toString()))) {
+                    //                   takerFee =
+                    //                       ((double.parse(priceController.text
+                    //                                       .toString()) *
+                    //                                   double.parse(amountController
+                    //                                       .text
+                    //                                       .toString()) *
+                    //                                   double.parse(
+                    //                                       takerFeeValue.toString())) /
+                    //                               100)
+                    //                           .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                   /*  totalAmount = ((double.parse(
+                    //                       priceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 } else {
+                    //                   takerFee = ((double.parse(stopPriceController
+                    //                                   .text
+                    //                                   .toString()) *
+                    //                               double.parse(amountController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(livePrice))
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   /*totalAmount = ((double.parse(
+                    //                       stopPriceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 }
+                    //               }
+                    //             } else {
+                    //               if (priceController.text.isNotEmpty) {
+                    //                 if (!buySell) {
+                    //                   takerFee = ((amount *
+                    //                               double.parse(priceController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 } else {
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 }
+                    //               }
+                    //             }
+                    //           }
+                    //         } else {
+                    //           priceController.text = "0.01";
+                    //           tradeAmount = amountController.text;
+                    //           totalAmount = "0.000";
+                    //         }
+                    //       });
+                    //     }
+                    //   },
+                    //   child: Container(
+                    //       height: 40.0,
+                    //       width: 35.0,
+                    //       padding: const EdgeInsets.only(
+                    //         left: 10.0,
+                    //         right: 10.0,
+                    //       ),
+                    //       decoration: BoxDecoration(
+                    //         color: enableTrade
+                    //             ? Theme.of(context).cardColor.withOpacity(0.2)
+                    //             : CustomTheme.of(context).cardColor,
+                    //         borderRadius: BorderRadius.circular(2),
+                    //       ),
+                    //       child: Center(
+                    //         child: Text(
+                    //           "+",
+                    //           style: CustomWidget(context: context)
+                    //               .CustomSizedTextStyle(
+                    //                   20.0,
+                    //                   enableTrade
+                    //                       ? Theme.of(context)
+                    //                           .cardColor
+                    //                           .withOpacity(0.2)
+                    //                       : Theme.of(context).focusColor,
+                    //                   FontWeight.w500,
+                    //                   'FontRegular'),
+                    //         ),
+                    //       )),
+                    // ),
+                  ],
+                ),
+              ),
+              const SizedBox(
+                height: 10.0,
+              ),
+              Container(
+                padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                      color: enableTrade
+                          ? Theme.of(context).focusColor.withOpacity(0.1)
+                          : CustomTheme.of(context).focusColor.withOpacity(0.5),
+                      width: 1.0),
+                  borderRadius: BorderRadius.circular(5.0),
+                  color: Colors.transparent,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                        child: Container(
+                          height: 40.0,
+                          child: TextField(
+                            enabled: !enableTrade,
+                            controller: slpriceController,
+                            keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                            style: CustomWidget(context: context).CustomSizedTextStyle(
+                                13.0,
+                                Theme.of(context).focusColor,
+                                FontWeight.w500,
+                                'FontRegular'),
+                            onChanged: (value) {
+                              setState(() {
+                                price = "0.0";
+                                // price = value.toString();
+                                tradeAmount = "0.00";
+
+                                // if (tppriceController.text.isNotEmpty) {
+                                //   double amount = double.parse(priceController.text);
+                                //   price = priceController.text;
+                                //   if (enableStopLimit) {
+                                //     if (priceController.text.isNotEmpty &&
+                                //         stopPriceController.text.isNotEmpty) {
+                                //       if ((double.parse(priceController.text.toString()) >
+                                //           double.parse(
+                                //               stopPriceController.text.toString()))) {
+                                //         takerFee = ((double.parse(
+                                //             priceController.text.toString()) *
+                                //             double.parse(amountController.text
+                                //                 .toString()) *
+                                //             double.parse(
+                                //                 takerFeeValue.toString())) /
+                                //             100)
+                                //             .toStringAsFixed(4);
+                                //
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 priceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //
+                                //       } else {
+                                //         takerFee = ((double.parse(stopPriceController.text
+                                //             .toString()) *
+                                //             double.parse(amountController.text
+                                //                 .toString()) *
+                                //             double.parse(
+                                //                 takerFeeValue.toString())) /
+                                //             100)
+                                //             .toStringAsFixed(4);
+                                //
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 stopPriceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //
+                                //
+                                //       }
+                                //     }
+                                //   } else {
+                                //     if (priceController.text.isNotEmpty) {
+                                //       if (!buySell) {
+                                //         takerFee = ((amount *
+                                //             double.parse(
+                                //                 priceController.text.toString()) *
+                                //             double.parse(
+                                //                 takerFeeValue.toString())) /
+                                //             100)
+                                //             .toStringAsFixed(4);
+                                //
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 priceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //       } else {
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 priceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //       }
+                                //     }
+                                //   }
+                                //
+                                // } else {
+                                //   tradeAmount = "0.00";
+                                //   totalAmount = "0.00";
+                                // }
+                              });
+                            },
+                            decoration: InputDecoration(
+                                contentPadding: EdgeInsets.only(bottom: 8.0),
+                                hintText: "SL trigger price",
+                                hintStyle: CustomWidget(context: context)
+                                    .CustomSizedTextStyle(
+                                    12.0,
+                                    Theme.of(context).focusColor.withOpacity(0.5),
+                                    FontWeight.w500,
+                                    'FontRegular'),
+                                border: InputBorder.none),
+                            textAlign: TextAlign.start,
+                          ),
+                        )),
+                    // InkWell(
+                    //   onTap: () {
+                    //     if (enableTrade) {
+                    //     } else {
+                    //       setState(() {
+                    //         if (priceController.text.isNotEmpty) {
+                    //           double amount = double.parse(priceController.text);
+                    //           if (amount > 0) {
+                    //             amount = amount - 0.01;
+                    //             priceController.text = amount.toStringAsFixed(2);
+                    //             tradeAmount = priceController.text;
+                    //             if (enableStopLimit) {
+                    //               if (stopPriceController.text.isNotEmpty &&
+                    //                   priceController.text.isNotEmpty) {
+                    //                 if ((double.parse(
+                    //                         priceController.text.toString()) >
+                    //                     double.parse(
+                    //                         stopPriceController.text.toString()))) {
+                    //                   takerFee =
+                    //                       ((double.parse(priceController.text
+                    //                                       .toString()) *
+                    //                                   double.parse(amountController
+                    //                                       .text
+                    //                                       .toString()) *
+                    //                                   double.parse(
+                    //                                       takerFeeValue.toString())) /
+                    //                               100)
+                    //                           .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                   /*  totalAmount = ((double.parse(
+                    //                       priceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 } else {
+                    //                   takerFee = ((double.parse(stopPriceController
+                    //                                   .text
+                    //                                   .toString()) *
+                    //                               double.parse(amountController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(livePrice))
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   /*totalAmount = ((double.parse(
+                    //                       stopPriceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 }
+                    //               }
+                    //             } else {
+                    //               if (priceController.text.isNotEmpty) {
+                    //                 if (!buySell) {
+                    //                   takerFee = ((amount *
+                    //                               double.parse(priceController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 } else {
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 }
+                    //               }
+                    //             }
+                    //           }
+                    //         } else {
+                    //           priceController.text = "0.01";
+                    //           tradeAmount = amountController.text;
+                    //           totalAmount = "0.000";
+                    //         }
+                    //       });
+                    //     }
+                    //   },
+                    //   child: Container(
+                    //       height: 40.0,
+                    //       width: 35.0,
+                    //       padding: const EdgeInsets.only(
+                    //         left: 10.0,
+                    //         right: 10.0,
+                    //       ),
+                    //       decoration: BoxDecoration(
+                    //         color: enableTrade
+                    //             ? Theme.of(context).cardColor.withOpacity(0.2)
+                    //             : CustomTheme.of(context).cardColor,
+                    //         borderRadius: BorderRadius.circular(2),
+                    //       ),
+                    //       child: Center(
+                    //         child: Text(
+                    //           "-",
+                    //           style: CustomWidget(context: context)
+                    //               .CustomSizedTextStyle(
+                    //                   20.0,
+                    //                   enableTrade
+                    //                       ? Theme.of(context)
+                    //                           .cardColor
+                    //                           .withOpacity(0.5)
+                    //                       : Theme.of(context).focusColor,
+                    //                   FontWeight.w500,
+                    //                   'FontRegular'),
+                    //         ),
+                    //       )),
+                    // ),
+                    const SizedBox(
+                      width: 2.0,
+                    ),
+                    // InkWell(
+                    //   onTap: () {
+                    //     if (enableTrade) {
+                    //     } else {
+                    //       setState(() {
+                    //         if (priceController.text.isNotEmpty) {
+                    //           double amount = double.parse(priceController.text);
+                    //           if (amount >= 0) {
+                    //             amount = amount + 0.01;
+                    //             priceController.text = amount.toStringAsFixed(2);
+                    //             tradeAmount = priceController.text;
+                    //             if (enableStopLimit) {
+                    //               if (stopPriceController.text.isNotEmpty &&
+                    //                   priceController.text.isNotEmpty) {
+                    //                 if ((double.parse(
+                    //                         priceController.text.toString()) >
+                    //                     double.parse(
+                    //                         stopPriceController.text.toString()))) {
+                    //                   takerFee =
+                    //                       ((double.parse(priceController.text
+                    //                                       .toString()) *
+                    //                                   double.parse(amountController
+                    //                                       .text
+                    //                                       .toString()) *
+                    //                                   double.parse(
+                    //                                       takerFeeValue.toString())) /
+                    //                               100)
+                    //                           .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                   /*  totalAmount = ((double.parse(
+                    //                       priceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 } else {
+                    //                   takerFee = ((double.parse(stopPriceController
+                    //                                   .text
+                    //                                   .toString()) *
+                    //                               double.parse(amountController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(livePrice))
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   /*totalAmount = ((double.parse(
+                    //                       stopPriceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 }
+                    //               }
+                    //             } else {
+                    //               if (priceController.text.isNotEmpty) {
+                    //                 if (!buySell) {
+                    //                   takerFee = ((amount *
+                    //                               double.parse(priceController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 } else {
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 }
+                    //               }
+                    //             }
+                    //           }
+                    //         } else {
+                    //           priceController.text = "0.01";
+                    //           tradeAmount = amountController.text;
+                    //           totalAmount = "0.000";
+                    //         }
+                    //       });
+                    //     }
+                    //   },
+                    //   child: Container(
+                    //       height: 40.0,
+                    //       width: 35.0,
+                    //       padding: const EdgeInsets.only(
+                    //         left: 10.0,
+                    //         right: 10.0,
+                    //       ),
+                    //       decoration: BoxDecoration(
+                    //         color: enableTrade
+                    //             ? Theme.of(context).cardColor.withOpacity(0.2)
+                    //             : CustomTheme.of(context).cardColor,
+                    //         borderRadius: BorderRadius.circular(2),
+                    //       ),
+                    //       child: Center(
+                    //         child: Text(
+                    //           "+",
+                    //           style: CustomWidget(context: context)
+                    //               .CustomSizedTextStyle(
+                    //                   20.0,
+                    //                   enableTrade
+                    //                       ? Theme.of(context)
+                    //                           .cardColor
+                    //                           .withOpacity(0.2)
+                    //                       : Theme.of(context).focusColor,
+                    //                   FontWeight.w500,
+                    //                   'FontRegular'),
+                    //         ),
+                    //       )),
+                    // ),
+                  ],
+                ),
+              ),
+              const SizedBox(
+                height: 10.0,
+              ),
+            ],
+          ),
+        ) : Container(),
+        Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -3657,9 +4087,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                   'FontRegular'),
             ),
             Text(
-              double.parse(balance).toStringAsFixed(4) +
-                  " " +
-                  (buySell ? coinName : coinTwoName),
+              double.parse(balance).toStringAsFixed(4),
               style: CustomWidget(context: context).CustomSizedTextStyle(11.5,
                   Theme.of(context).focusColor, FontWeight.w500, 'FontRegular'),
             ),
@@ -3678,7 +4106,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                   Theme.of(context).focusColor, FontWeight.bold, 'FontRegular'),
             ),
             Text(
-              livePrice + " " + (buySell ? coinName : coinTwoName),
+              livePrice ,
               style: CustomWidget(context: context).CustomSizedTextStyle(11.5,
                   Theme.of(context).focusColor, FontWeight.w500, 'FontRegular'),
             ),
@@ -3700,7 +4128,7 @@ class _SellTradeScreenState extends State<TradeScreen>
             child: Padding(
               padding: EdgeInsets.fromLTRB(0.0, 10.0, 0.0, 10.0),
               child: Text(
-                totalAmount + " " + (buySell ? coinName : coinTwoName),
+                totalAmount ,
                 style: CustomWidget(context: context).CustomSizedTextStyle(
                     13.0,
                     Theme.of(context).focusColor,
@@ -3718,10 +4146,42 @@ class _SellTradeScreenState extends State<TradeScreen>
             setState(() {
               if (enableTrade) {
                 if (amountController.text.isNotEmpty) {
-                  if (double.parse(balance) >= double.parse(totalAmount)) {
-                    loading = true;
-                    tradeDetails();
-                  } else {
+                  if(tpslCheck){
+                    if(tppriceController.text.isNotEmpty){
+                      if(slpriceController.text.isNotEmpty){
+                        if (double.parse(balance) >= double.parse(totalAmount)) {
+                          if(traderType=="user"){
+                            loading = true;
+                            tradeDetails();
+                          }else{
+                            loading = true;
+                            massTradeDetails();
+                          }
+                        }
+                        else {
+                          CustomWidget(context: context).showSuccessAlertDialog(
+                              "Trade", "Insufficient Balance", "error");
+                        }
+
+                      } else {
+                        CustomWidget(context: context).showSuccessAlertDialog(
+                            "Trade", "Enter Stop Loss Price", "error");
+                      }
+                    } else {
+                      CustomWidget(context: context).showSuccessAlertDialog(
+                          "Trade", "Enter Take Profit Price", "error");
+                    }
+                  }
+                  else if (double.parse(balance) >= double.parse(totalAmount)) {
+                   if(traderType=="user"){
+                     loading = true;
+                     tradeDetails();
+                   }else{
+                     loading = true;
+                     massTradeDetails();
+                   }
+                  }
+                  else {
                     CustomWidget(context: context).showSuccessAlertDialog(
                         "Trade", "Insufficient Balance", "error");
                   }
@@ -3732,9 +4192,42 @@ class _SellTradeScreenState extends State<TradeScreen>
               } else {
                 if (priceController.text.isNotEmpty) {
                   if (amountController.text.isNotEmpty) {
-                    if (double.parse(balance) >= double.parse(totalAmount)) {
-                      tradeDetails();
-                    } else {
+                    if(tpslCheck){
+                      if(tppriceController.text.isNotEmpty){
+                        if(slpriceController.text.isNotEmpty){
+                          if (double.parse(balance) >= double.parse(totalAmount)) {
+                            if(traderType=="user"){
+                              loading = true;
+                              tradeDetails();
+                            }else{
+                              loading = true;
+                              massTradeDetails();
+                            }
+                          }
+                          else {
+                            CustomWidget(context: context).showSuccessAlertDialog(
+                                "Trade", "Insufficient Balance", "error");
+                          }
+
+                        } else {
+                          CustomWidget(context: context).showSuccessAlertDialog(
+                              "Trade", "Enter Stop Loss Price", "error");
+                        }
+                      } else {
+                        CustomWidget(context: context).showSuccessAlertDialog(
+                            "Trade", "Enter Take Profit Price", "error");
+                      }
+                    }
+                    else if (double.parse(balance) >= double.parse(totalAmount)) {
+                      if(traderType=="user"){
+                        loading = true;
+                        tradeDetails();
+                      }else{
+                        loading = true;
+                        massTradeDetails();
+                      }
+                    }
+                    else {
                       CustomWidget(context: context).showSuccessAlertDialog(
                           "Trade", "Insufficient Balance", "error");
                     }
@@ -3808,17 +4301,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                       totalAmount = "0.0";
                       _currentSliderValue = 0;
                       tleverageVal = "1";
-                      coinName =
-                          futureselectPair!.instId.toString().split("-")[0];
-                      coinTwoName =
-                          futureselectPair!.instId.toString().split("-")[1];
+
 
                       // loading = true;
-                      firstCoin =
-                          futureselectPair!.instId.toString().split("-")[0];
-                      secondCoin =
-                          futureselectPair!.instId.toString().split("-")[1];
-                      getBalance(coinTwoName);
+                      FuturefirstCoin =
+                          futureselectPair!.symbol.toString();
+                      FuturesecondCoin =
+                          futureselectPair!.symbol.toString();
                     });
                   },
                   child: Container(
@@ -3857,7 +4346,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                   setState(() {
                     buySell = false;
                   });
-                  print("Test");
+                  // print("Test");
                   setState(() {
                     buySell = false;
                     amountController.clear();
@@ -3866,17 +4355,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                     totalAmount = "0.0";
                     _currentSliderValue = 0;
                     tleverageVal = "1";
-                    coinName =
-                        futureselectPair!.instId.toString().split("-")[0];
-                    coinTwoName =
-                        futureselectPair!.instId.toString().split("-")[1];
+                    FuturefirstCoin =
+                        futureselectPair!.symbol.toString();
+                    FuturesecondCoin =
+                        futureselectPair!.symbol.toString();
 
-                    // loading = true;
-                    firstCoin =
-                        futureselectPair!.instId.toString().split("-")[0];
-                    secondCoin =
-                        futureselectPair!.instId.toString().split("-")[1];
-                    getBalance(coinName);
+                    getBalance(FuturefirstCoin);
                   });
                 },
                 child: Container(
@@ -3982,16 +4466,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                     _currentSliderValue = 0;
                     tleverageVal = "1";
                     // getCoinDetailsList(selectPair!.id.toString());
-                    coinName =
-                        futureselectPair!.instId.toString().split("-")[0];
-                    coinTwoName =
-                        futureselectPair!.instId.toString().split("-")[1];
+                    FuturefirstCoin =
+                        futureselectPair!.symbol.toString();
+                    FuturefirstCoin =
+                        futureselectPair!.symbol.toString();
 
-                    // loading = true;
-                    firstCoin =
-                        futureselectPair!.instId.toString().split("-")[0];
-                    secondCoin =
-                        futureselectPair!.instId.toString().split("-")[1];
+
                   });
                 },
                 child: Container(
@@ -4042,34 +4522,19 @@ class _SellTradeScreenState extends State<TradeScreen>
           ),
           child: Theme(
             data: Theme.of(context).copyWith(
-              canvasColor: CustomTheme.of(context).backgroundColor,
+              canvasColor: CustomTheme.of(context).primaryColorLight,
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton(
                 menuMaxHeight: MediaQuery.of(context).size.height * 0.7,
-                items: !futureOption
-                    ? chartTime
+                items: chartFutureTime
                         .map((value) => DropdownMenuItem(
                               child: Text(
                                 value.toString(),
                                 style: CustomWidget(context: context)
                                     .CustomSizedTextStyle(
                                         10.0,
-                                        Theme.of(context).errorColor,
-                                        FontWeight.w500,
-                                        'FontRegular'),
-                              ),
-                              value: value,
-                            ))
-                        .toList()
-                    : chartTime
-                        .map((value) => DropdownMenuItem(
-                              child: Text(
-                                value.toString(),
-                                style: CustomWidget(context: context)
-                                    .CustomSizedTextStyle(
-                                        10.0,
-                                        Theme.of(context).errorColor,
+                                        Theme.of(context).focusColor,
                                         FontWeight.w500,
                                         'FontRegular'),
                               ),
@@ -4078,8 +4543,8 @@ class _SellTradeScreenState extends State<TradeScreen>
                         .toList(),
                 onChanged: (value) async {
                   setState(() {
-                    selectedTime = value.toString();
-                    if (selectedTime == "Limit Order") {
+                    selectedFutureTime = value.toString();
+                    if (selectedFutureTime == "Limit Order") {
                       enableTrade = false;
                       _currentSliderValue = 0;
                       tleverageVal = "1";
@@ -4087,7 +4552,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                       priceController.clear();
                       amountController.clear();
                       totalAmount = "0.00";
-                    } else if (selectedTime == "Market Order") {
+                    } else if (selectedFutureTime == "Market Order") {
                       priceController.clear();
                       _currentSliderValue = 0;
                       tleverageVal = "1";
@@ -4111,7 +4576,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                   "Select Category",
                   style: CustomWidget(context: context).CustomSizedTextStyle(
                       12.0,
-                      Theme.of(context).errorColor,
+                      Theme.of(context).focusColor,
                       FontWeight.w500,
                       'FontRegular'),
                 ),
@@ -4185,14 +4650,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                       double.parse(
                                           priceController.text.toString()))
                                   .toStringAsFixed(4);
-                              /*  totalAmount = ((double.parse(
-                                    priceController.text
-                                        .toString()) *
-                                    double.parse(amountController
-                                        .text
-                                        .toString())) -
-                                    double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
+
                             } else {
                               takerFee = ((double.parse(stopPriceController.text
                                               .toString()) *
@@ -4244,28 +4702,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                             }
                           }
                         }
-                        /* if (!buySell) {
-                              takerFee = ((amount *
-                                  double.parse(amountController.text
-                                      .toString()) *
-                                  double.parse(
-                                      takerFeeValue.toString())) /
-                                  100)
-                                  .toStringAsFixed(4);
 
-                              totalAmount = ((double.parse(amountController.text
-                                  .toString()) *
-                                  double.parse(priceController.text
-                                      .toString())) -
-                                  double.parse(takerFee))
-                                  .toStringAsFixed(4);
-                            } else {*/
-                        /* totalAmount = (double.parse(
-                                  amountController.text.toString()) *
-                                  double.parse(
-                                      priceController.text.toString()))
-                                  .toStringAsFixed(4);*/
-                        // }
                       } else {
                         tradeAmount = "0.00";
                         totalAmount = "0.00";
@@ -5264,7 +5701,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                               }
                             } else {
                               stopPriceController.text = "0.01";
-                              tradeAmount = "0.00";
+                               tradeAmount = "0.00";
                             }
                           });
                         }
@@ -5333,13 +5770,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                     print(_tLevSliderValue);
                     setState(() {
                       if (_tLevSliderValue == 25) {
-                        tleverageVal = "1";
+                        tleverageVal = "25";
                       } else if (_tLevSliderValue == 50) {
-                        tleverageVal = "10";
-                      } else if (_tLevSliderValue == 75) {
                         tleverageVal = "50";
-                      } else {
+                      } else if (_tLevSliderValue == 75) {
                         tleverageVal = "75";
+                      } else {
+                        tleverageVal = "100";
                       }
                     });
                     int val = _currentSliderValue.toInt();
@@ -5391,6 +5828,845 @@ class _SellTradeScreenState extends State<TradeScreen>
             ),
           ),
         ),
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          mainAxisAlignment: MainAxisAlignment.start,
+          children: [
+            SizedBox(
+              child: Transform.scale(
+                scale: 0.8,
+                child:  Checkbox(
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(5.0),
+                  ),
+                  value: tpslCheck,
+                  activeColor: Theme.of(context).focusColor,
+                  checkColor: Theme.of(context).primaryColorDark,
+                  onChanged: (bool? value) {
+                    setState(() {
+                      tpslCheck = value!;
+                    });
+                  },
+                ),
+              ),
+              width: 18.0,
+              height: 20.0,
+
+            ),
+            const SizedBox(
+              width: 5.0,
+            ),
+            Flexible(child: RichText(
+              text: TextSpan(
+                text: 'TP/SL',
+                style: CustomWidget(context: context)
+                    .CustomSizedTextStyle(
+                    12.0,
+                    Theme.of(context).disabledColor,
+                    FontWeight.w400,
+                    'FontRegular'),
+              ),
+            ),),
+            //Checkbox
+          ],
+        ),
+        const SizedBox(
+          height: 5.0,
+        ),
+        tpslCheck? Container(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.start,
+            children: [
+              Container(
+                padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                      color: enableTrade
+                          ? Theme.of(context).focusColor.withOpacity(0.1)
+                          : CustomTheme.of(context).focusColor.withOpacity(0.5),
+                      width: 1.0),
+                  borderRadius: BorderRadius.circular(5.0),
+                  color: Colors.transparent,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                        child: Container(
+                          height: 40.0,
+                          child: TextField(
+                            enabled: !enableTrade,
+                            controller: tppriceController,
+                            keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                            style: CustomWidget(context: context).CustomSizedTextStyle(
+                                13.0,
+                                Theme.of(context).focusColor,
+                                FontWeight.w500,
+                                'FontRegular'),
+                            onChanged: (value) {
+                              setState(() {
+                                price = "0.0";
+                                // price = value.toString();
+                                tradeAmount = "0.00";
+
+                                // if (tppriceController.text.isNotEmpty) {
+                                //   double amount = double.parse(priceController.text);
+                                //   price = priceController.text;
+                                //   if (enableStopLimit) {
+                                //     if (priceController.text.isNotEmpty &&
+                                //         stopPriceController.text.isNotEmpty) {
+                                //       if ((double.parse(priceController.text.toString()) >
+                                //           double.parse(
+                                //               stopPriceController.text.toString()))) {
+                                //         takerFee = ((double.parse(
+                                //             priceController.text.toString()) *
+                                //             double.parse(amountController.text
+                                //                 .toString()) *
+                                //             double.parse(
+                                //                 takerFeeValue.toString())) /
+                                //             100)
+                                //             .toStringAsFixed(4);
+                                //
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 priceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //
+                                //       } else {
+                                //         takerFee = ((double.parse(stopPriceController.text
+                                //             .toString()) *
+                                //             double.parse(amountController.text
+                                //                 .toString()) *
+                                //             double.parse(
+                                //                 takerFeeValue.toString())) /
+                                //             100)
+                                //             .toStringAsFixed(4);
+                                //
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 stopPriceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //
+                                //
+                                //       }
+                                //     }
+                                //   } else {
+                                //     if (priceController.text.isNotEmpty) {
+                                //       if (!buySell) {
+                                //         takerFee = ((amount *
+                                //             double.parse(
+                                //                 priceController.text.toString()) *
+                                //             double.parse(
+                                //                 takerFeeValue.toString())) /
+                                //             100)
+                                //             .toStringAsFixed(4);
+                                //
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 priceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //       } else {
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 priceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //       }
+                                //     }
+                                //   }
+                                //
+                                // } else {
+                                //   tradeAmount = "0.00";
+                                //   totalAmount = "0.00";
+                                // }
+                              });
+                            },
+                            decoration: InputDecoration(
+                                contentPadding: EdgeInsets.only(bottom: 8.0),
+                                hintText: "TP trigger price",
+                                hintStyle: CustomWidget(context: context)
+                                    .CustomSizedTextStyle(
+                                    12.0,
+                                    Theme.of(context).focusColor.withOpacity(0.5),
+                                    FontWeight.w500,
+                                    'FontRegular'),
+                                border: InputBorder.none),
+                            textAlign: TextAlign.start,
+                          ),
+                        )),
+                    // InkWell(
+                    //   onTap: () {
+                    //     if (enableTrade) {
+                    //     } else {
+                    //       setState(() {
+                    //         if (priceController.text.isNotEmpty) {
+                    //           double amount = double.parse(priceController.text);
+                    //           if (amount > 0) {
+                    //             amount = amount - 0.01;
+                    //             priceController.text = amount.toStringAsFixed(2);
+                    //             tradeAmount = priceController.text;
+                    //             if (enableStopLimit) {
+                    //               if (stopPriceController.text.isNotEmpty &&
+                    //                   priceController.text.isNotEmpty) {
+                    //                 if ((double.parse(
+                    //                         priceController.text.toString()) >
+                    //                     double.parse(
+                    //                         stopPriceController.text.toString()))) {
+                    //                   takerFee =
+                    //                       ((double.parse(priceController.text
+                    //                                       .toString()) *
+                    //                                   double.parse(amountController
+                    //                                       .text
+                    //                                       .toString()) *
+                    //                                   double.parse(
+                    //                                       takerFeeValue.toString())) /
+                    //                               100)
+                    //                           .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                   /*  totalAmount = ((double.parse(
+                    //                       priceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 } else {
+                    //                   takerFee = ((double.parse(stopPriceController
+                    //                                   .text
+                    //                                   .toString()) *
+                    //                               double.parse(amountController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(livePrice))
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   /*totalAmount = ((double.parse(
+                    //                       stopPriceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 }
+                    //               }
+                    //             } else {
+                    //               if (priceController.text.isNotEmpty) {
+                    //                 if (!buySell) {
+                    //                   takerFee = ((amount *
+                    //                               double.parse(priceController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 } else {
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 }
+                    //               }
+                    //             }
+                    //           }
+                    //         } else {
+                    //           priceController.text = "0.01";
+                    //           tradeAmount = amountController.text;
+                    //           totalAmount = "0.000";
+                    //         }
+                    //       });
+                    //     }
+                    //   },
+                    //   child: Container(
+                    //       height: 40.0,
+                    //       width: 35.0,
+                    //       padding: const EdgeInsets.only(
+                    //         left: 10.0,
+                    //         right: 10.0,
+                    //       ),
+                    //       decoration: BoxDecoration(
+                    //         color: enableTrade
+                    //             ? Theme.of(context).cardColor.withOpacity(0.2)
+                    //             : CustomTheme.of(context).cardColor,
+                    //         borderRadius: BorderRadius.circular(2),
+                    //       ),
+                    //       child: Center(
+                    //         child: Text(
+                    //           "-",
+                    //           style: CustomWidget(context: context)
+                    //               .CustomSizedTextStyle(
+                    //                   20.0,
+                    //                   enableTrade
+                    //                       ? Theme.of(context)
+                    //                           .cardColor
+                    //                           .withOpacity(0.5)
+                    //                       : Theme.of(context).focusColor,
+                    //                   FontWeight.w500,
+                    //                   'FontRegular'),
+                    //         ),
+                    //       )),
+                    // ),
+                    const SizedBox(
+                      width: 2.0,
+                    ),
+                    // InkWell(
+                    //   onTap: () {
+                    //     if (enableTrade) {
+                    //     } else {
+                    //       setState(() {
+                    //         if (priceController.text.isNotEmpty) {
+                    //           double amount = double.parse(priceController.text);
+                    //           if (amount >= 0) {
+                    //             amount = amount + 0.01;
+                    //             priceController.text = amount.toStringAsFixed(2);
+                    //             tradeAmount = priceController.text;
+                    //             if (enableStopLimit) {
+                    //               if (stopPriceController.text.isNotEmpty &&
+                    //                   priceController.text.isNotEmpty) {
+                    //                 if ((double.parse(
+                    //                         priceController.text.toString()) >
+                    //                     double.parse(
+                    //                         stopPriceController.text.toString()))) {
+                    //                   takerFee =
+                    //                       ((double.parse(priceController.text
+                    //                                       .toString()) *
+                    //                                   double.parse(amountController
+                    //                                       .text
+                    //                                       .toString()) *
+                    //                                   double.parse(
+                    //                                       takerFeeValue.toString())) /
+                    //                               100)
+                    //                           .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                   /*  totalAmount = ((double.parse(
+                    //                       priceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 } else {
+                    //                   takerFee = ((double.parse(stopPriceController
+                    //                                   .text
+                    //                                   .toString()) *
+                    //                               double.parse(amountController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(livePrice))
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   /*totalAmount = ((double.parse(
+                    //                       stopPriceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 }
+                    //               }
+                    //             } else {
+                    //               if (priceController.text.isNotEmpty) {
+                    //                 if (!buySell) {
+                    //                   takerFee = ((amount *
+                    //                               double.parse(priceController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 } else {
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 }
+                    //               }
+                    //             }
+                    //           }
+                    //         } else {
+                    //           priceController.text = "0.01";
+                    //           tradeAmount = amountController.text;
+                    //           totalAmount = "0.000";
+                    //         }
+                    //       });
+                    //     }
+                    //   },
+                    //   child: Container(
+                    //       height: 40.0,
+                    //       width: 35.0,
+                    //       padding: const EdgeInsets.only(
+                    //         left: 10.0,
+                    //         right: 10.0,
+                    //       ),
+                    //       decoration: BoxDecoration(
+                    //         color: enableTrade
+                    //             ? Theme.of(context).cardColor.withOpacity(0.2)
+                    //             : CustomTheme.of(context).cardColor,
+                    //         borderRadius: BorderRadius.circular(2),
+                    //       ),
+                    //       child: Center(
+                    //         child: Text(
+                    //           "+",
+                    //           style: CustomWidget(context: context)
+                    //               .CustomSizedTextStyle(
+                    //                   20.0,
+                    //                   enableTrade
+                    //                       ? Theme.of(context)
+                    //                           .cardColor
+                    //                           .withOpacity(0.2)
+                    //                       : Theme.of(context).focusColor,
+                    //                   FontWeight.w500,
+                    //                   'FontRegular'),
+                    //         ),
+                    //       )),
+                    // ),
+                  ],
+                ),
+              ),
+              const SizedBox(
+                height: 10.0,
+              ),
+              Container(
+                padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
+                decoration: BoxDecoration(
+                  border: Border.all(
+                      color: enableTrade
+                          ? Theme.of(context).focusColor.withOpacity(0.1)
+                          : CustomTheme.of(context).focusColor.withOpacity(0.5),
+                      width: 1.0),
+                  borderRadius: BorderRadius.circular(5.0),
+                  color: Colors.transparent,
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.center,
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Flexible(
+                        child: Container(
+                          height: 40.0,
+                          child: TextField(
+                            enabled: !enableTrade,
+                            controller: slpriceController,
+                            keyboardType:
+                            const TextInputType.numberWithOptions(decimal: true),
+                            style: CustomWidget(context: context).CustomSizedTextStyle(
+                                13.0,
+                                Theme.of(context).focusColor,
+                                FontWeight.w500,
+                                'FontRegular'),
+                            onChanged: (value) {
+                              setState(() {
+                                price = "0.0";
+                                // price = value.toString();
+                                tradeAmount = "0.00";
+
+                                // if (tppriceController.text.isNotEmpty) {
+                                //   double amount = double.parse(priceController.text);
+                                //   price = priceController.text;
+                                //   if (enableStopLimit) {
+                                //     if (priceController.text.isNotEmpty &&
+                                //         stopPriceController.text.isNotEmpty) {
+                                //       if ((double.parse(priceController.text.toString()) >
+                                //           double.parse(
+                                //               stopPriceController.text.toString()))) {
+                                //         takerFee = ((double.parse(
+                                //             priceController.text.toString()) *
+                                //             double.parse(amountController.text
+                                //                 .toString()) *
+                                //             double.parse(
+                                //                 takerFeeValue.toString())) /
+                                //             100)
+                                //             .toStringAsFixed(4);
+                                //
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 priceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //
+                                //       } else {
+                                //         takerFee = ((double.parse(stopPriceController.text
+                                //             .toString()) *
+                                //             double.parse(amountController.text
+                                //                 .toString()) *
+                                //             double.parse(
+                                //                 takerFeeValue.toString())) /
+                                //             100)
+                                //             .toStringAsFixed(4);
+                                //
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 stopPriceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //
+                                //
+                                //       }
+                                //     }
+                                //   } else {
+                                //     if (priceController.text.isNotEmpty) {
+                                //       if (!buySell) {
+                                //         takerFee = ((amount *
+                                //             double.parse(
+                                //                 priceController.text.toString()) *
+                                //             double.parse(
+                                //                 takerFeeValue.toString())) /
+                                //             100)
+                                //             .toStringAsFixed(4);
+                                //
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 priceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //       } else {
+                                //         totalAmount = (double.parse(
+                                //             amountController.text.toString()) *
+                                //             double.parse(
+                                //                 priceController.text.toString()))
+                                //             .toStringAsFixed(4);
+                                //       }
+                                //     }
+                                //   }
+                                //
+                                // } else {
+                                //   tradeAmount = "0.00";
+                                //   totalAmount = "0.00";
+                                // }
+                              });
+                            },
+                            decoration: InputDecoration(
+                                contentPadding: EdgeInsets.only(bottom: 8.0),
+                                hintText: "SL trigger price",
+                                hintStyle: CustomWidget(context: context)
+                                    .CustomSizedTextStyle(
+                                    12.0,
+                                    Theme.of(context).focusColor.withOpacity(0.5),
+                                    FontWeight.w500,
+                                    'FontRegular'),
+                                border: InputBorder.none),
+                            textAlign: TextAlign.start,
+                          ),
+                        )),
+                    // InkWell(
+                    //   onTap: () {
+                    //     if (enableTrade) {
+                    //     } else {
+                    //       setState(() {
+                    //         if (priceController.text.isNotEmpty) {
+                    //           double amount = double.parse(priceController.text);
+                    //           if (amount > 0) {
+                    //             amount = amount - 0.01;
+                    //             priceController.text = amount.toStringAsFixed(2);
+                    //             tradeAmount = priceController.text;
+                    //             if (enableStopLimit) {
+                    //               if (stopPriceController.text.isNotEmpty &&
+                    //                   priceController.text.isNotEmpty) {
+                    //                 if ((double.parse(
+                    //                         priceController.text.toString()) >
+                    //                     double.parse(
+                    //                         stopPriceController.text.toString()))) {
+                    //                   takerFee =
+                    //                       ((double.parse(priceController.text
+                    //                                       .toString()) *
+                    //                                   double.parse(amountController
+                    //                                       .text
+                    //                                       .toString()) *
+                    //                                   double.parse(
+                    //                                       takerFeeValue.toString())) /
+                    //                               100)
+                    //                           .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                   /*  totalAmount = ((double.parse(
+                    //                       priceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 } else {
+                    //                   takerFee = ((double.parse(stopPriceController
+                    //                                   .text
+                    //                                   .toString()) *
+                    //                               double.parse(amountController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(livePrice))
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   /*totalAmount = ((double.parse(
+                    //                       stopPriceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 }
+                    //               }
+                    //             } else {
+                    //               if (priceController.text.isNotEmpty) {
+                    //                 if (!buySell) {
+                    //                   takerFee = ((amount *
+                    //                               double.parse(priceController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 } else {
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 }
+                    //               }
+                    //             }
+                    //           }
+                    //         } else {
+                    //           priceController.text = "0.01";
+                    //           tradeAmount = amountController.text;
+                    //           totalAmount = "0.000";
+                    //         }
+                    //       });
+                    //     }
+                    //   },
+                    //   child: Container(
+                    //       height: 40.0,
+                    //       width: 35.0,
+                    //       padding: const EdgeInsets.only(
+                    //         left: 10.0,
+                    //         right: 10.0,
+                    //       ),
+                    //       decoration: BoxDecoration(
+                    //         color: enableTrade
+                    //             ? Theme.of(context).cardColor.withOpacity(0.2)
+                    //             : CustomTheme.of(context).cardColor,
+                    //         borderRadius: BorderRadius.circular(2),
+                    //       ),
+                    //       child: Center(
+                    //         child: Text(
+                    //           "-",
+                    //           style: CustomWidget(context: context)
+                    //               .CustomSizedTextStyle(
+                    //                   20.0,
+                    //                   enableTrade
+                    //                       ? Theme.of(context)
+                    //                           .cardColor
+                    //                           .withOpacity(0.5)
+                    //                       : Theme.of(context).focusColor,
+                    //                   FontWeight.w500,
+                    //                   'FontRegular'),
+                    //         ),
+                    //       )),
+                    // ),
+                    const SizedBox(
+                      width: 2.0,
+                    ),
+                    // InkWell(
+                    //   onTap: () {
+                    //     if (enableTrade) {
+                    //     } else {
+                    //       setState(() {
+                    //         if (priceController.text.isNotEmpty) {
+                    //           double amount = double.parse(priceController.text);
+                    //           if (amount >= 0) {
+                    //             amount = amount + 0.01;
+                    //             priceController.text = amount.toStringAsFixed(2);
+                    //             tradeAmount = priceController.text;
+                    //             if (enableStopLimit) {
+                    //               if (stopPriceController.text.isNotEmpty &&
+                    //                   priceController.text.isNotEmpty) {
+                    //                 if ((double.parse(
+                    //                         priceController.text.toString()) >
+                    //                     double.parse(
+                    //                         stopPriceController.text.toString()))) {
+                    //                   takerFee =
+                    //                       ((double.parse(priceController.text
+                    //                                       .toString()) *
+                    //                                   double.parse(amountController
+                    //                                       .text
+                    //                                       .toString()) *
+                    //                                   double.parse(
+                    //                                       takerFeeValue.toString())) /
+                    //                               100)
+                    //                           .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                   /*  totalAmount = ((double.parse(
+                    //                       priceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 } else {
+                    //                   takerFee = ((double.parse(stopPriceController
+                    //                                   .text
+                    //                                   .toString()) *
+                    //                               double.parse(amountController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(livePrice))
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   /*totalAmount = ((double.parse(
+                    //                       stopPriceController.text
+                    //                           .toString()) *
+                    //                       double.parse(amountController
+                    //                           .text
+                    //                           .toString())) -
+                    //                       double.parse(takerFee))
+                    //                       .toStringAsFixed(4);*/
+                    //                 }
+                    //               }
+                    //             } else {
+                    //               if (priceController.text.isNotEmpty) {
+                    //                 if (!buySell) {
+                    //                   takerFee = ((amount *
+                    //                               double.parse(priceController.text
+                    //                                   .toString()) *
+                    //                               double.parse(
+                    //                                   takerFeeValue.toString())) /
+                    //                           100)
+                    //                       .toStringAsFixed(4);
+                    //
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 } else {
+                    //                   totalAmount = (double.parse(
+                    //                               amountController.text.toString()) *
+                    //                           double.parse(
+                    //                               priceController.text.toString()))
+                    //                       .toStringAsFixed(4);
+                    //                 }
+                    //               }
+                    //             }
+                    //           }
+                    //         } else {
+                    //           priceController.text = "0.01";
+                    //           tradeAmount = amountController.text;
+                    //           totalAmount = "0.000";
+                    //         }
+                    //       });
+                    //     }
+                    //   },
+                    //   child: Container(
+                    //       height: 40.0,
+                    //       width: 35.0,
+                    //       padding: const EdgeInsets.only(
+                    //         left: 10.0,
+                    //         right: 10.0,
+                    //       ),
+                    //       decoration: BoxDecoration(
+                    //         color: enableTrade
+                    //             ? Theme.of(context).cardColor.withOpacity(0.2)
+                    //             : CustomTheme.of(context).cardColor,
+                    //         borderRadius: BorderRadius.circular(2),
+                    //       ),
+                    //       child: Center(
+                    //         child: Text(
+                    //           "+",
+                    //           style: CustomWidget(context: context)
+                    //               .CustomSizedTextStyle(
+                    //                   20.0,
+                    //                   enableTrade
+                    //                       ? Theme.of(context)
+                    //                           .cardColor
+                    //                           .withOpacity(0.2)
+                    //                       : Theme.of(context).focusColor,
+                    //                   FontWeight.w500,
+                    //                   'FontRegular'),
+                    //         ),
+                    //       )),
+                    // ),
+                  ],
+                ),
+              ),
+              const SizedBox(
+                height: 10.0,
+              ),
+            ],
+          ),
+        ) : Container(),
         Container(
           padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
           decoration: BoxDecoration(
@@ -5404,7 +6680,7 @@ class _SellTradeScreenState extends State<TradeScreen>
             child: Padding(
               padding: EdgeInsets.fromLTRB(0.0, 10.0, 0.0, 10.0),
               child: Text(
-                totalAmount + " " + (futureOption ? coinTwoName : coinName),
+                totalAmount ,
                 style: CustomWidget(context: context).CustomSizedTextStyle(
                     13.0,
                     Theme.of(context).focusColor,
@@ -5423,8 +6699,13 @@ class _SellTradeScreenState extends State<TradeScreen>
               if (enableTrade) {
                 if (amountController.text.isNotEmpty) {
                   if (double.parse(balance) >= double.parse(totalAmount)) {
-                    loading = true;
-                    tradeDetails();
+                    if(traderType=="user"){
+                      loading = true;
+                      tradeDetails();
+                    }else{
+                      loading = true;
+                      massTradeDetails();
+                    }
                   } else {
                     CustomWidget(context: context).showSuccessAlertDialog(
                         "Trade", "Insufficient Balance", "error");
@@ -5437,7 +6718,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                 if (priceController.text.isNotEmpty) {
                   if (amountController.text.isNotEmpty) {
                     if (double.parse(balance) >= double.parse(totalAmount)) {
-                      tradeDetails();
+                      if(traderType=="user"){
+                        loading = true;
+                        tradeDetails();
+                      }else{
+                        loading = true;
+                        massTradeDetails();
+                      }
                     } else {
                       CustomWidget(context: context).showSuccessAlertDialog(
                           "Trade", "Insufficient Balance", "error");
@@ -5594,12 +6881,12 @@ class _SellTradeScreenState extends State<TradeScreen>
     showBarModalBottomSheet(
         expand: true,
         context: context,
-        backgroundColor: CustomTheme.of(context).backgroundColor,
+        backgroundColor: CustomTheme.of(context).primaryColorLight,
         builder: (context) {
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter ssetState) {
             return Container(
-              color: CustomTheme.of(context).backgroundColor,
+              color: CustomTheme.of(context).primaryColorLight,
               width: MediaQuery.of(context).size.width,
               height: MediaQuery.of(context).size.height,
               child:
@@ -5615,7 +6902,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                   //<-- headerSliverBuilder
                   return <Widget>[
                     SliverAppBar(
-                      backgroundColor: CustomTheme.of(context).backgroundColor,
+                      backgroundColor: CustomTheme.of(context).primaryColorLight,
                       pinned: true,
                       //<-- pinned to true
                       floating: true,
@@ -5647,7 +6934,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                   ];
                 },
                 body: Container(
-                  color: CustomTheme.of(context).backgroundColor,
+                  color: CustomTheme.of(context).primaryColorLight,
                   height: MediaQuery.of(context).size.height * 0.9,
                   child: TabBarView(
                     children: <Widget>[
@@ -5672,7 +6959,7 @@ class _SellTradeScreenState extends State<TradeScreen>
           ),
           completedOrders.length > 0
               ? Container(
-                  color: Theme.of(context).backgroundColor,
+                  color: Theme.of(context).primaryColorLight,
                   width: MediaQuery.of(context).size.width,
                   height: MediaQuery.of(context).size.height * 0.82,
                   child: SingleChildScrollView(
@@ -6119,7 +7406,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                   ))
               : Container(
                   height: MediaQuery.of(context).size.height * 0.3,
-                  color: Theme.of(context).backgroundColor,
+                  color: Theme.of(context).primaryColorLight,
                   child: Center(
                     child: Text(
                       "No Records Found..!",
@@ -6146,7 +7433,7 @@ class _SellTradeScreenState extends State<TradeScreen>
         children: [
           openOrders.length > 0
               ? Container(
-                  color: Theme.of(context).backgroundColor,
+                  color: Theme.of(context).primaryColorLight,
                   width: MediaQuery.of(context).size.width,
                   height: MediaQuery.of(context).size.height * 0.82,
                   child: SingleChildScrollView(
@@ -6206,6 +7493,10 @@ class _SellTradeScreenState extends State<TradeScreen>
                                     )
                                   ],
                                 ),
+                                trailing: Container(
+                                  width: 1.0,
+                                  height: 10.0,
+                                ),
                                 children: [
                                   Padding(
                                     padding: const EdgeInsets.only(
@@ -6213,7 +7504,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                     child: Column(
                                       children: [
                                         Padding(
-                                          padding: EdgeInsets.only(
+                                          padding: const EdgeInsets.only(
                                               left: 5.0, right: 5.0),
                                           child: Row(
                                             mainAxisAlignment:
@@ -6222,6 +7513,8 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                 CrossAxisAlignment.center,
                                             children: [
                                               Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
                                                     "Date",
@@ -6252,8 +7545,6 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                             'FontRegular'),
                                                   ),
                                                 ],
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
                                               ),
                                               Column(
                                                 children: [
@@ -6295,6 +7586,8 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                 ],
                                               ),
                                               Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.end,
                                                 children: [
                                                   Text(
                                                     "Order Type",
@@ -6323,8 +7616,6 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                             'FontRegular'),
                                                   ),
                                                 ],
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.end,
                                               )
                                             ],
                                           ),
@@ -6342,6 +7633,8 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                 CrossAxisAlignment.center,
                                             children: [
                                               Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
                                                     "Price",
@@ -6370,10 +7663,10 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                             'FontRegular'),
                                                   ),
                                                 ],
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
                                               ),
                                               Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.end,
                                                 children: [
                                                   Text(
                                                     "Quantity",
@@ -6402,8 +7695,6 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                             'FontRegular'),
                                                   ),
                                                 ],
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.end,
                                               ),
                                             ],
                                           ),
@@ -6421,6 +7712,8 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                 CrossAxisAlignment.center,
                                             children: [
                                               Column(
+                                                crossAxisAlignment:
+                                                    CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
                                                     "Total",
@@ -6449,8 +7742,6 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                             'FontRegular'),
                                                   ),
                                                 ],
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
                                               ),
                                               InkWell(
                                                 child: Container(
@@ -6504,10 +7795,6 @@ class _SellTradeScreenState extends State<TradeScreen>
                                     ),
                                   )
                                 ],
-                                trailing: Container(
-                                  width: 1.0,
-                                  height: 10.0,
-                                ),
                               ),
                             ),
                             const SizedBox(
@@ -6525,7 +7812,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                   ))
               : Container(
                   height: MediaQuery.of(context).size.height * 0.3,
-                  color: Theme.of(context).backgroundColor,
+                  color: Theme.of(context).primaryColorLight,
                   child: Center(
                     child: Text(
                       "No Records Found..!",
@@ -6546,10 +7833,18 @@ class _SellTradeScreenState extends State<TradeScreen>
     );
   }
 
+  getDetails() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    setState(() {
+      traderType = preferences.getString("trader_type").toString();
+      print(traderType);
+    });
+  }
+
   tradeDetails() {
     apiUtils
         .tradeInfo(
-            selectPair!.tradepair.toString(),
+        spotOption||marginOption?   selectPair!.symbol.toString():futureselectPair!.symbol.toString(),
             spotOption ? "cash" : selectedHistoryTradeType.toString(),
             firstCoin.toString(),
             tleverageVal.toString(),
@@ -6561,12 +7856,49 @@ class _SellTradeScreenState extends State<TradeScreen>
                 ? "spot"
                 : marginOption
                     ? "margin"
-                    : "future")
+                    : "future", tpslCheck, tppriceController.text.toString(), slpriceController.text.toString())
         .then((CommonModel loginData) {
       if (loginData.status!) {
         setState(() {
-          getCoinList();
-          getFutureCoinList();
+          // getCoinList();
+          // getFutureCoinList();
+
+          CustomWidget(context: context).showSuccessAlertDialog(
+              "ImperialX", loginData.message.toString(), "success");
+        });
+      } else {
+        setState(() {
+          loading = false;
+          CustomWidget(context: context).showSuccessAlertDialog(
+              "ImperialX", loginData.message.toString(), "error");
+        });
+      }
+    }).catchError((Object error) {
+      print(error);
+    });
+  }
+
+  massTradeDetails() {
+    apiUtils
+        .masterTradeInfo(
+        selectPair!.symbol.toString(),
+        spotOption ? "cash" : selectedHistoryTradeType.toString(),
+        firstCoin.toString(),
+        tleverageVal.toString(),
+        buySell ? "buy" : "sell",
+        selectedTime.toString(),
+        priceController.text.toString(),
+        amountController.text.toString(),
+        spotOption
+            ? "spot"
+            : marginOption
+            ? "margin"
+            : "future", tpslCheck, tppriceController.text.toString(), slpriceController.text.toString())
+        .then((CommonModel loginData) {
+      if (loginData.status!) {
+        setState(() {
+          // getCoinList();
+          // getFutureCoinList();
 
           CustomWidget(context: context).showSuccessAlertDialog(
               "ImperialX", loginData.message.toString(), "success");
@@ -6584,84 +7916,142 @@ class _SellTradeScreenState extends State<TradeScreen>
   }
 
   getCoinList() {
-    apiUtils.getTradePairList().then((TradePairListModel loginData) {
+    apiUtils.spotAllPairs("SPOT" ).then((TradePairsSpotModel loginData) {
       if (loginData.success!) {
         setState(() {
           buyData = [];
           sellData = [];
+          //     tradePair = loginData.result!;
 
-          tradePair = loginData.result!;
+         List<TradePairsSpot> tradePairs = loginData.result!;
+
+          for(int m=0;m<tradePairs.length;m++){
+            if(tradePairs[m].symbol.toString().contains("USDT"))
+              {
+                tradePair.add(tradePairs[m]);
+                // livePrice = tradePairs[m].lastPrice.toString();
+              }
+            // else if(tradePairs[m].symbol.toString().contains("USDC")) {
+            //   tradePair.add(tradePairs[m]);
+            //
+            // } else if(tradePairs[m].symbol.toString().contains("EUR")) {
+            //   tradePair.add(tradePairs[m]);
+            //
+            // } else if(tradePairs[m].symbol.toString().contains("BTC")) {
+            //   tradePair.add(tradePairs[m]);
+            //
+            // } else if(tradePairs[m].symbol.toString().contains("ETH")) {
+            //   tradePair.add(tradePairs[m]);
+            //
+            // } else if(tradePairs[m].symbol.toString().contains("DAI")) {
+            //   tradePair.add(tradePairs[m]);
+            //
+            // }
+          }
 
           searchPair = tradePair;
           selectPair = tradePair[0];
 
-          coinName = selectPair!.coinname1.toString();
-          coinTwoName = selectPair!.coinname2.toString();
+          firstCoin = selectPair!.symbol.toString().substring(selectPair!.symbol.toString().length-4);
+          secondCoin =selectPair!.symbol.toString().split("USDT")[0];
+          // secondCoin =selectPair!.symbol.toString();
 
-          firstCoin = selectPair!.coinname1.toString();
-          secondCoin = selectPair!.coinname2.toString();
-
+          // print(coinName);
+          // print("coinName");
           getBalance(firstCoin);
 
+          arrChangeData.add("tickers."+selectPair!.symbol.toString());
+          arrData.add("orderbook.50."+ selectPair!.symbol.toString());
+          arrPriceData.add("publicTrade."+ selectPair!.symbol.toString());
+          loading = false;
+          // print(arrData);
+          var messageChangeJSON = {
+            "op": "subscribe",
+            "args": arrChangeData,
+          };
           var messageJSON = {
-            "channel": "tickers",
-            "instId": selectPair!.tradepair.toString()
-          };
-
-          arrData.add(messageJSON);
-
-          var messageLiveJSON = {
-            "channel": "books",
-            "instId": selectPair!.tradepair.toString()
-          };
-          arrData.add(messageLiveJSON);
-
-          var finalJSON = {
             "op": "subscribe",
             "args": arrData,
           };
-          print(finalJSON);
-          channelOpenOrder!.sink.add(json.encode(finalJSON));
+          var messagePriceJSON = {
+            "op": "subscribe",
+            "args": arrPriceData,
+          };
 
-          currentSymbol = selectPair!.tradepair!.toString();
+          channelOpenOrder = IOWebSocketChannel.connect(
+            Uri.parse("wss://stream.bybit.com/v5/public/spot"),
+          );
+          channelOpenOrder!.sink.add(json.encode(messageChangeJSON));
+          channelOpenOrder!.sink.add(json.encode(messageJSON));
+          channelOpenOrder!.sink.add(json.encode(messagePriceJSON));
+         // channelPriceOpenOrder!.sink.add(json.encode(messagePriceJSON));
 
+          currentSymbol = selectPair!.symbol!.toString();
+          // print("currentSymbol");
+          // print(currentSymbol);
           socketData();
-
-          loading = false;
+         socketLivePriceData();
         });
       } else {
         setState(() {
-          //loading = false;
+          loading = false;
         });
       }
     }).catchError((Object error) {
       print(error);
+      loading = false;
     });
   }
 
   getFutureCoinList() {
-    apiUtils
-        .getFutureTradePairList()
-        .then((FutureTradePairListModel loginData) {
+    apiUtils.getFutureTradePairList("LINEAR").then((FutureTradePairListModel loginData) {
       if (loginData.success!) {
         setState(() {
           buyData = [];
           sellData = [];
 
-          futuretradePair = loginData.result![0].data!;
+          List<FutureTradePair> futuretradePair = loginData.result!;
 
           futuresearchPair = futuretradePair;
           futureselectPair = futuretradePair[0];
+          livePrice = futuretradePair[0].markPrice.toString();
 
+          FuturefirstCoin =futureselectPair!.symbol.toString();
+          FuturesecondCoin = futureselectPair!.symbol.toString();
+          getBalance(FuturefirstCoin);
+
+
+          arrFutureData.add("orderbook.50."+ futureselectPair!.symbol.toString());
+          arrFuturePriceData.add("publicTrade."+ futureselectPair!.symbol.toString());
           loading = false;
+          // print(arrData);
+          var messageFutureJSON = {
+            "op": "subscribe",
+            "args": arrFutureData,
+          };
+          var messageFuturePriceJSON = {
+            "op": "subscribe",
+            "args": arrFuturePriceData,
+          };
+
+          channelOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/linear"),);
+
+          channelOpenOrder!.sink.add(json.encode(messageFutureJSON));
+          channelOpenOrder!.sink.add(json.encode(messageFuturePriceJSON));
+
+          currentSymbol = futureselectPair!.symbol!.toString();
+          // socketFutureData();
+          socketData();
+
         });
       } else {
         setState(() {
-          //loading = false;
+          loading = false;
         });
       }
     }).catchError((Object error) {
       print(error);
+      loading = false;
     });
   }
 
@@ -6699,8 +8089,7 @@ class _SellTradeScreenState extends State<TradeScreen>
           loading = false;
           List<GetWalletAll> walletPair = loginData.result!;
           for (int m = 0; m < walletPair.length; m++) {
-            if (coin.toLowerCase() ==
-                walletPair[m].assetId!.symbol.toString().toLowerCase()) {
+            if (coin.toLowerCase() == walletPair[m].coinname.toString().toLowerCase()) {
               balance = walletPair[m].balance.toString();
             }
           }
@@ -6721,9 +8110,9 @@ class _SellTradeScreenState extends State<TradeScreen>
     return showModalBottomSheet(
         context: context,
         isScrollControlled: true,
-        builder: (context) {
+        builder: (BuildContext context) {
           return StatefulBuilder(
-            builder: (BuildContext context, StateSetter setStates) {
+            builder: (BuildContext context, StateSetter setStates,) {
               return Container(
                 width: MediaQuery.of(context).size.width,
                 height: MediaQuery.of(context).size.height * 0.9,
@@ -6758,28 +8147,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                                   searchPair = [];
 
                                   for (int m = 0; m < tradePair.length; m++) {
-                                    if (tradePair[m]
-                                            .coinname1
-                                            .toString()
-                                            .toLowerCase()
-                                            .contains(value
-                                                .toString()
-                                                .toLowerCase()) ||
-                                        tradePair[m]
-                                            .tradepair
-                                            .toString()
-                                            .toUpperCase()
-                                            .contains(value
-                                                .toString()
-                                                .toUpperCase()) ||
+                                    if (tradePair[m].symbol.toString().toLowerCase().contains(value.toString().toLowerCase())
+                                        // ||
+                                        // tradePair[m].symbol.toString().toUpperCase().contains(value.toString().toUpperCase()) ||
                                         // tradePair[m].marketAsset!.symbol.toString().toLowerCase().contains(value.toString().toLowerCase()) ||
-                                        tradePair[m]
-                                            .coinname2
-                                            .toString()
-                                            .toLowerCase()
-                                            .contains(value
-                                                .toString()
-                                                .toLowerCase())) {
+                                        // tradePair[m].symbol.toString().toLowerCase().contains(value.toString().toLowerCase())
+                                    ) {
                                       searchPair.add(tradePair[m]);
                                     }
                                   }
@@ -6796,7 +8169,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                     fontWeight: FontWeight.w400),
                                 filled: true,
                                 fillColor: CustomTheme.of(context)
-                                    .backgroundColor
+                                    .primaryColorLight
                                     .withOpacity(0.5),
                                 border: OutlineInputBorder(
                                   borderRadius:
@@ -6849,7 +8222,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                               child: InkWell(
                             onTap: () {
                               Navigator.pop(context);
-                              setState(() {
+                              setStates(() {
                                 searchController.clear();
                                 searchPair.addAll(tradePair);
                               });
@@ -6866,6 +8239,84 @@ class _SellTradeScreenState extends State<TradeScreen>
                         )
                       ],
                     ),
+                    // const SizedBox(
+                    //   height: 10.0,
+                    // ),
+                    // Container(
+                    //   margin: EdgeInsets.only(left: 20.0),
+                    //   height: 30.0,
+                    //   child: ListView.builder(
+                    //     itemCount: marketAssetList.length,
+                    //     scrollDirection: Axis.horizontal,
+                    //     itemBuilder: (BuildContext context, int index) {
+                    //       return Row(
+                    //         children: [
+                    //           InkWell(
+                    //             onTap: () {
+                    //               setStates(() {
+                    //                 indexVal = index;
+                    //                 selectedMarketAsset = marketAssetList[index];
+                    //                 // searchController.clear();
+                    //                 // searchPair.clear();
+                    //                 searchPair = [];
+                    //
+                    //                 for (int m = 0; m < tradePair.length; m++) {
+                    //                   if (tradePair[m].symbol.toString().toLowerCase() == selectedMarketAsset.toLowerCase()) {
+                    //                   // if (tradePair[m].symbol.toString() == tradePair[m].symbol!.split(selectedMarketAsset)[0]) {
+                    //                     print(selectedMarketAsset);
+                    //                     searchPair.add(tradePair[m]);
+                    //                   }
+                    //                 }
+                    //
+                    //                 // searchPair = searchPair!.symbol.toString().split(selectedMarketAsset)[0];
+                    //
+                    //                 // if(indexVal == 0){
+                    //                 //   loading = true;
+                    //                 //   getCoinList();
+                    //                 // } else if(indexVal == 1){
+                    //                 //   loading = true;
+                    //                 //   getCoinList();
+                    //                 // }
+                    //                 // else if(indexVal == 2){
+                    //                 //   loading = true;
+                    //                 //   getFutureCoinList();
+                    //                 // }
+                    //
+                    //
+                    //               });
+                    //             },
+                    //             child: Container(
+                    //                 padding: EdgeInsets.fromLTRB(20.0, 0.0, 20.0, 0.0),
+                    //                 decoration: indexVal == index ?  BoxDecoration(
+                    //                   borderRadius: BorderRadius.circular(6.0),
+                    //                   color: Theme.of(context).canvasColor,
+                    //                 ) : BoxDecoration(),
+                    //                 // decoration: BoxDecoration(
+                    //                 //   borderRadius: BorderRadius.circular(5.0),
+                    //                 //   color: CustomTheme.of(context).disabledColor : CustomTheme.of(context).focusColor,
+                    //                 // ),
+                    //                 child: Center(
+                    //                   child: Text(
+                    //                     marketAssetList[index].toString(),
+                    //                     style: CustomWidget(context: context)
+                    //                         .CustomSizedTextStyle(
+                    //                         12.0,
+                    //                         indexVal == index
+                    //                             ? Theme.of(context).disabledColor
+                    //                             : Theme.of(context).focusColor.withOpacity(0.6),
+                    //                         FontWeight.w500,
+                    //                         'FontRegular'),
+                    //                   ),
+                    //                 )),
+                    //           ),
+                    //           const SizedBox(
+                    //             width: 10.0,
+                    //           )
+                    //         ],
+                    //       );
+                    //     },
+                    //   ),
+                    // ),
                     const SizedBox(
                       height: 10.0,
                     ),
@@ -6881,100 +8332,120 @@ class _SellTradeScreenState extends State<TradeScreen>
                                       setState(() {
                                         setState(() {
                                           currentSymbol =
-                                              selectPair!.tradepair.toString();
+                                              selectPair!.symbol.toString();
                                           print(currentSymbol + "wel");
+                                          livePrice= "0.00";
                                         });
 
                                         // chartload();
-                                        // buyData = [];
-                                        //
-                                        // sellData = [];
+                                        buyData = [];
+                                        buyData.clear();
+                                        sellData.clear();
+
+                                        sellData = [];
                                         selectPair = searchPair[index];
                                         priceController.clear();
                                         amountController.clear();
                                         totalAmount = "0.00";
                                         _currentSliderValue = 0;
-                                        coinName =
-                                            selectPair!.coinname1.toString();
-                                        coinTwoName =
-                                            selectPair!.coinname2.toString();
-
-                                        // loading = true;
-                                        firstCoin =
-                                            selectPair!.coinname1.toString();
-                                        secondCoin =
-                                            selectPair!.coinname2.toString();
+                                        firstCoin = selectPair!.symbol.toString().substring(selectPair!.symbol.toString().length-4);
+                                        secondCoin =selectPair!.symbol.toString().split("USDT")[0];
+                                        // secondCoin =selectPair!.symbol.toString();
                                         pair = firstCoin + "-" + secondCoin;
+
+                                        arrData.clear();
+                                        arrPriceData.clear();
+                                        arrData=[];
+                                        arrPriceData=[];
+                                        arrData.add("orderbook.50."+ selectPair!.symbol.toString());
+                                        arrPriceData.add("publicTrade."+ selectPair!.symbol.toString());
                                         Navigator.pop(context);
                                         channelOpenOrder!.sink.close();
-                                        channelOpenOrder =
-                                            IOWebSocketChannel.connect(
-                                                Uri.parse(
-                                                    "wss://ws.okx.com:8443/ws/v5/public?brokerId=197"),
-                                                pingInterval:
-                                                    Duration(seconds: 5));
+                                        channelOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/spot"),
+                                            pingInterval: Duration(seconds: 5));
+
                                         var messageJSON = {
-                                          "channel": "tickers",
-                                          "instId":
-                                              selectPair!.tradepair.toString()
-                                        };
-
-                                        arrData.add(messageJSON);
-
-                                        var messageLiveJSON = {
-                                          "channel": "books",
-                                          "instId":
-                                              selectPair!.tradepair.toString()
-                                        };
-                                        arrData.add(messageLiveJSON);
-
-                                        var finalJSON = {
                                           "op": "subscribe",
                                           "args": arrData,
                                         };
-                                        channelOpenOrder!.sink
-                                            .add(json.encode(finalJSON));
+                                        var messagePriceJSON = {
+                                        "op": "subscribe",
+                                        "args": arrPriceData,
+                                        };
+                                        print(messageJSON);
+                                        channelOpenOrder!.sink.add(json.encode(messageJSON));
+                                        channelOpenOrder!.sink.add(json.encode(messagePriceJSON));
                                         socketData();
                                       });
                                       searchController.clear();
 
                                       if (buySell) {
-                                        getBalance(coinName);
+                                        getBalance(firstCoin);
                                       } else {
-                                        getBalance(coinTwoName);
+                                        getBalance(secondCoin);
                                       }
-
-                                      getTradeHistory(
-                                          selectPair!.tradepair.toString());
                                     },
-                                    child: Row(
-                                      children: [
-                                        const SizedBox(
-                                          width: 20.0,
-                                        ),
-                                        // Container(
-                                        //   height: 25.0,
-                                        //   width: 25.0,
-                                        //   child: Image.network(
-                                        //     searchPair[index].image.toString(),
-                                        //     fit: BoxFit.cover,
-                                        //   ),
-                                        // ),
-                                        const SizedBox(
-                                          width: 10.0,
-                                        ),
-                                        Text(
-                                          searchPair[index]
-                                              .tradepair
-                                              .toString(),
-                                          style: CustomWidget(context: context)
-                                              .CustomSizedTextStyle(
-                                                  16.0,
-                                                  Theme.of(context).focusColor,
-                                                  FontWeight.w500,
-                                                  'FontRegular'),
-                                        ),
-                                      ],
+                                    child: Padding(
+                                      padding: EdgeInsets.only(left: 20.0, right: 20.0),
+                                      child: Column(
+                                        children: [
+                                          Row(
+                                            crossAxisAlignment: CrossAxisAlignment.center,
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                searchPair[index].symbol.toString(),
+                                                style: CustomWidget(context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme.of(context).focusColor,
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
+                                              ),
+                                              const SizedBox(
+                                                width: 10.0,
+                                              ),
+                                              Text(
+                                                searchPair[index].highPrice24H.toString(),
+                                                style: CustomWidget(context: context)
+                                                    .CustomSizedTextStyle(
+                                                    10.0,
+                                                    Theme.of(context).indicatorColor,
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                          ),
+                                          const SizedBox(height: 5.0,),
+                                          Row(
+                                            crossAxisAlignment: CrossAxisAlignment.center,
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                searchPair[index].lastPrice.toString(),
+                                                style: CustomWidget(context: context)
+                                                    .CustomSizedTextStyle(
+                                                    10.0,
+                                                    Theme.of(context).focusColor,
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
+                                              ),
+                                              const SizedBox(
+                                                width: 10.0,
+                                              ),
+                                              Text(
+                                                searchPair[index].lowPrice24H.toString(),
+                                                style: CustomWidget(context: context)
+                                                    .CustomSizedTextStyle(
+                                                    10.0,
+                                                    Theme.of(context).hoverColor,
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                          )
+                                        ],
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(
@@ -6984,7 +8455,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                     height: 1.0,
                                     width: MediaQuery.of(context).size.width,
                                     color:
-                                        CustomTheme.of(context).backgroundColor,
+                                        CustomTheme.of(context).primaryColorLight,
                                   ),
                                   const SizedBox(
                                     height: 5.0,
@@ -7041,19 +8512,12 @@ class _SellTradeScreenState extends State<TradeScreen>
 
                                     sellData = [];
 
-                                    searchPair = [];
+                                    futuresearchPair = [];
 
-                                    for (int m = 0;
-                                        m < futuretradePair.length;
-                                        m++) {
-                                      if (futuretradePair[m]
-                                          .instId
-                                          .toString()
-                                          .toLowerCase()
-                                          .contains(
-                                              value.toString().toLowerCase())) {
-                                        futuresearchPair
-                                            .add(futuretradePair[m]);
+                                    for (int m = 0; m < futuretradePair.length; m++) {
+                                      if (futuretradePair[m].symbol.toString().toLowerCase().contains(value.toString().toLowerCase()))
+                                      {
+                                        futuresearchPair.add(futuretradePair[m]);
                                       }
                                     }
                                   });
@@ -7070,7 +8534,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                     fontWeight: FontWeight.w400),
                                 filled: true,
                                 fillColor: CustomTheme.of(context)
-                                    .backgroundColor
+                                    .primaryColorLight
                                     .withOpacity(0.5),
                                 border: OutlineInputBorder(
                                   borderRadius:
@@ -7140,6 +8604,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                         )
                       ],
                     ),
+                    SizedBox(
+                      height: 10.0,
+                    ),
                     Expanded(
                         child: ListView.builder(
                             controller: controller,
@@ -7160,87 +8627,95 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         totalAmount = "0.00";
                                         _currentSliderValue = 0;
 
-                                        coinName = futureselectPair!.instId
-                                            .toString()
-                                            .split("-")[0];
-                                        coinTwoName = futureselectPair!.instId
-                                            .toString()
-                                            .split("-")[1];
+                                        FuturefirstCoin = futureselectPair!.symbol.toString();
+                                        FuturesecondCoin = futureselectPair!.symbol.toString();
 
-                                        // loading = true;
-                                        firstCoin = futureselectPair!.instId
-                                            .toString()
-                                            .split("-")[0];
-                                        secondCoin = futureselectPair!.instId
-                                            .toString()
-                                            .split("-")[1];
+
+                                        arrFutureData.add("orderbook.50."+ futureselectPair!.symbol.toString());
+                                        arrFuturePriceData.add("publicTrade."+ futureselectPair!.symbol.toString());
                                         Navigator.pop(context);
                                         channelOpenOrder!.sink.close();
-                                        channelOpenOrder =
-                                            IOWebSocketChannel.connect(
-                                                Uri.parse(
-                                                    "wss://ws.okx.com:8443/ws/v5/public?brokerId=197"),
-                                                pingInterval:
-                                                    Duration(seconds: 5));
-                                        var messageJSON = {
-                                          "channel": "tickers",
-                                          "instId": futureselectPair!.instId
-                                              .toString()
-                                        };
+                                        channelOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/linear"),);
 
-                                        arrData.add(messageJSON);
-
-                                        var messageLiveJSON = {
-                                          "channel": "books",
-                                          "instId": futureselectPair!.instId
-                                              .toString()
-                                        };
-                                        arrData.add(messageLiveJSON);
-
-                                        var finalJSON = {
+                                        var messageFutureJSON = {
                                           "op": "subscribe",
-                                          "args": arrData,
+                                          "args": arrFutureData,
                                         };
-                                        channelOpenOrder!.sink
-                                            .add(json.encode(finalJSON));
+                                        var messageFuturePriceJSON = {
+                                          "op": "subscribe",
+                                          "args": arrFuturePriceData,
+                                        };
+                                        channelOpenOrder!.sink.add(json.encode(messageFutureJSON));
+                                        channelOpenOrder!.sink.add(json.encode(messageFuturePriceJSON));
+                                        // socketFutureData();
                                         socketData();
                                       });
                                       searchFutureController.clear();
                                       livePrice = "0.00";
 
-                                      getTradeHistory(
-                                          futureselectPair!.instId.toString());
+                                      getTradeHistory(futureselectPair!.symbol.toString());
                                     },
-                                    child: Row(
-                                      children: [
-                                        const SizedBox(
-                                          width: 20.0,
-                                        ),
-                                        Container(
-                                          height: 25.0,
-                                          width: 25.0,
-                                          child: Image.network(
-                                            futuresearchPair[index]
-                                                .image
-                                                .toString(),
-                                            fit: BoxFit.cover,
+                                    child: Padding(
+                                      padding: EdgeInsets.only(left: 20.0, right: 20.0),
+                                      child: Column(
+                                        children: [
+                                          Row(
+                                            crossAxisAlignment: CrossAxisAlignment.center,
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                futuresearchPair[index].symbol.toString(),
+                                                style: CustomWidget(context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme.of(context).focusColor,
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
+                                              ),
+                                              const SizedBox(
+                                                width: 10.0,
+                                              ),
+                                              Text(
+                                                futuresearchPair[index].highPrice24H.toString(),
+                                                style: CustomWidget(context: context)
+                                                    .CustomSizedTextStyle(
+                                                    10.0,
+                                                    Theme.of(context).indicatorColor,
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
                                           ),
-                                        ),
-                                        const SizedBox(
-                                          width: 10.0,
-                                        ),
-                                        Text(
-                                          futuresearchPair[index]
-                                              .instId
-                                              .toString(),
-                                          style: CustomWidget(context: context)
-                                              .CustomSizedTextStyle(
-                                                  16.0,
-                                                  Theme.of(context).focusColor,
-                                                  FontWeight.w500,
-                                                  'FontRegular'),
-                                        ),
-                                      ],
+                                          const SizedBox(height: 5.0,),
+                                          Row(
+                                            crossAxisAlignment: CrossAxisAlignment.center,
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                futuresearchPair[index].lastPrice.toString(),
+                                                style: CustomWidget(context: context)
+                                                    .CustomSizedTextStyle(
+                                                    10.0,
+                                                    Theme.of(context).focusColor,
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
+                                              ),
+                                              const SizedBox(
+                                                width: 10.0,
+                                              ),
+                                              Text(
+                                                futuresearchPair[index].lowPrice24H.toString(),
+                                                style: CustomWidget(context: context)
+                                                    .CustomSizedTextStyle(
+                                                    10.0,
+                                                    Theme.of(context).hoverColor,
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                          )
+                                        ],
+                                      ),
                                     ),
                                   ),
                                   const SizedBox(
@@ -7250,7 +8725,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                     height: 1.0,
                                     width: MediaQuery.of(context).size.width,
                                     color:
-                                        CustomTheme.of(context).backgroundColor,
+                                        CustomTheme.of(context).primaryColorLight,
                                   ),
                                   const SizedBox(
                                     height: 5.0,
@@ -7296,4 +8771,26 @@ class LikeStatus {
   bool status;
 
   LikeStatus(this.id, this.status);
+}
+
+class MarketDetailsList {
+  MarketDetailsList({
+    this.name,
+    this.last,
+    this.change,
+    this.image,
+    this.high,
+    this.low,
+    this.bitP,
+    this.askP,
+  });
+
+  dynamic name;
+  dynamic last;
+  dynamic change;
+  dynamic image;
+  dynamic high;
+  dynamic low;
+  dynamic bitP;
+  dynamic askP;
 }

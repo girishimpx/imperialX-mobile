@@ -112,7 +112,7 @@ class _Welcome_ScreenState extends State<Welcome_Screen> {
                             style: CustomWidget(context: context)
                                 .CustomSizedTextStyle(
                                 16.0,
-                                Theme.of(context).backgroundColor,
+                                Theme.of(context).primaryColorLight,
                                 FontWeight.w500,
                                 'FontRegular'),
                             textAlign: TextAlign.start,

@@ -153,7 +153,7 @@ class _Copy_Trade_HistoryState extends State<Copy_Trade_History> {
                                                   .CustomSizedTextStyle(
                                                   12.0,
                                                   Theme.of(context)
-                                                      .bottomAppBarColor,
+                                                      .primaryColorDark,
                                                   FontWeight.w400,
                                                   'FontRegular'),
                                               textAlign: TextAlign.start,

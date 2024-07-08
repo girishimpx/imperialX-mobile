@@ -1,10 +1,11 @@
 import 'package:country_calling_code_picker/country.dart';
 import 'package:country_calling_code_picker/functions.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+//import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+//import 'package:google_sign_in/google_sign_in.dart';
 import 'package:imperial/common/colors.dart';
 import 'package:imperial/data/api_utils.dart';
 import 'package:imperial/data/crypt_model/common_model.dart';
@@ -78,12 +79,11 @@ class _Login_ScreenState extends State<Login_Screen>
     signin = true;
     email = true;
     //
-    // emailController=TextEditingController(text: "deposit@mailinator.com");
-    // passwordController=TextEditingController(text: "deposit@123");
-    // emailController=TextEditingController(text: "testuser@mailinator.com");
-    // passwordController=TextEditingController(text: "Testuser@123");
+    // emailController.text="deposit@mailinator.com";
+    // passwordController.text="deposit@123";
     initCountry();
   }
+
 
   void initCountry() async {
     final country = await getDefaultCountry(context);
@@ -342,7 +342,7 @@ class _Login_ScreenState extends State<Login_Screen>
                                       style: CustomWidget(context: context)
                                           .CustomSizedTextStyle(
                                           18.0,
-                                          Theme.of(context).backgroundColor,
+                                          Theme.of(context).primaryColorLight,
                                           FontWeight.w500,
                                           'FontRegular'),
                                     ),
@@ -364,9 +364,7 @@ class _Login_ScreenState extends State<Login_Screen>
                             children: [
                               InkWell(
                                   onTap: () {
-                                 //   signInWithGoogle();
                                    _googleSignIn.disconnect();
-
                                     _googleSignIn.signIn().then((userData) {
                                       setState(() {
                                         _isLoggedIn = true;
@@ -439,7 +437,7 @@ class _Login_ScreenState extends State<Login_Screen>
                                   mainAxisAlignment: MainAxisAlignment.center,
                                   children: [
                                     Text(
-                                      "New to CrypCoin?",
+                                      "Don't have account?",
                                       style: CustomWidget(context: context)
                                           .CustomSizedTextStyle(
                                           14.0,
@@ -489,8 +487,7 @@ class _Login_ScreenState extends State<Login_Screen>
           loading = false;
           CustomWidget(context: context).showSuccessAlertDialog(
               "Login", loginData.message.toString(), "success");
-          storeData(
-            loginData.result!.token.toString(),
+          storeData(loginData.result!.token.toString(), loginData.result!.user!.traderType.toString()
           );
         });
 
@@ -528,7 +525,7 @@ class _Login_ScreenState extends State<Login_Screen>
           CustomWidget(context: context).showSuccessAlertDialog(
               "Login", loginData.message.toString(), "success");
           storeData(
-            loginData.result!.token.toString(),
+            loginData.result!.token.toString(),loginData.result!.user!.traderType.toString()
           );
         });
 
@@ -554,9 +551,9 @@ class _Login_ScreenState extends State<Login_Screen>
 
 
   storeData(
-    String token,
-  ) async {
+    String token, String trader_type) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
     preferences.setString("token", token);
+    preferences.setString("trader_type", trader_type);
   }
 }

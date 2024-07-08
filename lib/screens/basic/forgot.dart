@@ -137,7 +137,7 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                     padding: const EdgeInsets.only(
                         left: 20.0, right: 20.0, top: 20.0),
                     child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.center,
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(
                           height: 15.0,
@@ -145,13 +145,15 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                         !getCode
                             ? Container()
                             : Text(
-                            "Please enter your email that you use to sign up to CryptoCoin",
+                            "Please enter your email that you use to sign up",
                             style: CustomWidget(context: context)
                                 .CustomSizedTextStyle(
                                 14.0,
-                                Theme.of(context).bottomAppBarColor,
+                                Theme.of(context).primaryColorDark,
                                 FontWeight.w400,
-                                'FontRegular')),
+                                'FontRegular'),
+                          textAlign: TextAlign.start,
+                        ),
                         !getCode
                             ? Container()
                             : const SizedBox(
@@ -262,12 +264,13 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                                       ? Icons.visibility
                                       : Icons.visibility_off,
                                   color: CustomTheme.of(context)
-                                      .splashColor
+                                      .focusColor
                                       .withOpacity(0.5),
                                 ),
                                 onPressed: () {
                                   setState(() {
-                                    _passwordVisible = !_passwordVisible;
+                                    _passwordVisible =
+                                    !_passwordVisible;
                                   });
                                 },
                               ),
@@ -465,7 +468,7 @@ class _ForgotPasswordState extends State<ForgotPassword> {
                               style: CustomWidget(context: context)
                                   .CustomSizedTextStyle(
                                   16.0,
-                                  Theme.of(context).backgroundColor,
+                                  Theme.of(context).primaryColorLight,
                                   FontWeight.w500,
                                   'FontRegular'),
                             ),
