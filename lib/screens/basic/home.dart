@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_svg/flutter_svg.dart';
@@ -47,6 +48,7 @@ class Home_Screen extends StatefulWidget {
 
 class _Home_ScreenState extends State<Home_Screen> {
   final PageStorageBucket bucket = PageStorageBucket();
+  int selectedtimeIndex=0;
   int currentIndex = 0;
   int selectedIndex = 0;
   bool dashview = true;
@@ -69,6 +71,14 @@ class _Home_ScreenState extends State<Home_Screen> {
   ScrollController controller = ScrollController();
   ScrollController _scrollController = ScrollController();
   PageController _pageController = PageController();
+
+  List<String> times=[
+    "1hr",
+    "1w",
+    "1d",
+    "1m",
+    "1y"
+  ];
 
   List grid_name = [
     "Account",
@@ -349,7 +359,7 @@ class _Home_ScreenState extends State<Home_Screen> {
                   'assets/icons/copy.svg',
                   color: Theme.of(context).primaryColorDark,
                 ),
-                text: 'Copy Trade'),
+                text: 'CopyTrade'),
             FABBottomAppBarItem(
                 activeIcon: SvgPicture.asset(
                   'assets/images/wallet.svg',
@@ -446,6 +456,7 @@ class _Home_ScreenState extends State<Home_Screen> {
                           Container(
                             child: Row(
                               crossAxisAlignment: CrossAxisAlignment.center,
+                              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                               children: [
                                 InkWell(
                                     onTap: () {
@@ -472,6 +483,18 @@ class _Home_ScreenState extends State<Home_Screen> {
                                       fit: BoxFit.fill,
                                       color: Theme.of(context).focusColor,
                                     )),
+
+                                // InkWell(
+                                //     onTap: () {
+                                //       Navigator.of(context).push(MaterialPageRoute(
+                                //           builder: (context) => const Wallet_Screen()));
+                                //     },
+                                //     child: SvgPicture.asset(
+                                //       "assets/images/wallet.svg",
+                                //       height: 25.0,
+                                //       fit: BoxFit.fill,
+                                //       color: Theme.of(context).focusColor,
+                                //     )),
                               ],
                             ),
                           )
@@ -481,177 +504,205 @@ class _Home_ScreenState extends State<Home_Screen> {
 
                     // old banner
 
-                    // marketList.length>0?      Container(
-                    //   margin: EdgeInsets.only(top: 35.0),
-                    //   width: MediaQuery.of(context).size.width,
-                    //   height: MediaQuery.of(context).size.height * 0.24,
-                    //   child: CoolSwiper(
-                    //     children: List.generate(
-                    //       marketList.length>0 ? 5 : 0,
-                    //       (index) => Container(
-                    //         height: Constants.cardHeight,
-                    //         padding:
-                    //             EdgeInsets.fromLTRB(20.0, 15.0, 20.0, 15.0),
-                    //         decoration: BoxDecoration(
-                    //           color: Theme.of(context).disabledColor,
-                    //           image: DecorationImage(
-                    //               image: AssetImage("assets/images/back.png"),
-                    //               fit: BoxFit.cover),
-                    //           borderRadius: BorderRadius.circular(15),
-                    //         ),
-                    //         child: Column(
-                    //           crossAxisAlignment: CrossAxisAlignment.start,
-                    //           children: [
-                    //             Text(
-                    //               marketList[index].name.toString(),
-                    //               style: CustomWidget(context: context)
-                    //                   .CustomSizedTextStyle(
-                    //                       20.0,
-                    //                       Theme.of(context).focusColor,
-                    //                       FontWeight.w700,
-                    //                       'FontRegular'),
-                    //               textAlign: TextAlign.start,
-                    //             ),
-                    //             Text(
-                    //               "\$" + double.parse(marketList[index].last.toString()).toStringAsFixed(4),
-                    //               style: CustomWidget(context: context)
-                    //                   .CustomSizedTextStyle(
-                    //                       32.0,
-                    //                       Theme.of(context).focusColor,
-                    //                       FontWeight.w600,
-                    //                       'FontRegular'),
-                    //               textAlign: TextAlign.start,
-                    //             ),
-                    //             const SizedBox(
-                    //               height: 25.0,
-                    //             ),
-                    //             Container(
-                    //               child: Row(
-                    //                 crossAxisAlignment:
-                    //                     CrossAxisAlignment.center,
-                    //                 mainAxisAlignment:
-                    //                     MainAxisAlignment.spaceBetween,
-                    //                 children: [
-                    //                   Row(
-                    //                     crossAxisAlignment:
-                    //                         CrossAxisAlignment.center,
-                    //                     children: [
-                    //                       InkWell(
-                    //                           onTap: () {},
-                    //                           child: SvgPicture.asset(
-                    //                             "assets/images/trade.svg",
-                    //                             height: 20.0,
-                    //                             fit: BoxFit.fill,
-                    //                             color: Theme.of(context)
-                    //                                 .secondaryHeaderColor,
-                    //                           )),
-                    //                       const SizedBox(
-                    //                         width: 3.0,
-                    //                       ),
-                    //                       Text(
-                    //                         double.parse(marketList[index]
-                    //                             .change
-                    //                             .toString())
-                    //                             .toStringAsFixed(2) +
-                    //                             " %",
-                    //                         style: CustomWidget(
-                    //                                 context: context)
-                    //                             .CustomSizedTextStyle(
-                    //                                 14.0,
-                    //                             double.parse(
-                    //                                 marketList[index]
-                    //                                     .change
-                    //                                     .toString()) >=
-                    //                                 0
-                    //                                 ? Theme.of(context)
-                    //                                 .indicatorColor
-                    //                                 : Theme.of(context).hoverColor,
-                    //                                 FontWeight.w400,
-                    //                                 'FontRegular'),
-                    //                         textAlign: TextAlign.center,
-                    //                       ),
-                    //                       const SizedBox(
-                    //                         width: 5.0,
-                    //                       ),
-                    //                       Text(
-                    //                         "USD",
-                    //                         style: CustomWidget(
-                    //                                 context: context)
-                    //                             .CustomSizedTextStyle(
-                    //                                 12.0,
-                    //                                 Theme.of(context).cardColor,
-                    //                                 FontWeight.w600,
-                    //                                 'FontRegular'),
-                    //                         textAlign: TextAlign.center,
-                    //                       ),
-                    //                     ],
-                    //                   ),
-                    //                   // Image.asset("assets/images/btc.png",height: 80.0,width: 120.0,fit: BoxFit.contain),
-                    //                 ],
-                    //               ),
-                    //             )
-                    //           ],
-                    //         ),
-                    //       ),
-                    //     ),
-                    //   ),
-                    // ):Container()
+
                   ],
                 ),
               ),
               Container(
                   height: MediaQuery.of(context).size.height,
+                  width: MediaQuery.of(context).size.width*90,
                   padding: EdgeInsets.only(
-                    top: MediaQuery.of(context).size.height * 0.08,
+                    top: MediaQuery.of(context).size.height * 0.10,
                   ),
                   child: SingleChildScrollView(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SizedBox(
-                          height: MediaQuery.of(context).size.height * 0.18,
+                        marketList.length>0?      Container(
+                         // margin: EdgeInsets.only(top: 35.0),
                           width: MediaQuery.of(context).size.width,
-                          child: CarouselSlider(
-                            options: CarouselOptions(
-                              onPageChanged: (index, reason) {
-                                setState(() {
-                                  slideIndex = index;
-                                });
-                              },
-                              autoPlay: true,
-                              aspectRatio: 1.0,
-                              enlargeCenterPage: true,
-                              viewportFraction: 1,
-                            ),
-                            items: dashImage
-                                .map((item) =>
-                                Container(
-                                width: MediaQuery.of(context).size.width,
-                                padding: const EdgeInsets.all(1),
+                          height: MediaQuery.of(context).size.height * 0.26,
+                          child: CoolSwiper(
+
+                            children: List.generate(
+                              marketList.length>0 ? 3 : 0,
+                                  (index) => Container(
+                                height: Constants.cardHeight*1.2,
+                                padding:
+                                EdgeInsets.fromLTRB(10.0, 20.0, 20.0, 1.0),
                                 decoration: BoxDecoration(
-                                  borderRadius: BorderRadius.circular(12.0),
-                                  // color: Theme.of(context).disabledColor,
-                                  //   image: const DecorationImage(
-                                  //       image: AssetImage("assets/images/back.png"),
-                                  //       fit: BoxFit.cover),
+                                  //color: Theme.of(context).disabledColor.withOpacity(0.8),
                                   gradient: LinearGradient(
-                                    begin: Alignment.centerLeft,
-                                    end: Alignment.centerLeft,
-                                    colors: <Color>[
-                                      Theme.of(context).disabledColor,
-                                      Theme.of(context).disabledColor.withOpacity(0.5),
-                                      // Theme.of(context).primaryColor,
-                                    ],
-                                    tileMode: TileMode.mirror,
-                                  ),
+                                  begin: Alignment.centerLeft,end: Alignment.centerRight,colors: [
+                                    Color(0xff258070),
+                                    Color(0xff2CAF93),
+                                    Color(0xff258070),
+                                  ]),
+                                  image: DecorationImage(
+
+                                      image: AssetImage("assets/images/back.png"),
+                                      fit: BoxFit.cover),
+
+                                  borderRadius: BorderRadius.circular(30),
                                 ),
-                                child: Image.network(item.image.toString(), fit: BoxFit.fitHeight,)
-                            ))
-                                .toList(),
+                                child:Container(width: MediaQuery.of(context).size.width,child: Row(mainAxisAlignment: MainAxisAlignment.center,children: [
+
+                                Flexible(flex:3,child:
+                                  Container(padding: EdgeInsets.only(left: 10),child:
+
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      marketList[index].name.toString(),
+                                      style: CustomWidget(context: context)
+                                          .CustomSizedTextStyle(
+                                          12.0,
+                                          Theme.of(context).focusColor,
+                                          FontWeight.w700,
+                                          'FontRegular'),
+                                      textAlign: TextAlign.start,
+                                    ),
+                                    Text(
+                                      "\$" + double.parse(marketList[index].last.toString()).toStringAsFixed(4),
+                                      style: CustomWidget(context: context)
+                                          .CustomSizedTextStyle(
+                                          28.0,
+                                          Theme.of(context).focusColor,
+                                          FontWeight.w600,
+                                          'FontRegular'),
+                                      maxLines: 2,overflow: TextOverflow.ellipsis,
+                                      textAlign: TextAlign.start,
+                                    ),
+                                    const SizedBox(
+                                      height: 10.0,
+                                    ),
+                                    Container(
+                                      width:MediaQuery.of(context).size.width ,
+                                      child: Row(
+                                        crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                        mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          Row(
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                            children: [
+                                              InkWell(
+                                                  onTap: () {},
+                                                  child: SvgPicture.asset(
+                                                    "assets/images/trade.svg",
+                                                    height: 20.0,
+                                                    fit: BoxFit.fill,
+                                                    color: Theme.of(context)
+                                                        .secondaryHeaderColor,
+                                                  )),
+                                              const SizedBox(
+                                                width: 3.0,
+                                              ),
+                                              Text(
+                                                double.parse(marketList[index]
+                                                    .change
+                                                    .toString())
+                                                    .toStringAsFixed(2) +
+                                                    " %",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    14.0,
+                                                    double.parse(
+                                                        marketList[index]
+                                                            .change
+                                                            .toString()) >=
+                                                        0
+                                                        ? Theme.of(context)
+                                                        .secondaryHeaderColor
+                                                        : Theme.of(context).hoverColor,
+                                                    FontWeight.w600,
+                                                    'FontRegular'),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                              const SizedBox(
+                                                width: 5.0,
+                                              ),
+                                              Text(
+                                                "USD",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme.of(context).cardColor,
+                                                    FontWeight.w600,
+                                                    'FontRegular'),
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ],
+                                          ),
+                                          // Image.asset("assets/images/btc.png",height: 80.0,width: 120.0,fit: BoxFit.contain),
+                                        ],
+                                      ),
+                                    )
+                                  ],
+                                ),
+
+
+                                ),),
+                                  Flexible(flex: 2,child:Container(child:Padding(padding:EdgeInsets.all(0),child:
+                                  Column(mainAxisAlignment: MainAxisAlignment.start,children: [
+                                  Align(child:Container(child:Image.asset("assets/images/leftbtc.png",fit: BoxFit.cover,height: MediaQuery.of(context).size.width*0.10,width: MediaQuery.of(context).size.width*0.10,),alignment: Alignment.topLeft,),),
+                                  //   SizedBox(height: 10,),
+                                    Align(child:Container(child:Image.asset("assets/images/btc.png",fit: BoxFit.cover,height: MediaQuery.of(context).size.width*0.28,width: MediaQuery.of(context).size.width*0.28,),alignment: Alignment.bottomRight,),),
+                                  ],),))),
+                                ],),),
+                                  ),
+                              ),
+
                           ),
-                        ),
+                        ):Container(),
+
+                        //   width: MediaQuery.of(context).size.width,
+                        //   child: CarouselSlider(
+                        //     options: CarouselOptions(
+                        //       onPageChanged: (index, reason) {
+                        //         setState(() {
+                        //           slideIndex = index;
+                        //         });
+                        //       },
+                        //       autoPlay: true,
+                        //       aspectRatio: 1.0,
+                        //       enlargeCenterPage: true,
+                        //       viewportFraction: 1,
+                        //     ),
+                        //     items: dashImage
+                        //         .map((item) =>
+                        //         Container(
+                        //         width: MediaQuery.of(context).size.width,
+                        //         padding: const EdgeInsets.all(1),
+                        //         decoration: BoxDecoration(
+                        //           borderRadius: BorderRadius.circular(12.0),
+                        //           // color: Theme.of(context).disabledColor,
+                        //           //   image: const DecorationImage(
+                        //           //       image: AssetImage("assets/images/back.png"),
+                        //           //       fit: BoxFit.cover),
+                        //           gradient: LinearGradient(
+                        //             begin: Alignment.centerLeft,
+                        //             end: Alignment.centerLeft,
+                        //             colors: <Color>[
+                        //               Theme.of(context).disabledColor,
+                        //               Theme.of(context).disabledColor.withOpacity(0.5),
+                        //               // Theme.of(context).primaryColor,
+                        //             ],
+                        //             tileMode: TileMode.mirror,
+                        //           ),
+                        //         ),
+                        //         child: Image.network(item.image.toString(), fit: BoxFit.fitHeight,)
+                        //     ))
+                        //         .toList(),
+                        //   ),
+                        // ),
                         const SizedBox(
-                          height: 10.0,
+                          height: 40.0,
                         ),
                         Container(
                           child: GridView.builder(
@@ -671,15 +722,15 @@ class _Home_ScreenState extends State<Home_Screen> {
                                 onTap: () {
                                   if (index == 0) {
                                     Navigator.of(context).push(
-                                        MaterialPageRoute(builder: (context) => const Side_Menu_Setting()));
+                                        MaterialPageRoute(builder: (context) => const Account_Screen()));
                                   } else if (index== 1) {
                                     Navigator.of(context).push(
                                         MaterialPageRoute(builder: (context) => const Analytics_Screen()));
                                   }
-                                  // else if (index== 2) {
-                                  //   Navigator.of(context).push(
-                                  //       MaterialPageRoute(builder: (context) => const Subscription_Screen()));
-                                  // }
+                                  else if (index== 2) {
+                                    Navigator.of(context).push(
+                                        MaterialPageRoute(builder: (context) => Subscription_Screen()));
+                                  }
                                   else if (index== 3) {
                                     Navigator.of(context).push(
                                         MaterialPageRoute(builder: (context) => const Copy_Trade_History()));
@@ -731,211 +782,234 @@ class _Home_ScreenState extends State<Home_Screen> {
                         const SizedBox(
                           height: 20.0,
                         ),
-                        // Row(
-                        //   crossAxisAlignment: CrossAxisAlignment.center,
-                        //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        //   children: [
-                        //     Text(
-                        //       "Top Coins",
-                        //       style: CustomWidget(context: context)
-                        //           .CustomSizedTextStyle(
-                        //               16.0,
-                        //               Theme.of(context).focusColor,
-                        //               FontWeight.w700,
-                        //               'FontRegular'),
-                        //       textAlign: TextAlign.center,
-                        //     ),
-                        //     Text(
-                        //       "Scroll all",
-                        //       style: CustomWidget(context: context)
-                        //           .CustomSizedTextStyle(
-                        //               12.0,
-                        //               Theme.of(context).disabledColor,
-                        //               FontWeight.w400,
-                        //               'FontRegular'),
-                        //       textAlign: TextAlign.center,
-                        //     ),
-                        //   ],
-                        // ),
-                        // const SizedBox(
-                        //   height: 20.0,
-                        // ),
-                        // Container(
-                        //   child: GridView.builder(
-                        //     padding: EdgeInsets.zero,
-                        //     controller: _scrollController,
-                        //     gridDelegate:
-                        //         const SliverGridDelegateWithFixedCrossAxisCount(
-                        //       crossAxisCount: 2,
-                        //       crossAxisSpacing: 20,
-                        //       mainAxisSpacing: 20,
-                        //       childAspectRatio: 2.5 / 3,
-                        //     ),
-                        //     // physics: ScrollPhysics(),
-                        //     shrinkWrap: true,
-                        //     itemCount: 2,
-                        //     itemBuilder: (BuildContext context, index) {
-                        //       return InkWell(
-                        //         onTap: () {},
-                        //         child: Container(
-                        //             padding: EdgeInsets.only(
-                        //                 top: 7.0,
-                        //                 bottom: 7.0,
-                        //                 right: 15.0,
-                        //                 left: 15.0),
-                        //             decoration: BoxDecoration(
-                        //               color: Theme.of(context).splashColor,
-                        //               border: Border.all(
-                        //                 width: 1.0,
-                        //                 color: Theme.of(context).disabledColor,
-                        //               ),
-                        //               borderRadius: BorderRadius.circular(10.0),
-                        //             ),
-                        //             alignment: Alignment.center,
-                        //             child: Column(
-                        //               crossAxisAlignment:
-                        //                   CrossAxisAlignment.start,
-                        //               mainAxisAlignment:
-                        //                   MainAxisAlignment.center,
-                        //               children: [
-                        //                 Row(
-                        //                   crossAxisAlignment:
-                        //                       CrossAxisAlignment.center,
-                        //                   children: [
-                        //                     Container(
-                        //                       padding: EdgeInsets.all(1.0),
-                        //                       decoration: BoxDecoration(
-                        //                         shape: BoxShape.circle,
-                        //                       ),
-                        //                       child: SvgPicture.asset(
-                        //                         grid_imgs[index].toString(),
-                        //                         height: 28.0,
-                        //                         // color: Theme.of(context).disabledColor,
-                        //                       ),
-                        //                     ),
-                        //                     SizedBox(
-                        //                       width: 6.0,
-                        //                     ),
-                        //                     Text(
-                        //                       // AppLocalizations.instance.text("loc_widthdraw"),
-                        //                       grid_names[index].toString(),
-                        //                       style:
-                        //                           CustomWidget(context: context)
-                        //                               .CustomSizedTextStyle(
-                        //                                   14,
-                        //                                   Theme.of(context)
-                        //                                       .focusColor,
-                        //                                   FontWeight.w400,
-                        //                                   'FontRegular'),
-                        //                       textAlign: TextAlign.center,
-                        //                     ),
-                        //                   ],
-                        //                 ),
-                        //                 SizedBox(
-                        //                   height: 5.0,
-                        //                 ),
-                        //                 Text(
-                        //                   "\$ 45.898,16",
-                        //                   style: CustomWidget(context: context)
-                        //                       .CustomSizedTextStyle(
-                        //                           16,
-                        //                           Theme.of(context).shadowColor,
-                        //                           FontWeight.w400,
-                        //                           'FontRegular'),
-                        //                   textAlign: TextAlign.center,
-                        //                 ),
-                        //                 const SizedBox(
-                        //                   height: 5.0,
-                        //                 ),
-                        //                 Row(
-                        //                   crossAxisAlignment:
-                        //                       CrossAxisAlignment.center,
-                        //                   children: [
-                        //                     Text(
-                        //                       "24,55%",
-                        //                       style: CustomWidget(
-                        //                               context: context)
-                        //                           .CustomSizedTextStyle(
-                        //                               16,
-                        //                               Theme.of(context)
-                        //                                   .secondaryHeaderColor,
-                        //                               FontWeight.w400,
-                        //                               'FontRegular'),
-                        //                       textAlign: TextAlign.center,
-                        //                     ),
-                        //                     Icon(
-                        //                       Icons.arrow_drop_up,
-                        //                       size: 18.0,
-                        //                       color: Theme.of(context)
-                        //                           .secondaryHeaderColor,
-                        //                     )
-                        //                   ],
-                        //                 ),
-                        //                 const SizedBox(
-                        //                   height: 10.0,
-                        //                 ),
-                        //                 SvgPicture.asset(
-                        //                   "assets/icons/line.svg",
-                        //                   fit: BoxFit.fill,
-                        //                 )
-                        //               ],
-                        //             )),
-                        //       );
-                        //     },
-                        //   ),
-                        // ),
-                        // const SizedBox(
-                        //   height: 20.0,
-                        // ),
-                        // Row(
-                        //   crossAxisAlignment: CrossAxisAlignment.center,
-                        //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        //   children: [
-                        //     Text(
-                        //       "44.826,12 USDT",
-                        //       style: CustomWidget(context: context)
-                        //           .CustomSizedTextStyle(
-                        //               24.0,
-                        //               Theme.of(context).focusColor,
-                        //               FontWeight.w600,
-                        //               'FontRegular'),
-                        //       textAlign: TextAlign.center,
-                        //     ),
-                        //     Container(
-                        //       padding: EdgeInsets.only(
-                        //           left: 8.0, right: 8.0, top: 1.0, bottom: 1.0),
-                        //       decoration: BoxDecoration(
-                        //         borderRadius: BorderRadius.circular(25.0),
-                        //         color: Theme.of(context).canvasColor,
-                        //       ),
-                        //       child: Row(
-                        //         crossAxisAlignment: CrossAxisAlignment.center,
-                        //         children: [
-                        //           Icon(
-                        //             Icons.arrow_drop_up,
-                        //             size: 18.0,
-                        //             color:
-                        //                 Theme.of(context).secondaryHeaderColor,
-                        //           ),
-                        //           Text(
-                        //             "24,55%",
-                        //             style: CustomWidget(context: context)
-                        //                 .CustomSizedTextStyle(
-                        //                     12,
-                        //                     Theme.of(context)
-                        //                         .secondaryHeaderColor,
-                        //                     FontWeight.w400,
-                        //                     'FontRegular'),
-                        //             textAlign: TextAlign.center,
-                        //           ),
-                        //         ],
-                        //       ),
-                        //     ),
-                        //   ],
-                        // ),
-                        // const SizedBox(
-                        //   height: 20.0,
-                        // ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "Top Coins",
+                              style: CustomWidget(context: context)
+                                  .CustomSizedTextStyle(
+                                      16.0,
+                                      Theme.of(context).focusColor,
+                                      FontWeight.w700,
+                                      'FontRegular'),
+                              textAlign: TextAlign.center,
+                            ),
+                            Text(
+                              "Scroll all",
+                              style: CustomWidget(context: context)
+                                  .CustomSizedTextStyle(
+                                      12.0,
+                                      Theme.of(context).disabledColor,
+                                      FontWeight.w400,
+                                      'FontRegular'),
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
+                        ),
+                        const SizedBox(
+                          height: 20.0,
+                        ),
+                        Container(
+                          child: GridView.builder(
+                            padding: EdgeInsets.zero,
+                            controller: _scrollController,
+                            gridDelegate:
+                                const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 20,
+                              mainAxisSpacing: 20,
+                              childAspectRatio: 2.5 / 3,
+                            ),
+                            // physics: ScrollPhysics(),
+                            shrinkWrap: true,
+                            itemCount: 2,
+                            itemBuilder: (BuildContext context, index) {
+                              return InkWell(
+                                onTap: () {},
+                                child: Container(
+                                  height: MediaQuery.of(context).size.height*0.35,
+                                    padding: EdgeInsets.only(
+                                        top: 7.0,
+                                        bottom: 7.0,
+                                        right: 15.0,
+                                        left: 15.0),
+                                    decoration: BoxDecoration(
+                                      color: Theme.of(context).splashColor,
+                                      border: Border.all(
+                                        width: 1.0,
+                                        color: Theme.of(context).disabledColor,
+                                      ),
+                                      borderRadius: BorderRadius.circular(10.0),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Container(
+                                              padding: EdgeInsets.all(1.0),
+                                              decoration: BoxDecoration(
+                                                shape: BoxShape.circle,
+                                              ),
+                                              child: SvgPicture.asset(
+                                                grid_imgs[index].toString(),
+                                                height: 28.0,
+                                                // color: Theme.of(context).disabledColor,
+                                              ),
+                                            ),
+                                            SizedBox(
+                                              width: 6.0,
+                                            ),
+                                            Text(
+                                              // AppLocalizations.instance.text("loc_widthdraw"),
+                                              grid_names[index].toString(),
+                                              style:
+                                                  CustomWidget(context: context)
+                                                      .CustomSizedTextStyle(
+                                                          14,
+                                                          Theme.of(context)
+                                                              .focusColor,
+                                                          FontWeight.w400,
+                                                          'FontRegular'),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                          ],
+                                        ),
+                                        SizedBox(
+                                          height: 5.0,
+                                        ),
+                                        Text(
+                                          "\$ 45.898,16",
+                                          style: CustomWidget(context: context)
+                                              .CustomSizedTextStyle(
+                                                  16,
+                                                  Theme.of(context).shadowColor,
+                                                  FontWeight.w400,
+                                                  'FontRegular'),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                        const SizedBox(
+                                          height: 5.0,
+                                        ),
+                                        Row(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Text(
+                                              "24,55%",
+                                              style: CustomWidget(
+                                                      context: context)
+                                                  .CustomSizedTextStyle(
+                                                      16,
+                                                      Theme.of(context)
+                                                          .secondaryHeaderColor,
+                                                      FontWeight.w400,
+                                                      'FontRegular'),
+                                              textAlign: TextAlign.center,
+                                            ),
+                                            Icon(
+                                              Icons.arrow_drop_up,
+                                              size: 18.0,
+                                              color: Theme.of(context)
+                                                  .secondaryHeaderColor,
+                                            )
+                                          ],
+                                        ),
+                                        const SizedBox(
+                                          height: 5.0,
+                                        ),
+                                        SvgPicture.asset(
+                                          "assets/icons/line.svg",
+                                          fit: BoxFit.fill,
+                                          height: MediaQuery.of(context).size.height*0.06,
+                                        )
+                                      ],
+                                    )),
+                              );
+                            },
+                          ),
+                        ),
+                        const SizedBox(
+                          height: 20.0,
+                        ),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(
+                              "44.826,12 USDT",
+                              style: CustomWidget(context: context)
+                                  .CustomSizedTextStyle(
+                                      24.0,
+                                      Theme.of(context).focusColor,
+                                      FontWeight.w600,
+                                      'FontRegular'),
+                              textAlign: TextAlign.center,
+                            ),
+                            Container(
+                              padding: EdgeInsets.only(
+                                  left: 8.0, right: 8.0, top: 1.0, bottom: 1.0),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(25.0),
+                                color: Theme.of(context).canvasColor,
+                              ),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.arrow_drop_up,
+                                    size: 18.0,
+                                    color:
+                                        Theme.of(context).secondaryHeaderColor,
+                                  ),
+                                  Text(
+                                    "24,55%",
+                                    style: CustomWidget(context: context)
+                                        .CustomSizedTextStyle(
+                                            12,
+                                            Theme.of(context)
+                                                .secondaryHeaderColor,
+                                            FontWeight.w400,
+                                            'FontRegular'),
+                                    textAlign: TextAlign.center,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(
+                          height: 20.0,
+                        ),
+                        Center(child:Container(height: 40,width: MediaQuery.of(context).size.width *0.90,child: ListView.builder(scrollDirection: Axis.horizontal,itemCount: times.length,
+                          itemBuilder: (context, index) {
+                          return GestureDetector(child: Container(decoration: BoxDecoration(color: selectedtimeIndex==index?Theme.of(context).dividerColor:Colors.transparent,
+                              borderRadius: BorderRadius.circular(5)),width: MediaQuery.of(context).size.width *0.18,height: 20,child:Center(child:
+                          Text("${times[index]}",style: CustomWidget(context: context)
+                              .CustomSizedTextStyle(
+                              14,
+                              selectedtimeIndex==index?Theme.of(context).disabledColor:Theme.of(context)
+                                  .dividerColor,
+                              FontWeight.w600,
+                              'FontRegular'),
+                              textAlign: TextAlign.center,),),),onTap: () {
+                            setState(() {
+                              selectedtimeIndex=index;
+                            });
+
+                          },);
+                        },),),),
+                        Container(width: MediaQuery.of(context).size.width,height: MediaQuery.of(context).size.height*0.40,
+                          child: SvgPicture.asset("assets/images/Chart.svg"),),
+
                         Container(
                           height: 145.0,
                           child: marketList.length>0 ? ListView.builder(

@@ -2,6 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:linear_progress_bar/linear_progress_bar.dart';
 
 import '../../common/custom_widget.dart';
 import 'notification.dart';
@@ -16,6 +17,7 @@ class Account_Screen extends StatefulWidget {
 class _Account_ScreenState extends State<Account_Screen> {
   @override
   Widget build(BuildContext context) {
+    final size=MediaQuery.of(context).size;
     return MediaQuery(
       data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
       child: Scaffold(
@@ -459,7 +461,7 @@ class _Account_ScreenState extends State<Account_Screen> {
                                   style: CustomWidget(
                                       context: context)
                                       .CustomSizedTextStyle(
-                                      7.0,
+                                      10.0,
                                       Theme.of(context)
                                           .focusColor,
                                       FontWeight.w600,
@@ -481,7 +483,7 @@ class _Account_ScreenState extends State<Account_Screen> {
                                     style: CustomWidget(
                                         context: context)
                                         .CustomSizedTextStyle(
-                                        7.0,
+                                        10.0,
                                         Theme.of(context)
                                             .primaryColor,
                                         FontWeight.w600,
@@ -497,7 +499,7 @@ class _Account_ScreenState extends State<Account_Screen> {
                                   style: CustomWidget(
                                       context: context)
                                       .CustomSizedTextStyle(
-                                      7.0,
+                                      10.0,
                                       Theme.of(context)
                                           .focusColor,
                                       FontWeight.w600,
@@ -519,7 +521,7 @@ class _Account_ScreenState extends State<Account_Screen> {
                                     style: CustomWidget(
                                         context: context)
                                         .CustomSizedTextStyle(
-                                        7.0,
+                                        10.0,
                                         Theme.of(context)
                                             .primaryColor,
                                         FontWeight.w600,
@@ -535,7 +537,7 @@ class _Account_ScreenState extends State<Account_Screen> {
                                   style: CustomWidget(
                                       context: context)
                                       .CustomSizedTextStyle(
-                                      7.0,
+                                      10.0,
                                       Theme.of(context)
                                           .focusColor,
                                       FontWeight.w600,
@@ -551,7 +553,7 @@ class _Account_ScreenState extends State<Account_Screen> {
                                   style: CustomWidget(
                                       context: context)
                                       .CustomSizedTextStyle(
-                                      6.0,
+                                      10.0,
                                       Theme.of(context)
                                           .disabledColor,
                                       FontWeight.w600,
@@ -559,7 +561,7 @@ class _Account_ScreenState extends State<Account_Screen> {
                                   textAlign: TextAlign.start,
                                 ),
                                 const SizedBox(
-                                  width: 2.0,
+                                  width: 6.0,
                                 ),
                                 RotationTransition(
                                     turns: AlwaysStoppedAnimation(
@@ -579,6 +581,119 @@ class _Account_ScreenState extends State<Account_Screen> {
                         const SizedBox(
                           height: 20.0,
                         ),
+                        Stack(alignment: Alignment.topRight,children: [
+                        Container(width: size.width,decoration:BoxDecoration(borderRadius: BorderRadius.circular(8),border: Border.all(color: Theme.of(context).disabledColor,width: 1)),
+                          child:Padding(padding: EdgeInsets.all(10),child:
+                        Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,children: [
+                          Image.asset("assets/images/div.png",fit: BoxFit.cover,height: size.height*0.08,width:size.height*0.08),
+                          //Container(height: size.height*0.08,width:size.height*0.08 ,child: ,),
+                          Container(child:Row(children: [
+                            Container(child: Column(crossAxisAlignment: CrossAxisAlignment.start,children: [
+                            Container(child: RichText(text: TextSpan(children: [
+                              TextSpan(text: "0",style:CustomWidget(
+                                  context: context)
+                                  .CustomSizedTextStyle(
+                                  26.0,
+                                  Theme.of(context)
+                                      .focusColor,
+                                  FontWeight.bold,
+                                  'FontRegular'),
+                                ),
+                              TextSpan(text: "/30000 USDT",style:CustomWidget(
+                                  context: context)
+                                  .CustomSizedTextStyle(
+                                  12.0,
+                                  Theme.of(context)
+                                      .focusColor,
+                                  FontWeight.w600,
+                                  'FontRegular'),
+                              ),
+                            ]),),),
+                            Text("Rewards Unlocked",style:CustomWidget(
+                                context: context)
+                                .CustomSizedTextStyle(
+                                12.0,
+                                Theme.of(context)
+                                    .dividerColor,
+                                FontWeight.bold,
+                                'FontRegular'),),
+                            const SizedBox(height: 10.0,),
+
+                            Row(children: [
+                              Container(height: 15,width: 15,decoration: BoxDecoration(borderRadius: BorderRadius.circular(100),color: Theme.of(context).disabledColor),),
+                              Container(child: Stack(alignment: Alignment.centerRight,children: [
+
+                                Container(width: size.width*0.60,child:LinearProgressBar(
+                                maxSteps: 6,
+                                progressType: LinearProgressBar.progressTypeLinear,
+                                currentStep: 1,
+                                progressColor: Theme.of(context).disabledColor,
+                                backgroundColor: Theme.of(context).focusColor,
+                                valueColor: AlwaysStoppedAnimation<Color>(Theme.of(context).disabledColor),
+                                semanticsLabel: "Label",
+                                semanticsValue: "Value",
+                                minHeight: 4,
+                                borderRadius: BorderRadius.circular(10), //  NEW
+                              ),),
+                                Container(width: size.width*0.50,child:
+                                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,children: [
+                                  Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(20),color: Theme.of(context).focusColor,border: Border.all(color: Theme.of(context).disabledColor)),
+                                    child:Padding(padding: EdgeInsets.all(4),child:Text("10 USDT",style:CustomWidget(
+                                        context: context)
+                                        .CustomSizedTextStyle(
+                                        8.0,
+                                        Theme.of(context)
+                                            .disabledColor,
+                                        FontWeight.bold,
+                                        'FontRegular'),textAlign: TextAlign.center,),),),
+                                  Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(20),color: Theme.of(context).focusColor,border: Border.all(color: Theme.of(context).primaryColor)),
+                                    child: Padding(padding: EdgeInsets.all(4),child:Text("20 USDT",style:CustomWidget(
+                                        context: context)
+                                        .CustomSizedTextStyle(
+                                        8.0,
+                                        Theme.of(context)
+                                            .disabledColor,
+                                        FontWeight.bold,
+                                        'FontRegular'),textAlign: TextAlign.center,),))
+                                  ,Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(20),color: Theme.of(context).focusColor,border: Border.all(color: Theme.of(context).primaryColor)),
+                                    child:Padding(padding: EdgeInsets.all(4),child: Text("30 USDT",style:CustomWidget(
+                                        context: context)
+                                        .CustomSizedTextStyle(
+                                        8.0,
+                                        Theme.of(context)
+                                            .disabledColor,
+                                        FontWeight.bold,
+                                        'FontRegular'),textAlign: TextAlign.center,),))
+                                ],),),
+
+                                ],),
+                              ),
+
+
+
+                            ],),
+                            
+
+                          ],),),
+                          ],),),
+
+                        ],),),),
+                          Positioned(top: 10,right: 10,child:RotationTransition(
+                              turns: AlwaysStoppedAnimation(
+                                  -180 / 360),
+                              //it will rotate 20 degree, remove (-) to rotate -20 degree
+                              child: SvgPicture.asset(
+                                "assets/menu/back.svg",
+                                height: 15.0,
+                                color: Theme.of(context)
+                                    .disabledColor,
+                              )),
+                          ),
+                        ],),
+                        const SizedBox(
+                          height: 20.0,
+                        ),
+
                         Text(
                           "Recommended",
                           style: CustomWidget(

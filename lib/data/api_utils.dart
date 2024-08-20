@@ -95,7 +95,7 @@ class APIUtils {
 
     final response = await http.post(Uri.parse(crypto_baseURL + regURL),
         body: emailbodyData);
-
+print(response.body);
     return CommonModel.fromJson(json.decode(response.body));
   }
 
@@ -592,7 +592,8 @@ print(response.body);
   //   return CommonModel.fromJson(json.decode(response.body));
   // }
 
-  Future<CommonModel> tradeInfo(String instId, String tdMode, String ccy, String lever, String side, String orderType, String px, String sz, String trade_at, bool tpslType, String tpPice, String slPrice) async {
+  Future<CommonModel> tradeInfo(String instId, String tdMode, String ccy, String lever, String side, String orderType,
+      String px, String sz, String trade_at, tpslType, String tpPice, String slPrice) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
     var bankData = {
       "instId": instId,
@@ -622,13 +623,18 @@ print(response.body);
       "tpPrice": tpPice,
       "slPrice": slPrice,
     };
+    print(bankData);
+    print(TradeData);
     final response = await http.post(Uri.parse(crypto_baseURL + tradeURL),
         body: tpslType? TradeData : bankData,
         headers: {"authorization": "Bearer " + preferences.getString("token").toString()});
+    print("bankDataDetails");
+    print(response.body);
     return CommonModel.fromJson(json.decode(response.body));
   }
 
-  Future<CommonModel> masterTradeInfo(String instId, String tdMode, String ccy, String lever, String side, String orderType, String px, String sz, String trade_at, bool tpslType, String tpPice, String slPrice) async {
+  Future<CommonModel> masterTradeInfo(String instId, String tdMode, String ccy, String lever, String side, String orderType,
+      String px, String sz, String trade_at, tpslType, String tpPice, String slPrice) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
     var bankData = {
       "instId": instId,

@@ -108,11 +108,29 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
+                Row(children: [
+              // Padding(
+              //   padding: EdgeInsets.only(right: 1.0),
+              //   child: InkWell(
+              //     onTap: () {
+              //       setState(() {
+              //         Navigator.pop(context);
+              //       });
+              //     },
+              //     child: Icon(
+              //       Icons.arrow_back_ios_new_rounded,
+              //       size: 20.0,
+              //       color: Theme.of(context).focusColor,
+              //     ),
+              //   ),
+              // ),
+                 // const SizedBox(width: 5,),
                   Text(
                     "My Wallet",
                     style: CustomWidget(context: context).CustomSizedTextStyle(20.0,
                         Theme.of(context).focusColor, FontWeight.w600, 'FontRegular'),
                   ),
+                ],),
                   const SizedBox(
                     height: 10.0,
                   ),

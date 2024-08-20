@@ -84,7 +84,6 @@ class _Login_ScreenState extends State<Login_Screen>
     initCountry();
   }
 
-
   void initCountry() async {
     final country = await getDefaultCountry(context);
     setState(() {
@@ -365,6 +364,7 @@ class _Login_ScreenState extends State<Login_Screen>
                               InkWell(
                                   onTap: () {
                                    _googleSignIn.disconnect();
+
                                     _googleSignIn.signIn().then((userData) {
                                       setState(() {
                                         _isLoggedIn = true;
@@ -379,7 +379,6 @@ class _Login_ScreenState extends State<Login_Screen>
 
                                       });
                                     }).catchError((e) {
-                                      print("Man");
                                       print(e);
                                     });
                                   },

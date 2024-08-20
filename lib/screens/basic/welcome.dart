@@ -22,14 +22,14 @@ class _Welcome_ScreenState extends State<Welcome_Screen> {
       data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
       child: Scaffold(
         backgroundColor: Theme.of(context).primaryColor,
-        appBar: AppBar(
-          systemOverlayStyle: SystemUiOverlayStyle(
-            statusBarColor: Theme.of(context).primaryColor, // For iOS: (dark icons)
-            statusBarIconBrightness: Brightness.light, // For Android: (dark icons)
-          ),
-          elevation: 0.0,
-          toolbarHeight: 0.0,
-        ),
+        // appBar: AppBar(
+        //   systemOverlayStyle: SystemUiOverlayStyle(
+        //     statusBarColor: Theme.of(context).primaryColor, // For iOS: (dark icons)
+        //     statusBarIconBrightness: Brightness.light, // For Android: (dark icons)
+        //   ),
+        //   elevation: 0.0,
+        //   toolbarHeight: 0.0,
+        // ),
         body: Container(
           width: MediaQuery.of(context).size.width,
           height: MediaQuery.of(context).size.height,

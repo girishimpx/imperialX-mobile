@@ -24,10 +24,22 @@ class MarketScreen extends StatefulWidget {
 class _MarketScreenState extends State<MarketScreen>
     with SingleTickerProviderStateMixin {
   bool loading = false;
+  int selectedtimeIndex=0;
   var array_dta;
 
   APIUtils apiUtils = APIUtils();
   ScrollController controller = ScrollController();
+  List<Map<String,dynamic>> fav_list=[
+    {"icon":"assets/icons/btc.svg","amount":"\$46.625,32","unit":"BTC","percentage":"+24,55%","name":"Bitcoin","image":"assets/images/chartgreen.png"},
+    {"icon":"assets/icons/Dodge.svg","amount":"\$1,868","unit":"XRP","percentage":"-24,55%","name":"XRP","image":"assets/images/chartred.png"},
+    {"icon":"assets/icons/Xcurrency.svg","amount":"\$0,2811","unit":"DOGE","percentage":"+24,55%","name":"Dogecoin","image":"assets/images/chartgreen.png"},
+
+  ];
+  List<String> times=[
+    "1hr",
+    "24",
+    "7d",
+  ];
 
   List<CoinList> tradePairListAll = [];
   List<CoinList> tradePairFutureAll = [];
@@ -428,6 +440,7 @@ class _MarketScreenState extends State<MarketScreen>
                                     loading = true;
                                     getFutureCoinList();
                                   }
+
                                   // tradePairList.clear();
                                   // tradePairList = [];
 
@@ -440,7 +453,8 @@ class _MarketScreenState extends State<MarketScreen>
 
                                 });
                               },
-                              child: Container(
+                              child:
+                              Container(
                                   padding: EdgeInsets.fromLTRB(20.0, 0.0, 20.0, 0.0),
                                   decoration: indexVal == index ?  BoxDecoration(
                                     borderRadius: BorderRadius.circular(6.0),
@@ -475,116 +489,116 @@ class _MarketScreenState extends State<MarketScreen>
                     height: 30.0,
                   ),
                   const SizedBox(
-                    height: 15.0,
+                    height: 0.0,
                   ),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Flexible(child:  Container(
-                        decoration: BoxDecoration(
-                            border: Border.all(width: 1.0, color: Theme.of(context).disabledColor,),
-                            borderRadius: BorderRadius.circular(25.0)
-                        ),
-                        height: 45.0,
-                        padding: EdgeInsets.only(left: 10.0, right: 10.0),
-                        width: MediaQuery.of(context).size.width,
-                        child: TextField(
-                          controller: searchController,
-                          focusNode: searchFocus,
-                          enabled: true,
-                          onEditingComplete: () {
-                            setState(() {
-                              searchFocus.unfocus();
-
-                            });
-                          },
-                          onChanged: (value) {
-                            setState(() {
-                              coinList = [];
-                              coinFutureList = [];
-                              if(indexVal ==2){
-                                for (int m = 0; m < marketFutureList.length; m++) {
-                                  if (marketFutureList[m].name.toString()
-                                      .toLowerCase()
-                                      .contains(value.toLowerCase()) ||
-                                      marketFutureList[m].name.toString()
-                                          .toLowerCase()
-                                          .contains(value.toLowerCase())) {
-                                    coinFutureList.add(marketFutureList[m]);
-                                  }
-                                }
-                              }else {
-                                for (int m = 0; m < marketList.length; m++) {
-                                  if (marketList[m].name.toString()
-                                      .toLowerCase()
-                                      .contains(value.toLowerCase()) ||
-                                      marketList[m].name.toString()
-                                          .toLowerCase()
-                                          .contains(value.toLowerCase())) {
-                                    coinList.add(marketList[m]);
-                                  }
-                                }
-                              }
-                            });
-                          },
-                          decoration: InputDecoration(
-                            contentPadding: const EdgeInsets.only(
-                                left: 10, right: 0, top: 8, bottom: 8),
-                            hintText: "Search",
-                            hintStyle: TextStyle(
-                                fontFamily: "FontRegular",
-                                color: Theme.of(context).highlightColor,
-                                fontSize: 14.0,
-                                fontWeight: FontWeight.w500),
-                            filled: true,
-                            fillColor: Colors.transparent,
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                              borderSide: BorderSide(
-                                  color: Colors.transparent,
-                                  width: 1.0),
-                            ),
-                            disabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                              borderSide: BorderSide(
-                                  color: Colors.transparent,
-                                  width: 1.0),
-                            ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                              borderSide: BorderSide(
-                                  color:Colors.transparent,
-                                  width: 1.0),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                              borderSide: BorderSide(
-                                  color: Colors.transparent,
-                                  width: 1.0),
-                            ),
-                            errorBorder: const OutlineInputBorder(
-                              borderRadius: BorderRadius.all(Radius.circular(5)),
-                              borderSide: BorderSide(color: Colors.red, width: 0.0),
-                            ),
-                          ),
-                        ),
-                      ), flex: 5,),
-                      Flexible(child: InkWell(
-                        onTap: (){
-                        },
-                        child: Container(
-                          padding: EdgeInsets.all(8.0),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(width: 1.0, color: Theme.of(context).disabledColor,),
-                            // color: Theme.of(context).disabledColor,
-                          ),
-                          child: Icon(Icons.filter_alt_rounded, size: 24.0, color: Theme.of(context).focusColor,),
-                        ),
-                      ),flex: 1,)
-                    ],
-                  ),
+                  // Row(
+                  //   crossAxisAlignment: CrossAxisAlignment.center,
+                  //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  //   children: [
+                  //     Flexible(child:  Container(
+                  //       decoration: BoxDecoration(
+                  //           border: Border.all(width: 1.0, color: Theme.of(context).disabledColor,),
+                  //           borderRadius: BorderRadius.circular(25.0)
+                  //       ),
+                  //       height: 45.0,
+                  //       padding: EdgeInsets.only(left: 10.0, right: 10.0),
+                  //       width: MediaQuery.of(context).size.width,
+                  //       child: TextField(
+                  //         controller: searchController,
+                  //         focusNode: searchFocus,
+                  //         enabled: true,
+                  //         onEditingComplete: () {
+                  //           setState(() {
+                  //             searchFocus.unfocus();
+                  //
+                  //           });
+                  //         },
+                  //         onChanged: (value) {
+                  //           setState(() {
+                  //             coinList = [];
+                  //             coinFutureList = [];
+                  //             if(indexVal ==2){
+                  //               for (int m = 0; m < marketFutureList.length; m++) {
+                  //                 if (marketFutureList[m].name.toString()
+                  //                     .toLowerCase()
+                  //                     .contains(value.toLowerCase()) ||
+                  //                     marketFutureList[m].name.toString()
+                  //                         .toLowerCase()
+                  //                         .contains(value.toLowerCase())) {
+                  //                   coinFutureList.add(marketFutureList[m]);
+                  //                 }
+                  //               }
+                  //             }else {
+                  //               for (int m = 0; m < marketList.length; m++) {
+                  //                 if (marketList[m].name.toString()
+                  //                     .toLowerCase()
+                  //                     .contains(value.toLowerCase()) ||
+                  //                     marketList[m].name.toString()
+                  //                         .toLowerCase()
+                  //                         .contains(value.toLowerCase())) {
+                  //                   coinList.add(marketList[m]);
+                  //                 }
+                  //               }
+                  //             }
+                  //           });
+                  //         },
+                  //         decoration: InputDecoration(
+                  //           contentPadding: const EdgeInsets.only(
+                  //               left: 10, right: 0, top: 8, bottom: 8),
+                  //           hintText: "Search",
+                  //           hintStyle: TextStyle(
+                  //               fontFamily: "FontRegular",
+                  //               color: Theme.of(context).highlightColor,
+                  //               fontSize: 14.0,
+                  //               fontWeight: FontWeight.w500),
+                  //           filled: true,
+                  //           fillColor: Colors.transparent,
+                  //           border: OutlineInputBorder(
+                  //             borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                  //             borderSide: BorderSide(
+                  //                 color: Colors.transparent,
+                  //                 width: 1.0),
+                  //           ),
+                  //           disabledBorder: OutlineInputBorder(
+                  //             borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                  //             borderSide: BorderSide(
+                  //                 color: Colors.transparent,
+                  //                 width: 1.0),
+                  //           ),
+                  //           enabledBorder: OutlineInputBorder(
+                  //             borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                  //             borderSide: BorderSide(
+                  //                 color:Colors.transparent,
+                  //                 width: 1.0),
+                  //           ),
+                  //           focusedBorder: OutlineInputBorder(
+                  //             borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                  //             borderSide: BorderSide(
+                  //                 color: Colors.transparent,
+                  //                 width: 1.0),
+                  //           ),
+                  //           errorBorder: const OutlineInputBorder(
+                  //             borderRadius: BorderRadius.all(Radius.circular(5)),
+                  //             borderSide: BorderSide(color: Colors.red, width: 0.0),
+                  //           ),
+                  //         ),
+                  //       ),
+                  //     ), flex: 5,),
+                  //     Flexible(child: InkWell(
+                  //       onTap: (){
+                  //       },
+                  //       child: Container(
+                  //         padding: EdgeInsets.all(8.0),
+                  //         decoration: BoxDecoration(
+                  //           shape: BoxShape.circle,
+                  //           border: Border.all(width: 1.0, color: Theme.of(context).disabledColor,),
+                  //           // color: Theme.of(context).disabledColor,
+                  //         ),
+                  //         child: Icon(Icons.filter_alt_rounded, size: 24.0, color: Theme.of(context).focusColor,),
+                  //       ),
+                  //     ),flex: 1,)
+                  //   ],
+                  // ),
                   const SizedBox(
                     height: 15.0,
                   ),
@@ -597,6 +611,7 @@ class _MarketScreenState extends State<MarketScreen>
                       MainAxisAlignment.spaceBetween,
                       children: [
                         Flexible(
+
                           child: Container(
                             child: Row(
                               crossAxisAlignment:
@@ -811,9 +826,10 @@ class _MarketScreenState extends State<MarketScreen>
                 ],
               ),
             ),
-           indexVal==2 ? Container(
+           indexVal==2 ?
+           Container(
               margin: EdgeInsets.only(
-                  top: MediaQuery.of(context).size.height * 0.22),
+                  top: MediaQuery.of(context).size.height * 0.14),
               child: coinFutureList.length > 0 ? ListView.builder(
                 itemCount: coinFutureList.length,
                 shrinkWrap: true,
@@ -1004,205 +1020,581 @@ class _MarketScreenState extends State<MarketScreen>
                   ),
                 ),
               ),
-            ) :  Container(
-              margin: EdgeInsets.only(
-                  top: MediaQuery.of(context).size.height * 0.22),
-              child: coinList.length > 0
-                  ? ListView.builder(
-                      itemCount: coinList.length,
-                      shrinkWrap: true,
-                      controller: controller,
-                      itemBuilder: (BuildContext context, int index) {
-                        // double data =
-                        // double.parse(tradePairList[index].hrExchange.toString());
-                        return Column(
-                          children: [
-                            InkWell(
-                              onTap:(){
-                                Navigator.of(context).push(
-                                  MaterialPageRoute(
-                                    builder: (context) => MarketTrade_Details(
-                                        coinName: coinList[index].name.toString(), coinPrice:coinList[index].last.toString(),
-                                        coinDiference: coinList[index].change.toString(), coinhigh24h: coinList[index].high.toString(),
-                                      coinlow24l: coinList[index].low.toString(), coinAskP: coinList[index].askP.toString(), coinBitP: coinList[index].bitP.toString()
-                                    ),
-                                  ),
-                                );
-                                },
-                              child: Container(
-                                padding: EdgeInsets.only(bottom: 10.0),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.center,
-                                  mainAxisAlignment:
-                                  MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    Flexible(
-                                      child: Container(
-                                        child: Row(
-                                          crossAxisAlignment:
-                                          CrossAxisAlignment.center,
-                                          children: [
-                                            // SvgPicture.network(image, height: 35.0,),
-                                            // Container(
-                                            //   padding: EdgeInsets.all(1.0),
-                                            //   decoration: BoxDecoration(
-                                            //     shape: BoxShape.circle,
-                                            //   ),
-                                            //   child: Image.network(
-                                            //     marketList[index].image.toString(),
-                                            //     // "assets/icons/btc.svg",
-                                            //     height: 35.0,
-                                            //     // color: Theme.of(context).disabledColor,
-                                            //   ),
-                                            // ),
-                                            // const SizedBox(
-                                            //   width: 10.0,
-                                            // ),
-                                            Column(
-                                              crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                              children: [
-                                                Container(
-                                                  width: MediaQuery.of(context)
-                                                      .size
-                                                      .width *
-                                                      0.24,
-                                                  child: Text(
-                                                    // name,
-                                                    // "Bitcoin",
-                                                    coinList[index]
-                                                        .name
-                                                        .toString(),
-                                                    style: CustomWidget(
-                                                        context: context)
-                                                        .CustomSizedTextStyle(
-                                                        14.0,
-                                                        Theme.of(context)
-                                                            .focusColor,
-                                                        FontWeight.w500,
-                                                        'FontRegular'),
-                                                    textAlign: TextAlign.start,
-                                                    overflow:
-                                                    TextOverflow.ellipsis,
-                                                  ),
-                                                ),
-                                                const SizedBox(
-                                                  height: 4.0,
-                                                ),
-                                                // Text(
-                                                //   // tradePairList[index].baseAsset.toString().toUpperCase(),
-                                                //   // "BTC",
-                                                //   tradePairListAll[index].data!.instId.toString(),
-                                                //   style: CustomWidget(
-                                                //       context: context)
-                                                //       .CustomSizedTextStyle(
-                                                //       12.0,
-                                                //       Theme.of(context)
-                                                //           .bottomAppBarColor,
-                                                //       FontWeight.w400,
-                                                //       'FontRegular'),
-                                                //   textAlign: TextAlign.start,
-                                                // ),
-                                              ],
-                                            )
-                                          ],
-                                        ),
-                                      ),
-                                      flex: 2,
-                                    ),
-                                    Flexible(
+            ) :
 
-                                      child: Container(
-                                          child: Row(
-                                            children: [
-                                              Text(
-                                                "\$" +
-                                                    double.parse(coinList[index]
-                                                        .last
-                                                        .toString())
-                                                        .toStringAsFixed(4),
-                                                style: CustomWidget(context: context)
-                                                    .CustomSizedTextStyle(
-                                                    14.0,
-                                                    Theme.of(context).focusColor,
-                                                    FontWeight.w400,
-                                                    'FontRegular'),
-                                                textAlign: TextAlign.start,
-                                              ),
-                                              Container(
-                                                width: 70,
+            // indexVal==3?
+            // Container(
+            //   margin: EdgeInsets.only(
+            //       top: MediaQuery.of(context).size.height * 0.14),
+            //   child: fav_list.length > 0 ?
+            //       Container(child: Column(children: [
+            //         ListView.builder(
+            //           itemCount: fav_list.length,
+            //           shrinkWrap: true,
+            //           controller: controller,
+            //           itemBuilder: (BuildContext context, int index) {
+            //             // double data =
+            //             // double.parse(tradePairList[index].hrExchange.toString());
+            //             return Column(
+            //               children: [
+            //                 InkWell(
+            //                   onTap:(){
+            //                     showFavbottom(context);
+            //                   },
+            //                   child: Container(
+            //                     padding: EdgeInsets.only(bottom: 10.0),
+            //                     child: Row(
+            //                       crossAxisAlignment: CrossAxisAlignment.center,
+            //                       mainAxisAlignment:
+            //                       MainAxisAlignment.spaceBetween,
+            //                       children: [
+            //                         Flexible(
+            //                           child: Container(
+            //                             child: Row(
+            //                               crossAxisAlignment:
+            //                               CrossAxisAlignment.center,
+            //                               children: [
+            //
+            //                                 Container(
+            //                                   padding: EdgeInsets.all(1.0),
+            //                                   decoration: BoxDecoration(
+            //                                     shape: BoxShape.circle,
+            //                                   ),
+            //                                   child: SvgPicture.asset("${fav_list[index]["icon"]}",
+            //                                     // "assets/icons/btc.svg",
+            //                                     height: 35.0,
+            //                                     // color: Theme.of(context).disabledColor,
+            //                                   ),
+            //                                 ),
+            //                                 const SizedBox(
+            //                                   width: 10.0,
+            //                                 ),
+            //                                 Column(
+            //                                   crossAxisAlignment:
+            //                                   CrossAxisAlignment.start,
+            //                                   children: [
+            //                                     Container(
+            //                                       width: MediaQuery.of(context)
+            //                                           .size
+            //                                           .width *
+            //                                           0.24,
+            //                                       child: Text(
+            //                                         // name,
+            //                                         // "Bitcoin",
+            //                                         "${fav_list[index]["name"]}",
+            //                                         style: CustomWidget(
+            //                                             context: context)
+            //                                             .CustomSizedTextStyle(
+            //                                             14.0,
+            //                                             Theme.of(context)
+            //                                                 .focusColor,
+            //                                             FontWeight.w500,
+            //                                             'FontRegular'),
+            //                                         textAlign: TextAlign.start,
+            //                                         overflow:
+            //                                         TextOverflow.ellipsis,
+            //                                       ),
+            //                                     ),
+            //                                     const SizedBox(
+            //                                       height: 4.0,
+            //                                     ),
+            //                                     Text(
+            //                                       // tradePairList[index].baseAsset.toString().toUpperCase(),
+            //                                       // "BTC",
+            //                                       "${fav_list[index]["unit"]}",
+            //                                       style: CustomWidget(
+            //                                           context: context)
+            //                                           .CustomSizedTextStyle(
+            //                                           12.0,
+            //                                           Theme.of(context)
+            //                                               .focusColor.withOpacity(0.5),
+            //                                           FontWeight.w400,
+            //                                           'FontRegular'),
+            //                                       textAlign: TextAlign.start,
+            //                                     ),
+            //                                   ],
+            //                                 )
+            //                               ],
+            //                             ),
+            //                           ),
+            //                           flex: 3,
+            //                         ),
+            //                         Flexible(
+            //
+            //                           child: Container(
+            //                               child: Row(crossAxisAlignment: CrossAxisAlignment.start,
+            //                                 children: [
+            //                                   Flexible(flex: 1,child:
+            //                                   Container(child: Image.asset("${fav_list[index]["image"]}",),),),
+            //
+            //                                   Column(children: [
+            //                                     Text(
+            //                                       "${fav_list[index]["amount"]}",
+            //                                       style: CustomWidget(context: context)
+            //                                           .CustomSizedTextStyle(
+            //                                           14.0,
+            //                                           Theme.of(context).focusColor,
+            //                                           FontWeight.w400,
+            //                                           'FontRegular'),
+            //                                       textAlign: TextAlign.start,
+            //                                     ),
+            //                                     Container(
+            //                                       //width: 70,
+            //
+            //                                       child:Row(children:[
+            //                                         Center(
+            //                                           child: Text(
+            //                                             "${fav_list[index]["percentage"]}",
+            //                                             style:
+            //                                             CustomWidget(context: context)
+            //                                                 .CustomSizedTextStyle(
+            //                                                 12,
+            //                                                 index%2==0
+            //                                                     ? Theme.of(context)
+            //                                                     .indicatorColor
+            //                                                     : Theme.of(context).hoverColor,
+            //                                                 FontWeight.w400,
+            //                                                 'FontRegular'),
+            //                                             textAlign: TextAlign.center,
+            //                                           ),
+            //                                         ),
+            //                                         Icon( index%2==0 ?Icons.arrow_drop_up:Icons.arrow_drop_down,size: 15,color:index%2==0
+            //                                             ? Theme.of(context)
+            //                                             .indicatorColor
+            //                                             : Theme.of(context).hoverColor ,)
+            //                                       ]),
+            //
+            //
+            //                                     ),
+            //                                   ],)
+            //                                 ],
+            //                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            //                               )
+            //                           ),
+            //                           flex: 3,
+            //                         ),
+            //
+            //                       ],
+            //                     ),
+            //                   ),
+            //                 ),
+            //                 Container(
+            //                   height: 1.5,
+            //                   width: MediaQuery.of(context).size.width,
+            //                   color: Theme.of(context).canvasColor,
+            //                 ),
+            //
+            //
+            //               ],
+            //             );
+            //           },
+            //         ),
+            //         SizedBox(
+            //           height:MediaQuery.of(context).size.height*0.20,
+            //         ),
+            //         Container(width: MediaQuery.of(context).size.width*0.80,decoration: BoxDecoration(borderRadius: BorderRadius.circular(20),color: Theme.of(context).disabledColor),
+            //             child:Padding(padding:EdgeInsets.all(10),child:Text("Add Favorites",style:CustomWidget(context: context)
+            //                 .CustomSizedTextStyle(
+            //                 16,
+            //                 Theme.of(context).primaryColor,
+            //                 FontWeight.w600,
+            //                 'FontRegular'),
+            //               textAlign: TextAlign.center,),)),
+            //       ],),):Container()
+            //   ):
+            // indexVal==4?
+            // Container( margin: EdgeInsets.only(
+            //     top: MediaQuery.of(context).size.height * 0.14),
+            //     child: fav_list.length > 0 ?
+            //     Container(child: Column(children: [
+            //       const SizedBox(height: 20,),
+            //       Align(alignment: Alignment.centerRight,child:Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(10),color: Theme.of(context).dividerColor),child:Padding(padding: EdgeInsets.all(8),child:
+            //       Container(height: 20,width: MediaQuery.of(context).size.width *0.32,child: ListView.builder(scrollDirection: Axis.horizontal,itemCount: times.length,
+            //         itemBuilder: (context, index) {
+            //           return GestureDetector(child: Container(decoration: BoxDecoration(color: selectedtimeIndex==index?Theme.of(context).disabledColor:Theme.of(context).dividerColor,
+            //               borderRadius: BorderRadius.circular(6)),width: MediaQuery.of(context).size.width *0.10,height: 12,child:Center(child:
+            //           Text("${times[index]}",style: CustomWidget(context: context)
+            //               .CustomSizedTextStyle(
+            //               14,
+            //               selectedtimeIndex==index?Theme.of(context).primaryColor:Theme.of(context)
+            //                   .focusColor.withOpacity(0.6),
+            //               FontWeight.w600,
+            //               'FontRegular'),
+            //             textAlign: TextAlign.center,maxLines: 1,overflow: TextOverflow.ellipsis,),),),onTap: () {
+            //             setState(() {
+            //               selectedtimeIndex=index;
+            //             });
+            //
+            //           },);
+            //         },),),),),
+            //       ),
+            //       const SizedBox(height: 20,),
+            //       ListView.builder(
+            //         itemCount: fav_list.length,
+            //         shrinkWrap: true,
+            //         controller: controller,
+            //         itemBuilder: (BuildContext context, int index) {
+            //           // double data =
+            //           // double.parse(tradePairList[index].hrExchange.toString());
+            //           return Column(
+            //             children: [
+            //               InkWell(
+            //                 onTap:(){
+            //                   showFavbottom(context);
+            //                 },
+            //                 child: Container(
+            //                   padding: EdgeInsets.only(bottom: 10.0),
+            //                   child: Row(
+            //                     crossAxisAlignment: CrossAxisAlignment.start,
+            //                     mainAxisAlignment:
+            //                     MainAxisAlignment.spaceBetween,
+            //                     children: [
+            //                       Flexible(
+            //                         child: Container(
+            //                           child: Row(
+            //                             crossAxisAlignment:
+            //                             CrossAxisAlignment.center,
+            //                             children: [
+            //
+            //                               Container(
+            //                                 padding: EdgeInsets.all(1.0),
+            //                                 decoration: BoxDecoration(
+            //                                   shape: BoxShape.circle,
+            //                                 ),
+            //                                 child: SvgPicture.asset("${fav_list[index]["icon"]}",
+            //                                   // "assets/icons/btc.svg",
+            //                                   height: 35.0,
+            //                                   // color: Theme.of(context).disabledColor,
+            //                                 ),
+            //                               ),
+            //                               const SizedBox(
+            //                                 width: 10.0,
+            //                               ),
+            //                               Column(
+            //                                 crossAxisAlignment:
+            //                                 CrossAxisAlignment.start,
+            //                                 children: [
+            //                                   Container(
+            //                                     width: MediaQuery.of(context)
+            //                                         .size
+            //                                         .width *
+            //                                         0.24,
+            //                                     child: Text(
+            //                                       // name,
+            //                                       // "Bitcoin",
+            //                                       "${fav_list[index]["name"]}",
+            //                                       style: CustomWidget(
+            //                                           context: context)
+            //                                           .CustomSizedTextStyle(
+            //                                           14.0,
+            //                                           Theme.of(context)
+            //                                               .focusColor,
+            //                                           FontWeight.w500,
+            //                                           'FontRegular'),
+            //                                       textAlign: TextAlign.start,
+            //                                       overflow:
+            //                                       TextOverflow.ellipsis,
+            //                                     ),
+            //                                   ),
+            //                                   const SizedBox(
+            //                                     height: 4.0,
+            //                                   ),
+            //                                   Text(
+            //                                     // tradePairList[index].baseAsset.toString().toUpperCase(),
+            //                                     // "BTC",
+            //                                     "${fav_list[index]["unit"]}",
+            //                                     style: CustomWidget(
+            //                                         context: context)
+            //                                         .CustomSizedTextStyle(
+            //                                         12.0,
+            //                                         Theme.of(context)
+            //                                             .focusColor.withOpacity(0.5),
+            //                                         FontWeight.w400,
+            //                                         'FontRegular'),
+            //                                     textAlign: TextAlign.start,
+            //                                   ),
+            //                                 ],
+            //                               )
+            //                             ],
+            //                           ),
+            //                         ),
+            //                         flex: 3,
+            //                       ),
+            //                       Flexible(
+            //
+            //                         child: Container(
+            //                             child: Row(crossAxisAlignment: CrossAxisAlignment.start,
+            //                               children: [
+            //
+            //                                 Container(
+            //                                   //width: 70,
+            //
+            //                                   child:Row(children:[
+            //                                     Center(
+            //                                       child: Text(
+            //                                         "${fav_list[index]["percentage"]}",
+            //                                         style:
+            //                                         CustomWidget(context: context)
+            //                                             .CustomSizedTextStyle(
+            //                                             12,
+            //                                             index%2==0
+            //                                                 ? Theme.of(context)
+            //                                                 .indicatorColor
+            //                                                 : Theme.of(context).hoverColor,
+            //                                             FontWeight.w400,
+            //                                             'FontRegular'),
+            //                                         textAlign: TextAlign.center,
+            //                                       ),
+            //                                     ),
+            //                                     Icon( index%2==0 ?Icons.arrow_drop_up:Icons.arrow_drop_down,size: 15,color:index%2==0
+            //                                         ? Theme.of(context)
+            //                                         .indicatorColor
+            //                                         : Theme.of(context).hoverColor ,)
+            //                                   ]),
+            //
+            //
+            //                                 ),
+            //
+            //                                   Text(
+            //                                     "${fav_list[index]["amount"]}",
+            //                                     style: CustomWidget(context: context)
+            //                                         .CustomSizedTextStyle(
+            //                                         14.0,
+            //                                         Theme.of(context).focusColor,
+            //                                         FontWeight.w400,
+            //                                         'FontRegular'),
+            //                                     textAlign: TextAlign.start,
+            //                                   ),
+            //
+            //
+            //                                 ],   mainAxisAlignment: MainAxisAlignment.spaceBetween,)
+            //                         ),
+            //                         flex: 3,
+            //                       ),
+            //
+            //                     ],
+            //                   ),
+            //                 ),
+            //               ),
+            //               Container(
+            //                 height: 1.5,
+            //                 width: MediaQuery.of(context).size.width,
+            //                 color: Theme.of(context).canvasColor,
+            //               ),
+            //
+            //
+            //             ],
+            //           );
+            //         },
+            //       ),
+            //
+            //
+            //     ],),):Container()
+            // ):
+            Container(
+               margin: EdgeInsets.only(
+                   top: MediaQuery.of(context).size.height * 0.14),
+               child: coinList.length > 0
+                   ? ListView.builder(
+                       itemCount: coinList.length,
+                       shrinkWrap: true,
+                       controller: controller,
+                       itemBuilder: (BuildContext context, int index) {
+                         // double data =
+                         // double.parse(tradePairList[index].hrExchange.toString());
+                         return Column(
+                           children: [
+                             InkWell(
+                               onTap:(){
+                                 Navigator.of(context).push(
+                                   MaterialPageRoute(
+                                     builder: (context) => MarketTrade_Details(
+                                         coinName: coinList[index].name.toString(), coinPrice:coinList[index].last.toString(),
+                                         coinDiference: coinList[index].change.toString(), coinhigh24h: coinList[index].high.toString(),
+                                       coinlow24l: coinList[index].low.toString(), coinAskP: coinList[index].askP.toString(), coinBitP: coinList[index].bitP.toString()
+                                     ),
+                                   ),
+                                 );
+                                 },
+                               child: Container(
+                                 padding: EdgeInsets.only(bottom: 10.0),
+                                 child: Row(
+                                   crossAxisAlignment: CrossAxisAlignment.center,
+                                   mainAxisAlignment:
+                                   MainAxisAlignment.spaceBetween,
+                                   children: [
+                                     Flexible(
 
-                                                child: Center(
-                                                  child: Text(
-                                                    double.parse(coinList[index]
-                                                        .change
-                                                        .toString())
-                                                        .toStringAsFixed(2) +
-                                                        " %",
-                                                    style:
-                                                    CustomWidget(context: context)
-                                                        .CustomSizedTextStyle(
-                                                        12,
-                                                        Theme.of(context)
-                                                            .focusColor,
-                                                        FontWeight.w400,
-                                                        'FontRegular'),
-                                                    textAlign: TextAlign.center,
-                                                  ),
-                                                ),
-                                                decoration: BoxDecoration(
-                                                  borderRadius:
-                                                  BorderRadius.circular(5.0),
-                                                  color: double.parse(
-                                                      coinList[index]
-                                                          .change
-                                                          .toString()) >=
-                                                      0
-                                                      ? Theme.of(context)
-                                                      .indicatorColor
-                                                      : Theme.of(context).hoverColor,
-                                                ),
-                                                padding: EdgeInsets.only(top: 7.0,bottom: 7.0),
-                                              )
-                                            ],
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                          )
-                                      ),
-                                      flex: 3,
-                                    ),
+                                       child: Container(
+                                         child: Row(
+                                           crossAxisAlignment:
+                                           CrossAxisAlignment.center,
+                                           children: [
+                                             // SvgPicture.network(image, height: 35.0,),
+                                             // Container(
+                                             //   padding: EdgeInsets.all(1.0),
+                                             //   decoration: BoxDecoration(
+                                             //     shape: BoxShape.circle,
+                                             //   ),
+                                             //   child: Image.network(
+                                             //     marketList[index].image.toString(),
+                                             //     // "assets/icons/btc.svg",
+                                             //     height: 35.0,
+                                             //     // color: Theme.of(context).disabledColor,
+                                             //   ),
+                                             // ),
+                                             // const SizedBox(
+                                             //   width: 10.0,
+                                             // ),
+                         //                     Container(child: Image.asset("assets/images/Currency.png",width: 35,height: 35,),),
+                         // const SizedBox(
+                         //   width: 10.0,
+                         // ),
+                                             Column(
+                                               crossAxisAlignment:
+                                               CrossAxisAlignment.start,
+                                               children: [
+                                                 Container(
+                                                   width: MediaQuery.of(context)
+                                                       .size
+                                                       .width *
+                                                       0.24,
+                                                   child: Text(
+                                                     // name,
+                                                     // "Bitcoin",
+                                                     coinList[index]
+                                                         .name
+                                                         .toString(),
+                                                     style: CustomWidget(
+                                                         context: context)
+                                                         .CustomSizedTextStyle(
+                                                         14.0,
+                                                         Theme.of(context)
+                                                             .focusColor,
+                                                         FontWeight.w500,
+                                                         'FontRegular'),
+                                                     textAlign: TextAlign.start,
+                                                     overflow:
+                                                     TextOverflow.ellipsis,
+                                                   ),
+                                                 ),
+                                                 const SizedBox(
+                                                   height: 4.0,
+                                                 ),
+                                                 Text(
+                                                   // tradePairList[index].baseAsset.toString().toUpperCase(),
+                                                   // "BTC",
+                                                   tradePairListAll[index].data!.instId.toString(),
+                                                   style: CustomWidget(
+                                                       context: context)
+                                                       .CustomSizedTextStyle(
+                                                       12.0,
+                                                       Theme.of(context)
+                                                           .focusColor.withOpacity(0.5),
+                                                       FontWeight.w400,
+                                                       'FontRegular'),
+                                                   textAlign: TextAlign.start,
+                                                 ),
+                                               ],
+                                             )
+                                           ],
+                                         ),
+                                       ),
+                                       flex: 2,
+                                     ),
+                                     Flexible(flex: 1,child:Container(child: double.parse(
+                         coinList[index]
+                             .change
+                             .toString()) >=
+                         0
+                         ?Image.asset("assets/images/chartgreen.png", ):Image.asset("assets/images/chartred.png", ) ),),
+                                     Flexible(
 
-                                  ],
-                                ),
-                              ),
-                            ),
-                            Container(
-                              height: 1.5,
-                              width: MediaQuery.of(context).size.width,
-                              color: Theme.of(context).canvasColor,
-                            ),
-                            const SizedBox(
-                              height: 15.0,
-                            ),
-                          ],
-                        );
-                      },
-                    ) :
-              Container(
-                      height: MediaQuery.of(context).size.height * 0.5,
-                      decoration: BoxDecoration(
-                        color: CustomTheme.of(context).primaryColor,
-                      ),
-                      child: Center(
-                        child: Text(
-                          " No records Found..!",
-                          style: TextStyle(
-                            fontFamily: "FontRegular",
-                            color: CustomTheme.of(context).focusColor,
-                          ),
-                        ),
-                      ),
-                    ),
-            ),
+                                       child:Container(
+
+                                                 width:80,
+                                                 child:Column(children:[
+                                                   Text(
+                                                     "\$" +
+                                                         double.parse(coinList[index]
+                                                             .last
+                                                             .toString())
+                                                             .toStringAsFixed(4),
+                                                     style: CustomWidget(context: context)
+                                                         .CustomSizedTextStyle(
+                                                         16.0,
+                                                         Theme.of(context).focusColor,
+                                                         FontWeight.w400,
+                                                         'FontRegular'),
+                                                     textAlign: TextAlign.start,
+                                                     maxLines: 1,
+                                                     overflow: TextOverflow.ellipsis,
+                                                   ),
+                                                   Center(
+                                                   child: Text(
+                                                     double.parse(coinList[index]
+                                                         .change
+                                                         .toString())
+                                                         .toStringAsFixed(2) +
+                                                         " %",
+                                                     style:
+                                                     CustomWidget(context: context)
+                                                         .CustomSizedTextStyle(
+                                                         14,
+                                                         double.parse(
+                                                             coinList[index]
+                                                                 .change
+                                                                 .toString()) >=
+                                                             0
+                                                             ? Theme.of(context)
+                                                             .indicatorColor
+                                                             : Theme.of(context).hoverColor,
+                                                         FontWeight.w400,
+                                                         'FontRegular'),
+                                                     textAlign: TextAlign.center,
+                                                     maxLines: 1,
+                                                     overflow: TextOverflow.ellipsis,
+                                                   ),
+                                                 ),
+                                                   ]),
+                                       ),
+                                       flex: 2,
+                                     ),
+
+                                   ],
+                                 ),
+                               ),
+                             ),
+                             Container(
+                               height: 1.5,
+                               width: MediaQuery.of(context).size.width,
+                               color: Theme.of(context).canvasColor,
+                             ),
+                             const SizedBox(
+                               height: 15.0,
+                             ),
+                           ],
+                         );
+                       },
+                     ) :
+               Container(
+                       height: MediaQuery.of(context).size.height * 0.5,
+                       decoration: BoxDecoration(
+                         color: CustomTheme.of(context).primaryColor,
+                       ),
+                       child: Center(
+                         child: Text(
+                           " No records Found..!",
+                           style: TextStyle(
+                             fontFamily: "FontRegular",
+                             color: CustomTheme.of(context).focusColor,
+                           ),
+                         ),
+                       ),
+                     ),
+             ),
+
+
 
             loading
                 ? CustomWidget(context: context).loadingIndicator(
@@ -1214,6 +1606,53 @@ class _MarketScreenState extends State<MarketScreen>
       ),
     );
   }
+
+showFavbottom(BuildContext context){
+    return showDialog(useSafeArea: true,context: context, builder: (context) {
+      return AlertDialog(contentPadding: EdgeInsets.all(4),elevation: 1,alignment: Alignment.center,content:
+      SizedBox(height: MediaQuery.of(context).size.height*0.12,width: MediaQuery.of(context).size.width*0.40,child: Column(children: [
+        Padding(padding: EdgeInsets.all(10),child:Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,children: [
+          Text(
+            // name,
+            // "Bitcoin",
+            "Remove Favorite",
+            style: CustomWidget(
+                context: context)
+                .CustomSizedTextStyle(
+                14.0,
+                Theme.of(context)
+                    .focusColor,
+                FontWeight.w500,
+                'FontRegular'),
+            textAlign: TextAlign.start,
+            overflow:
+            TextOverflow.ellipsis,
+          ),
+          Icon(Icons.star_outline_sharp,size: 22,color: Theme.of(context).focusColor.withOpacity(0.5),),
+        ],),),
+        SizedBox(width: MediaQuery.of(context).size.width,child: Divider(thickness: 2,color: Theme.of(context).focusColor.withOpacity(0.2),indent: 0,endIndent: 0,),),
+        Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,children: [
+          Text(
+            // name,
+            // "Bitcoin",
+            "Set Price Alerts",
+            style: CustomWidget(
+                context: context)
+                .CustomSizedTextStyle(
+                14.0,
+                Theme.of(context)
+                    .focusColor,
+                FontWeight.w500,
+                'FontRegular'),
+            textAlign: TextAlign.start,
+            overflow:
+            TextOverflow.ellipsis,
+          ),
+          Icon(Icons.info_outline,size: 22,color: Theme.of(context).disabledColor),
+        ],)
+      ],),),);
+    },);
+}
 
   getCoinList() {
     apiUtils.allCoinList("SPOT" ).then((CoinListModel loginData) {

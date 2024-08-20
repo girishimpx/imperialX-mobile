@@ -36,6 +36,7 @@ class _SellTradeScreenState extends State<TradeScreen>
 
   List<String> tradeType = ["Cross", "Isolated"];
   String selectedTime = "";
+  String selectedSymbol="";
   String selectedFutureTime = "";
 
   List<TradePairsSpot> tradePair = [];
@@ -134,6 +135,10 @@ class _SellTradeScreenState extends State<TradeScreen>
   bool futurelong = true;
 
   //late final WebViewController webcontroller;
+  void _loadWebViewUrl() {
+    final urls = "https://app.imperialx.exchange/chart/" + (selectPair?.symbol?.toString() ?? "");
+    webViewController?.loadUrl(urlRequest: URLRequest(url: Uri.parse(urls)));
+  }
 
   @override
   void initState() {
@@ -761,16 +766,21 @@ class _SellTradeScreenState extends State<TradeScreen>
                         margin: EdgeInsets.fromLTRB(0, 0, 5, 0),
                         padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
                         child: InkWell(
+                          onTap: () {
+                            setState(() {
+                              showSheeet();
+                            });
+                          },
                           child: Icon(
                             Icons.menu_rounded,
-                            size: 20.0,
+                            size: 25.0,
                             color: Theme.of(context).focusColor,
                           ),
                         ),
                       ),
                       tradePair.length > 0
                           ? Text(
-                              selectPair!.symbol.toString(),
+                              selectPair?.symbol.toString()?? "",
                               style: CustomWidget(context: context)
                                   .CustomSizedTextStyle(
                                       14.0,
@@ -800,6 +810,99 @@ class _SellTradeScreenState extends State<TradeScreen>
                   ),
                 ),
               ]),
+          const SizedBox(height: 10,),
+          Container(width: MediaQuery.of(context).size.width,child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,children: [
+           // Flexible(flex: 1,child:Image.asset("assets/images/blogo.png",height: MediaQuery.of(context).size.height*0.06,width: MediaQuery.of(context).size.height*0.06), ),
+            const SizedBox(width: 5,),
+            Flexible(flex: 2,child: Column(children: [
+              Row(children: [
+                Text(
+                  selectPair?.symbol.toString() ?? "",
+                  style: CustomWidget(context: context)
+                      .CustomSizedTextStyle(
+                      16.0,
+                      Theme.of(context).focusColor,
+                      FontWeight.w500,
+                      'FontRegular'),
+                ),
+                // Text(
+                //   "",
+                //   style: CustomWidget(context: context)
+                //       .CustomSizedTextStyle(
+                //       12.0,
+                //       Theme.of(context).focusColor.withOpacity(0.5),
+                //       FontWeight.w500,
+                //       'FontRegular'),
+                // ),
+              ],),
+              Row(children: [
+                Text(
+                  selectPair?.lastPrice.toString() ?? "",
+                  style: CustomWidget(context: context)
+                      .CustomSizedTextStyle(
+                      16.0,
+                      Theme.of(context).focusColor,
+                      FontWeight.w500,
+                      'FontRegular'),
+                ),
+                // Text(
+                //   "USD",
+                //   style: CustomWidget(context: context)
+                //       .CustomSizedTextStyle(
+                //       12.0,
+                //       Theme.of(context).focusColor.withOpacity(0.5),
+                //       FontWeight.w500,
+                //       'FontRegular'),
+                // ),
+                // Row(children: [
+                //   Icon(Icons.arrow_drop_up,size: 8,color: Theme.of(context).disabledColor,),
+                //   Text(
+                //     "USD",
+                //     style: CustomWidget(context: context)
+                //         .CustomSizedTextStyle(
+                //         12.0,
+                //         Theme.of(context).disabledColor,
+                //         FontWeight.w500,
+                //         'FontRegular'),
+                //   ),
+                // ],)
+
+              ],)
+            ],)),
+    GestureDetector(child: Flexible(flex: 2,child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,children: [
+              Image.asset("assets/menu/graph.png",height: MediaQuery.of(context).size.height*0.08,width: MediaQuery.of(context).size.width*0.28),
+              Icon(Icons.keyboard_arrow_down_rounded,size: 30,color: Theme.of(context).focusColor,)
+            ],)),onTap: () {
+            setState(() {
+            showSheeet();
+            });
+            },),
+          ],),),
+          const SizedBox(
+            height: 10.0,
+          ),
+          // Image.asset("assets/images/newchart.png",height: MediaQuery.of(context).size.height*0.40,width: MediaQuery.of(context).size.width,),
+          Container(
+              width: MediaQuery.of(context).size.width,
+              height: MediaQuery.of(context).size.height * 0.4,
+              child: InAppWebView(
+
+                initialUrlRequest: URLRequest(
+                    url: Uri.parse(
+                        "https://app.imperialx.exchange/chart/${selectPair?.symbol?.toString() ?? " "}")),
+                onProgressChanged: (controller, progress) {
+
+                },
+                onWebViewCreated: (controller){
+                  webViewController = controller;
+                },
+                onReceivedServerTrustAuthRequest: (controller, challenge) async {
+                  print(challenge);
+                  return ServerTrustAuthResponse(action: ServerTrustAuthResponseAction.PROCEED);
+                },
+              )
+            // child: WebViewWidget(controller: webcontroller),
+          ),
           const SizedBox(
             height: 10.0,
           ),
@@ -904,7 +1007,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                       ),
                       // futuretradePair.length > 0 ?
                       Text(
-                              futureselectPair!.symbol.toString(),
+                              futureselectPair?.symbol.toString() ?? "",
                               style: CustomWidget(context: context)
                                   .CustomSizedTextStyle(
                                       12.0,
@@ -917,6 +1020,74 @@ class _SellTradeScreenState extends State<TradeScreen>
                   ),
                 ),
               ]),
+          const SizedBox(height: 10,),
+          Container(width: MediaQuery.of(context).size.width,child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,children: [
+            //Flexible(flex: 1,child:Image.asset("assets/images/blogo.png",height: MediaQuery.of(context).size.height*0.06,width: MediaQuery.of(context).size.height*0.06), ),
+            const SizedBox(width: 5,),
+            Flexible(flex: 3,child: Column(children: [
+              Row(children: [
+                Flexible(child:Text(
+               "${futureselectPair?.symbol.toString() ?? ""}",
+                style: CustomWidget(context: context)
+                    .CustomSizedTextStyle(
+                    14.0,
+                    Theme.of(context).focusColor,
+                    FontWeight.w500,
+                    'FontRegular'),
+              ),),
+                // Text(
+                //   "Bitcoin",
+                //   style: CustomWidget(context: context)
+                //       .CustomSizedTextStyle(
+                //       12.0,
+                //       Theme.of(context).focusColor.withOpacity(0.5),
+                //       FontWeight.w500,
+                //       'FontRegular'),
+                // ),
+              ],),
+              Row(children: [
+                Text(
+                  "${futureselectPair?.lastPrice.toString() ?? ""}",
+                  style: CustomWidget(context: context)
+                      .CustomSizedTextStyle(
+                      16.0,
+                      Theme.of(context).focusColor,
+                      FontWeight.w500,
+                      'FontRegular'),
+                ),
+                // Text(
+                //   "USD",
+                //   style: CustomWidget(context: context)
+                //       .CustomSizedTextStyle(
+                //       12.0,
+                //       Theme.of(context).focusColor.withOpacity(0.5),
+                //       FontWeight.w500,
+                //       'FontRegular'),
+                // ),
+                // Row(children: [
+                //   Icon(Icons.arrow_drop_up,size: 8,color: Theme.of(context).disabledColor,),
+                //   Text(
+                //     "USD",
+                //     style: CustomWidget(context: context)
+                //         .CustomSizedTextStyle(
+                //         12.0,
+                //         Theme.of(context).disabledColor,
+                //         FontWeight.w500,
+                //         'FontRegular'),
+                //   ),
+                // ],)
+
+              ],),
+            ],)),
+            Flexible(flex: 2,child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,children: [
+              Image.asset("assets/menu/graph.png",height: MediaQuery.of(context).size.height*0.08,width: MediaQuery.of(context).size.width*0.28),
+              // Icon(Icons.keyboard_arrow_down_rounded,size: 30,color: Theme.of(context).focusColor,)
+            ],)),
+          ],),),
+          const SizedBox(
+            height: 10.0,
+          ),
+          Image.asset("assets/images/newchart.png",height: MediaQuery.of(context).size.height*0.40,width: MediaQuery.of(context).size.width,),
           const SizedBox(
             height: 10.0,
           ),
@@ -7953,6 +8124,7 @@ class _SellTradeScreenState extends State<TradeScreen>
           selectPair = tradePair[0];
 
           firstCoin = selectPair!.symbol.toString().substring(selectPair!.symbol.toString().length-4);
+          selectedSymbol=selectPair?.symbol.toString() ?? "";
           secondCoin =selectPair!.symbol.toString().split("USDT")[0];
           // secondCoin =selectPair!.symbol.toString();
 
@@ -8359,6 +8531,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         arrPriceData=[];
                                         arrData.add("orderbook.50."+ selectPair!.symbol.toString());
                                         arrPriceData.add("publicTrade."+ selectPair!.symbol.toString());
+                                        _loadWebViewUrl();
                                         Navigator.pop(context);
                                         channelOpenOrder!.sink.close();
                                         channelOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/spot"),

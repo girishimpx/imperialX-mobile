@@ -1413,40 +1413,41 @@ class _Trade_DetailsState extends State<Trade_Details> {
                                    ],
                                  ),
                                  const SizedBox(height: 30.0,),
-                                 // InkWell(
-                                 //   child: Container(
-                                 //     width: MediaQuery.of(context).size.width,
-                                 //     padding: EdgeInsets.only(top: 12.0, bottom: 12.0),
-                                 //     decoration: BoxDecoration(
-                                 //         color: Theme.of(context).disabledColor,
-                                 //         borderRadius: BorderRadius.circular(25.0)
-                                 //     ),
-                                 //     child: Row(
-                                 //       crossAxisAlignment: CrossAxisAlignment.center,
-                                 //       mainAxisAlignment: MainAxisAlignment.center,
-                                 //       children: [
-                                 //         Icon(
-                                 //           Icons.local_fire_department,
-                                 //           size: 18.0,
-                                 //           color: Theme.of(context).primaryColor,
-                                 //         ),
-                                 //         const SizedBox(width: 3.0,),
-                                 //         Text(
-                                 //           "Copy now",
-                                 //           style: CustomWidget(context: context)
-                                 //               .CustomSizedTextStyle(
-                                 //               12.0,
-                                 //               Theme.of(context).focusColor,
-                                 //               FontWeight.w600,
-                                 //               'FontRegular'),
-                                 //         ),
-                                 //       ],
-                                 //     ),
-                                 //   ),
-                                 // )
+                                 InkWell(
+                                   child: Container(
+                                     width: MediaQuery.of(context).size.width*0.80,
+                                     padding: EdgeInsets.only(top: 14.0, bottom: 14.0),
+                                     decoration: BoxDecoration(
+                                         color: Theme.of(context).disabledColor,
+                                         borderRadius: BorderRadius.circular(12.0)
+                                     ),
+                                     child: Row(
+                                       crossAxisAlignment: CrossAxisAlignment.center,
+                                       mainAxisAlignment: MainAxisAlignment.center,
+                                       children: [
+                                         Icon(
+                                           Icons.local_fire_department,
+                                           size: 18.0,
+                                           color: Theme.of(context).primaryColor,
+                                         ),
+                                         const SizedBox(width: 3.0,),
+                                         Text(
+                                           "Copy Trade",
+                                           style: CustomWidget(context: context)
+                                               .CustomSizedTextStyle(
+                                               12.0,
+                                               Theme.of(context).focusColor,
+                                               FontWeight.w600,
+                                               'FontRegular'),
+                                         ),
+                                       ],
+                                     ),
+                                   ),
+                                 )
                                ],
                              ),
                            ),
+                           const SizedBox(height: 25.0,),
                            // const SizedBox(height: 25.0,),
                          ],
                        ),

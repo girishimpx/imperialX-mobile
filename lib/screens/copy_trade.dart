@@ -117,7 +117,7 @@ class _Copy_TradeState extends State<Copy_Trade> {
                   ),
                   Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    mainAxisAlignment: MainAxisAlignment.start,
                     children: [
                       InkWell(
                         onTap: (){
@@ -145,31 +145,31 @@ class _Copy_TradeState extends State<Copy_Trade> {
                         ),
                       ),
                       const SizedBox(width: 15.0,),
-                      // InkWell(
-                      //   onTap: (){
-                      //     setState(() {
-                      //       trade = false;
-                      //       master = true;
-                      //     });
-                      //   },
-                      //   child: Container(
-                      //     alignment: Alignment.center,
-                      //     padding: EdgeInsets.only(left: 12.0, right: 12.0, top: 6.0, bottom: 8.0),
-                      //     decoration: master?  BoxDecoration(
-                      //       borderRadius: BorderRadius.circular(6.0),
-                      //       color: Theme.of(context).canvasColor,
-                      //     ): BoxDecoration(),
-                      //     child:  Text(
-                      //       "All Masters",
-                      //       style: CustomWidget(context: context)
-                      //           .CustomSizedTextStyle(
-                      //           14.0,
-                      //           master? Theme.of(context).disabledColor : Theme.of(context).dividerColor,
-                      //           master?  FontWeight.w600 : FontWeight.w400,
-                      //           'FontRegular'),
-                      //     ),
-                      //   ),
-                      // ),
+                      InkWell(
+                        onTap: (){
+                          setState(() {
+                            trade = false;
+                            master = true;
+                          });
+                        },
+                        child: Container(
+                          alignment: Alignment.center,
+                          padding: EdgeInsets.only(left: 12.0, right: 12.0, top: 6.0, bottom: 8.0),
+                          decoration: master?  BoxDecoration(
+                            borderRadius: BorderRadius.circular(6.0),
+                            color: Theme.of(context).canvasColor,
+                          ): BoxDecoration(),
+                          child:  Text(
+                            "All Masters",
+                            style: CustomWidget(context: context)
+                                .CustomSizedTextStyle(
+                                14.0,
+                                master? Theme.of(context).disabledColor : Theme.of(context).dividerColor,
+                                master?  FontWeight.w600 : FontWeight.w400,
+                                'FontRegular'),
+                          ),
+                        ),
+                      ),
                       traderType=="user"?
                       InkWell(
                         onTap:(){
@@ -207,101 +207,101 @@ class _Copy_TradeState extends State<Copy_Trade> {
                   const SizedBox(
                     height: 15.0,
                   ),
-                 Row(
-                   crossAxisAlignment: CrossAxisAlignment.center,
-                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                   children: [
-                     Flexible(child:  Container(
-                       decoration: BoxDecoration(
-                           border: Border.all(width: 1.0, color: Theme.of(context).disabledColor,),
-                           borderRadius: BorderRadius.circular(25.0)
-                       ),
-                       height: 45.0,
-                       padding: EdgeInsets.only(left: 10.0, right: 10.0),
-                       width: MediaQuery.of(context).size.width,
-                       child: TextField(
-                         controller: searchController,
-                         focusNode: searchFocus,
-                         enabled: true,
-                         onEditingComplete: () {
-                           setState(() {
-                             searchFocus.unfocus();
-
-                           });
-                         },
-                         onChanged: (value) {
-                           setState(() {
-                             masterAdd = [];
-                             for (int m = 0; m < mastersListAll.length; m++) {
-                               if (mastersListAll[m].master!.name.toString().toLowerCase().contains(value.toLowerCase()) ||
-                                   mastersListAll[m].master!.name.toString().toLowerCase().contains(value.toLowerCase())) {
-                                 masterAdd.add(mastersListAll[m]);
-                               }
-                             }
-                           });
-                         },
-                         decoration: InputDecoration(
-                           contentPadding: const EdgeInsets.only(
-                               left: 10, right: 0, top: 8, bottom: 8),
-                           hintText: "Search",
-                           hintStyle: TextStyle(
-                               fontFamily: "FontRegular",
-                               color: Theme.of(context).highlightColor,
-                               fontSize: 14.0,
-                               fontWeight: FontWeight.w500),
-                           filled: true,
-                           fillColor: Colors.transparent,
-                           border: OutlineInputBorder(
-                             borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                             borderSide: BorderSide(
-                                 color: Colors.transparent,
-                                 width: 1.0),
-                           ),
-                           disabledBorder: OutlineInputBorder(
-                             borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                             borderSide: BorderSide(
-                                 color: Colors.transparent,
-                                 width: 1.0),
-                           ),
-                           enabledBorder: OutlineInputBorder(
-                             borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                             borderSide: BorderSide(
-                                 color:Colors.transparent,
-                                 width: 1.0),
-                           ),
-                           focusedBorder: OutlineInputBorder(
-                             borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                             borderSide: BorderSide(
-                                 color: Colors.transparent,
-                                 width: 1.0),
-                           ),
-                           errorBorder: const OutlineInputBorder(
-                             borderRadius: BorderRadius.all(Radius.circular(5)),
-                             borderSide: BorderSide(color: Colors.red, width: 0.0),
-                           ),
-                         ),
-                       ),
-                     ), flex: 5,),
-                     Flexible(child: InkWell(
-                       onTap: (){
-                       },
-                       child: Container(
-                         padding: EdgeInsets.all(8.0),
-                         decoration: BoxDecoration(
-                           shape: BoxShape.circle,
-                           border: Border.all(width: 1.0, color: Theme.of(context).disabledColor,),
-                           // color: Theme.of(context).disabledColor,
-                         ),
-                         child: Icon(Icons.filter_alt_rounded, size: 24.0, color: Theme.of(context).focusColor,),
-                       ),
-                     ),flex: 1,)
-                   ],
-                 ),
+                 // Row(
+                 //   crossAxisAlignment: CrossAxisAlignment.center,
+                 //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                 //   children: [
+                 //     Flexible(child:  Container(
+                 //       decoration: BoxDecoration(
+                 //           border: Border.all(width: 1.0, color: Theme.of(context).disabledColor,),
+                 //           borderRadius: BorderRadius.circular(25.0)
+                 //       ),
+                 //       height: 45.0,
+                 //       padding: EdgeInsets.only(left: 10.0, right: 10.0),
+                 //       width: MediaQuery.of(context).size.width,
+                 //       child: TextField(
+                 //         controller: searchController,
+                 //         focusNode: searchFocus,
+                 //         enabled: true,
+                 //         onEditingComplete: () {
+                 //           setState(() {
+                 //             searchFocus.unfocus();
+                 //
+                 //           });
+                 //         },
+                 //         onChanged: (value) {
+                 //           setState(() {
+                 //             masterAdd = [];
+                 //             for (int m = 0; m < mastersListAll.length; m++) {
+                 //               if (mastersListAll[m].master!.name.toString().toLowerCase().contains(value.toLowerCase()) ||
+                 //                   mastersListAll[m].master!.name.toString().toLowerCase().contains(value.toLowerCase())) {
+                 //                 masterAdd.add(mastersListAll[m]);
+                 //               }
+                 //             }
+                 //           });
+                 //         },
+                 //         decoration: InputDecoration(
+                 //           contentPadding: const EdgeInsets.only(
+                 //               left: 10, right: 0, top: 8, bottom: 8),
+                 //           hintText: "Search",
+                 //           hintStyle: TextStyle(
+                 //               fontFamily: "FontRegular",
+                 //               color: Theme.of(context).highlightColor,
+                 //               fontSize: 14.0,
+                 //               fontWeight: FontWeight.w500),
+                 //           filled: true,
+                 //           fillColor: Colors.transparent,
+                 //           border: OutlineInputBorder(
+                 //             borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                 //             borderSide: BorderSide(
+                 //                 color: Colors.transparent,
+                 //                 width: 1.0),
+                 //           ),
+                 //           disabledBorder: OutlineInputBorder(
+                 //             borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                 //             borderSide: BorderSide(
+                 //                 color: Colors.transparent,
+                 //                 width: 1.0),
+                 //           ),
+                 //           enabledBorder: OutlineInputBorder(
+                 //             borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                 //             borderSide: BorderSide(
+                 //                 color:Colors.transparent,
+                 //                 width: 1.0),
+                 //           ),
+                 //           focusedBorder: OutlineInputBorder(
+                 //             borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                 //             borderSide: BorderSide(
+                 //                 color: Colors.transparent,
+                 //                 width: 1.0),
+                 //           ),
+                 //           errorBorder: const OutlineInputBorder(
+                 //             borderRadius: BorderRadius.all(Radius.circular(5)),
+                 //             borderSide: BorderSide(color: Colors.red, width: 0.0),
+                 //           ),
+                 //         ),
+                 //       ),
+                 //     ), flex: 5,),
+                 //     Flexible(child: InkWell(
+                 //       onTap: (){
+                 //       },
+                 //       child: Container(
+                 //         padding: EdgeInsets.all(8.0),
+                 //         decoration: BoxDecoration(
+                 //           shape: BoxShape.circle,
+                 //           border: Border.all(width: 1.0, color: Theme.of(context).disabledColor,),
+                 //           // color: Theme.of(context).disabledColor,
+                 //         ),
+                 //         child: Icon(Icons.filter_alt_rounded, size: 24.0, color: Theme.of(context).focusColor,),
+                 //       ),
+                 //     ),flex: 1,)
+                 //   ],
+                 // ),
                 ],
               ),
             ),
             Container(
-              margin: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.18),
+              margin: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.12),
               child: SingleChildScrollView(
                 child: master ?  Container(
                   width: MediaQuery.of(context).size.width,
@@ -386,7 +386,7 @@ class _Copy_TradeState extends State<Copy_Trade> {
                                         ],
                                       ),
                                     ),
-                                    flex: 3,
+                                    flex: 4,
                                   ),
                                   Flexible(
                                     child: SvgPicture.asset(
@@ -960,7 +960,9 @@ class _Copy_TradeState extends State<Copy_Trade> {
         builder: (BuildContext context) {
           return StatefulBuilder(
               builder: (BuildContext contexts, StateSetter ssetState) {
-                return Container(
+                return
+                  Stack(children: [
+                    Container(
                   width: MediaQuery.of(context).size.width,
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.only(
@@ -986,7 +988,8 @@ class _Copy_TradeState extends State<Copy_Trade> {
                                 SizedBox(
                                   height: 10.0,
                                 ),
-                                Text(
+                                Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,children: [
+                                  Text(
                                   "Subscribe for Trade",
                                   style: CustomWidget(context: context)
                                       .CustomSizedTextStyle(
@@ -995,6 +998,8 @@ class _Copy_TradeState extends State<Copy_Trade> {
                                       FontWeight.w700,
                                       'FontRegular'),
                                 ),
+
+                                ],),
 
                                 SizedBox(
                                   height: 10.0,
@@ -1095,7 +1100,12 @@ class _Copy_TradeState extends State<Copy_Trade> {
                       ),
                     )
                   ),
-                );
+                ),
+                    Positioned(right: 1,top:0,child: GestureDetector(onTap: () {
+                      Navigator.pop(context);
+                    },child:Container(child: Padding(padding: EdgeInsets.all(8),child: Icon(Icons.close,color: Theme.of(context).disabledColor,),),
+                      decoration: BoxDecoration(borderRadius: BorderRadius.circular(100),color: Theme.of(context).focusColor),))),
+                  ]);
               });
         });
   }

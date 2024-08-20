@@ -1,6 +1,7 @@
 //profile
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_switch/flutter_switch.dart';
 // import 'package:imperial/screens/basic/change_pass.dart';
 
 import '../../common/custom_widget.dart';
@@ -21,6 +22,7 @@ class _Profile_SettingsState extends State<Profile_Settings> {
   APIUtils apiUtils = APIUtils();
   bool loading = false;
   bool kycStatus = false;
+  bool iswitchon=false;
   // GetProfileResult? details;
   String name= "";
   String email= "";
@@ -296,6 +298,34 @@ class _Profile_SettingsState extends State<Profile_Settings> {
                               ],
                             ),
                           ),
+                          Container(
+                            height: 1.5,
+                            width: MediaQuery.of(context).size.width,
+                            color: Theme.of(context).canvasColor,
+                          ),
+                          Container(child: Padding(padding: EdgeInsets.only(bottom: 15.0, top: 15.0),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+            Text(
+            "Face ID",
+            style: CustomWidget(context: context)
+                .CustomSizedTextStyle(
+                14.0,
+                Theme.of(context).focusColor,
+                FontWeight.w600,
+                'FontRegular'),
+            textAlign: TextAlign.start,
+          ),
+              FlutterSwitch(width: 50,height: 24,activeColor: Theme.of(context).disabledColor,
+                inactiveColor: Theme.of(context).dividerColor,value: iswitchon, onToggle: (value) {
+                      setState(() {
+                        iswitchon=!iswitchon;
+                      });
+              },)
+            ])),),
+
                           Container(
                             height: 1.5,
                             width: MediaQuery.of(context).size.width,

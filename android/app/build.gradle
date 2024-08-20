@@ -124,7 +124,7 @@ if (flutterVersionName == null) {
 
 android {
     namespace "com.imperial.exchange"
-    compileSdk flutter.compileSdkVersion
+    compileSdk 34
     ndkVersion flutter.ndkVersion
 
     compileOptions {
@@ -145,7 +145,7 @@ android {
         applicationId "com.imperial.exchange"
 
         minSdkVersion 21
-        targetSdkVersion flutter.targetSdkVersion
+        targetSdkVersion 34
         versionCode flutterVersionCode.toInteger()
         versionName flutterVersionName
         multiDexEnabled true

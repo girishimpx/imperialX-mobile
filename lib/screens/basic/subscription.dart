@@ -8,7 +8,8 @@ import '../../data/api_utils.dart';
 import '../../data/crypt_model/my_subscription_model.dart';
 
 class Subscription_Screen extends StatefulWidget {
-  const Subscription_Screen({Key? key}) : super(key: key);
+
+   Subscription_Screen({Key? key}) : super(key: key);
 
   @override
   State<Subscription_Screen> createState() => _Subscription_ScreenState();
@@ -16,6 +17,7 @@ class Subscription_Screen extends StatefulWidget {
 
 class _Subscription_ScreenState extends State<Subscription_Screen> {
 
+  _Subscription_ScreenState();
 
   APIUtils apiUtils = APIUtils();
   bool loading = false;
@@ -37,7 +39,9 @@ class _Subscription_ScreenState extends State<Subscription_Screen> {
       child: Scaffold(
         appBar: AppBar(
           backgroundColor: Theme.of(context).primaryColor,
-          leading: Padding(
+          leading:
+
+         Padding(
             padding: EdgeInsets.only(right: 1.0),
             child: InkWell(
               onTap: (){
@@ -225,8 +229,8 @@ class _Subscription_ScreenState extends State<Subscription_Screen> {
                                 alignment: Alignment.center,
                                 child: InkWell(
                                   onTap: (){
-                                    // Navigator.of(context).push(
-                                    //     MaterialPageRoute(builder: (context) => Subs_details(title: "ImperialX")));
+                                    Navigator.of(context).push(
+                                         MaterialPageRoute(builder: (context) => Subs_details(title: "ImperialX")));
                                   },
                                   child: Container(
                                     width: MediaQuery.of(context).size.width * 0.4,
@@ -236,7 +240,7 @@ class _Subscription_ScreenState extends State<Subscription_Screen> {
                                       color: Theme.of(context).disabledColor,
                                     ),
                                     child: Text(
-                                      "Edit",
+                                      "Subscribe",
                                       style: CustomWidget(context: context).CustomSizedTextStyle(
                                           14.0,
                                           Theme.of(context).splashColor,

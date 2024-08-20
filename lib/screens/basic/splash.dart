@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:imperial/screens/basic/home.dart';
 import 'package:imperial/screens/basic/welcome.dart';
+import 'package:imperial/screens/basic/welcome_info.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../common/theme/custom_theme.dart';
@@ -57,7 +58,7 @@ class _SplashScreenState extends State<SplashScreen> {
         Timer(Duration(seconds: 8),
               ()=>Navigator.pushReplacement(context,
               MaterialPageRoute(builder:
-                  (context) => Welcome_Screen(),
+                  (context) => WelcomeInfo(),
               )
           ),
         );

@@ -121,6 +121,7 @@ class _CurvedNavBarState extends State<CurvedNavBar> {
         : Scaffold(
             extendBody: widget.extendBody,
             bottomNavigationBar: FABBottomAppBar(
+
               inActiveColor: widget.inActiveColor,
               activeColor: widget.activeColor,
               notchedShape: CircularNotchedRectangle(),

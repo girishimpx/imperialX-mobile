@@ -268,6 +268,7 @@ class _MarketTrade_DetailsState extends State<MarketTrade_Details> {
                             //       // marketList[index].image.toString(),
                             //       "assets/icons/btc.svg",
                             //       height: 35.0,
+                            //       width: 20,
                             //       // color: Theme.of(context).disabledColor,
                             //     ),
                             //   ),

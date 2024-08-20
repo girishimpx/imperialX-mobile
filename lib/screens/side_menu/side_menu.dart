@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:imperial/screens/side_menu/google_tfa.dart';
@@ -31,6 +32,7 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
   APIUtils apiUtils = APIUtils();
   bool loading = false;
   String name= "";
+  String referralid="";
   bool googleUpdate = false;
   String secret  = "";
 
@@ -45,29 +47,25 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
+        automaticallyImplyLeading: false,
         backgroundColor: Theme.of(context).primaryColor,
-        // leadingWidth: 1.0,
-        leading: Padding(
+        //leadingWidth: 1.0,
+        leading: GestureDetector(onTap: () {
+          Navigator.pop(context);
+        },child: Padding(
           padding: EdgeInsets.only(right: 5.0),
-          child: InkWell(
-            onTap: (){
-              setState(() {
-                Navigator.pop(context);
-              });
-            },
-            child: Icon(
-              Icons.arrow_back_ios_new_rounded,
-              size: 20.0,
-              color: Theme.of(context).focusColor,
-            ),
-          ),
-        ),
-        centerTitle: true,
+          child:Icon(Icons.arrow_back,color: Theme.of(context).focusColor,size: 25,)
+        ),),
+        centerTitle: false,
         actions: [
+          Container(width: MediaQuery.of(context).size.width,child:Padding(padding: EdgeInsets.only(left: 12),child:
+      Row(mainAxisAlignment: MainAxisAlignment.end,children: [
          Padding(padding: EdgeInsets.only(right: 10.0),
          child:  Row(
            crossAxisAlignment: CrossAxisAlignment.center,
+           mainAxisAlignment: MainAxisAlignment.spaceBetween,
            children: [
+
              InkWell(
                  onTap: () {
 
@@ -92,6 +90,7 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                  )),
            ],
          ),),
+      ]),),),
         ],
       ),
       body: Container(
@@ -105,8 +104,9 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
               Container(
                 padding: EdgeInsets.only(left: 15.0, right: 15.0, top: 10.0, bottom: 10.0),
                 child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Flexible(flex:3,child: Row(children: [
                     Image.asset("assets/images/image.png", height: 70.0,fit: BoxFit.contain,),
                     const SizedBox(width: 10.0,),
                     Column(
@@ -151,7 +151,45 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                           ),
                         )
                       ],
-                    )
+                    ),
+                  ],),),
+                    Flexible(flex: 2,child:
+                    Container(
+
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(12.0),
+                        color: Colors.transparent,
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.end,
+                        children: [
+                          Flexible(child: Text(
+                            "Referral:$referralid",
+                            style: CustomWidget(context: context).CustomSizedTextStyle(
+                                14.0,
+                                Theme.of(context).dividerColor,
+                                FontWeight.w400,
+                                'FontRegular',),softWrap: true,
+                            maxLines: 1,overflow: TextOverflow.ellipsis,
+                            textAlign: TextAlign.start,
+                          ),),
+                          const SizedBox(width: 5.0,),
+                          GestureDetector(child:Icon(
+                            Icons.copy,
+                            color: Theme.of(context).dividerColor,
+                            size: 22.0,
+                          ),onTap: () {
+                            if (referralid == "") {
+                            } else {
+                              Clipboard.setData(ClipboardData(text: referralid));
+                              CustomWidget(context: context).showSuccessAlertDialog(
+                                  "Id", "Id was Copied", "success");
+                            }
+                          },),
+                        ],
+                      ),
+                    )),
                   ],
                 ),
               ),
@@ -523,7 +561,7 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                               crossAxisAlignment: CrossAxisAlignment.center,
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
-                                Flexible(child: Row(
+                                Flexible(flex: 2,child: Row(
                                   crossAxisAlignment: CrossAxisAlignment.center,
                                   children: [
                                     SizedBox(
@@ -810,6 +848,7 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
         setState(() {
           loading = false;
           name = loginData.result!.name.toString();
+          referralid= loginData.result!.referralCode.toString();
           googleUpdate=loginData.result!.f2AStatus.toString()=="1"?true:false;
         });
       } else {

@@ -69,10 +69,15 @@ class _Subs_detailsState extends State<Subs_details> {
             child: InkWell(
               onTap: () {
                 setState(() {
-                  if (next == true) {
+                  if(nexttwo && nexttwo){
+                    nexttwo=false;
+                  }
+                  else if (next == true) {
                     next = false;
-                    nexttwo = false;
-                  } else {
+
+                  }
+
+                  else {
                     Navigator.pop(context);
                   }
                 });
@@ -315,7 +320,8 @@ class _Subs_detailsState extends State<Subs_details> {
                                 height: 25.0,
                               ),
                               next
-                                  ? Container(
+                                  ?
+                              Container(
                                       child: nexttwo
                                           ? Column(
                                               crossAxisAlignment:
@@ -1118,7 +1124,8 @@ class _Subs_detailsState extends State<Subs_details> {
                                                     height: 5.0,
                                                   ),
                                                 ])
-                                          : Column(
+                                          :
+                                      Column(
                                               crossAxisAlignment:
                                                   CrossAxisAlignment.start,
                                               children: [
@@ -1577,7 +1584,8 @@ class _Subs_detailsState extends State<Subs_details> {
                                               ],
                                             ),
                                     )
-                                  : Container(
+                                  :
+                              Container(
                                       child: Column(
                                         crossAxisAlignment:
                                             CrossAxisAlignment.start,
@@ -1656,7 +1664,7 @@ class _Subs_detailsState extends State<Subs_details> {
                       ),
                     ),
                     const SizedBox(
-                      height: 30.0,
+                      height: 32.0,
                     ),
                     Container(
                       width: MediaQuery.of(context).size.width,
@@ -1722,31 +1730,39 @@ class _Subs_detailsState extends State<Subs_details> {
                           Flexible(
                             child: InkWell(
                               onTap: () {
-                               setState(() {
-                                 next = true;
-                               });
-                                setState(() {
-                                  if (next) {
-                                    nexttwo = true;
-                                   setState(() {
-                                     if (nexttwo) {
-                                       if (loginformKey.currentState!.validate()) {
-                                         loading = true;
-                                         subsDetail();
-                                       }
-                                     } else {
-                                       nexttwo = false;
-                                       apiKeyController.clear();
-                                       secretKeyController.clear();
-                                       nameController.clear();
-                                       passphraseController.clear();
-                                       permissionController.clear();
-                                     }
-                                   });
-                                  } else {
-                                    next = false;
-                                  }
-                                });
+                                if(next==false){
+                                  setState(() {
+                                    next=true;
+                                  });
+                                }
+                                else {
+                                  setState(() {
+                                    next = true;
+                                  });
+                                  setState(() {
+                                    if (next) {
+                                      nexttwo = true;
+                                      setState(() {
+                                        if (nexttwo) {
+                                          if (loginformKey.currentState!
+                                              .validate()) {
+                                            loading = true;
+                                            subsDetail();
+                                          }
+                                        } else {
+                                          nexttwo = false;
+                                          apiKeyController.clear();
+                                          secretKeyController.clear();
+                                          nameController.clear();
+                                          passphraseController.clear();
+                                          permissionController.clear();
+                                        }
+                                      });
+                                    } else {
+                                      next = false;
+                                    }
+                                  });
+                                }
                               },
                               child: Container(
                                 width: MediaQuery.of(context).size.width,
