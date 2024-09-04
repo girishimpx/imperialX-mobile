@@ -67,8 +67,8 @@ class CustomWidget {
                 color: color,
               ),
               Center(
-                child: SvgPicture.asset('assets/icons/logo.svg',
-                    height: 25.0, width: 25.0),
+                child: Image.asset('assets/icons/logo.png',
+                    height: 25.0, width: 25.0,fit: BoxFit.cover,),
               )
             ],
           )),

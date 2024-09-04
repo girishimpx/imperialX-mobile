@@ -69,6 +69,15 @@ class _MarketScreenState extends State<MarketScreen>
   int countN = 0;
   int futureCount = 10;
   int futureCountN = 0;
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    timerS?.cancel();
+    timer?.cancel();
+    channelOpenOrder?.sink.close();
+    channelFutureOpenOrder?.sink.close();
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -80,9 +89,11 @@ class _MarketScreenState extends State<MarketScreen>
     getFutureCoinList();
     channelOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/spot"),);
     channelFutureOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/linear"),);
-
-    timerS = Timer.periodic(Duration(seconds: 2), (Timer t) => socketClose());
-    timer = Timer.periodic(Duration(seconds: 2), (Timer t) => socketFutureClose());
+    if (mounted) {
+      timerS = Timer.periodic(Duration(seconds: 2), (Timer t) => socketClose());
+      timer = Timer.periodic(
+          Duration(seconds: 2), (Timer t) => socketFutureClose());
+    }
     spot = true;
   }
 
@@ -253,9 +264,6 @@ class _MarketScreenState extends State<MarketScreen>
     );
   }
 
-  dispose() {
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {

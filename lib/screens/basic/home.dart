@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
+
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:imperial/common/bottom/curved_bar/curved_action_bar.dart';
 import 'package:imperial/common/bottom/fab_bar/fab_bottom_app_bar_item.dart';
@@ -147,25 +148,32 @@ class _Home_ScreenState extends State<Home_Screen> {
     });
   }
 
+@override
+  void dispose() {
+    // TODO: implement dispose
+  timer?.cancel();
+  channelOpenOrder!.sink.close();
+    super.dispose();
+  }
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
+
     loading = true;
 
     timer = Timer.periodic(const Duration(seconds: 30), (_) {
-      setState(() {
-        if(m==3)
-          {
-            m=0;
-
+      if(mounted) {
+        setState(() {
+          if (m == 3) {
+            m = 0;
           }
-        else{
-          m=m+1;
-        }
-        coinname=pairs[m];
-
-      });
+          else {
+            m = m + 1;
+          }
+          coinname = pairs[m];
+        });
+      }
     });
     coinname=pairs.first;
     getBannerDetails();
@@ -187,26 +195,28 @@ class _Home_ScreenState extends State<Home_Screen> {
   socketData() {
     channelOpenOrder!.stream.listen(
           (data) {
+
         if (data != null || data != "null") {
           var decode = jsonDecode(data);
+          if (data is Map && data.containsKey('lastPrice')) {
+            if (mounted) {
+              setState(() {
+                String last = decode["data"]['lastPrice'].toString();
+                String high24h = decode["data"]['highPrice24h'].toString();
+                String valueCh = decode["data"]['price24hPcnt'].toString();
 
-          if (mounted) {
-            setState(() {
-              String last = decode["data"]['lastPrice'].toString();
-              String high24h = decode["data"]['highPrice24h'].toString();
-            String valueCh = decode["data"]['price24hPcnt'].toString();
+                double val = double.parse(last) - double.parse(high24h);
+                double lastChangge = (val / double.parse(high24h)) * 100;
 
-               double val = double.parse(last) - double.parse(high24h);
-               double lastChangge = (val / double.parse(high24h)) * 100;
-
-              for (int m = 0; m < marketList.length; m++) {
-                if (marketList[m].name.toString().toLowerCase() ==
-                    decode["data"]['symbol'].toString().toLowerCase()) {
-                  marketList[m].last = last;
-                  marketList[m].change = lastChangge;
+                for (int m = 0; m < marketList.length; m++) {
+                  if (marketList[m].name.toString().toLowerCase() ==
+                      decode["data"]['symbol'].toString().toLowerCase()) {
+                    marketList[m].last = last;
+                    marketList[m].change = lastChangge;
+                  }
                 }
-              }
-            });
+              });
+            }
           }
 
         }
@@ -274,9 +284,6 @@ class _Home_ScreenState extends State<Home_Screen> {
 
 
   }
-  dispose() {
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -328,6 +335,7 @@ class _Home_ScreenState extends State<Home_Screen> {
           activeColor: Theme.of(context).disabledColor,
           navBarBackgroundColor: Theme.of(context).scaffoldBackgroundColor,
           inActiveColor:Theme.of(context).primaryColorDark,
+
           appBarItems: [
             FABBottomAppBarItem(
                 activeIcon: SvgPicture.asset(
@@ -385,7 +393,12 @@ class _Home_ScreenState extends State<Home_Screen> {
   }
 
   Widget newHome() {
-    return Container(
+    return WillPopScope(
+        onWillPop: () async {
+
+      return true;
+    },
+    child:Container(
         color: Theme.of(context).primaryColor,
         height: MediaQuery.of(context).size.height,
         width: MediaQuery.of(context).size.width,
@@ -1435,7 +1448,7 @@ class _Home_ScreenState extends State<Home_Screen> {
                   : Container()
             ],
           ),
-        ));
+        )));
   }
 
 

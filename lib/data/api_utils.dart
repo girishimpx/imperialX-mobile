@@ -14,6 +14,7 @@ import 'package:imperial/data/crypt_model/user_wallet_balance_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'crypt_model/dashboard_image_model.dart';
+import 'crypt_model/get_pair_details.dart';
 import 'crypt_model/googleTFA_model.dart';
 import 'crypt_model/image_upload_model.dart';
 import 'crypt_model/all_wallet_pairs.dart';
@@ -32,6 +33,7 @@ import 'crypt_model/wallet_address_model.dart';
 class APIUtils {
   // static const crypto_baseURL = 'http://139.59.1.77/imperialApi/';
   static const crypto_baseURL = 'https://app.imperialx.exchange/imperialApi/';
+
 
   // static const crypto_baseURL = 'http://34.93.139.4/imperialApi/';
 
@@ -67,6 +69,8 @@ class APIUtils {
   static const String createWalletAddressURL = 'bybit/address';
   static const String resendOTP = 'api/withdraw-resend-otp';
   static const String withdrawURL = 'wallet/withdrawUser';
+  static const String cancelTrade='bybit/cancelorder';
+  static const String getpairDetailsURL='bybit/getpairdetailes';
   static const String createSubAccURL = 'bybit/createsub'; // trade/createsubaccount
   // static const String walletDepAddURL = 'wallet/createDepositeAddress';
   static const String tradeAllPairsURL = 'bybit/orderbook';
@@ -120,6 +124,7 @@ print(response.body);
       'email': email,
       'password': pass,
     };
+    print(emailbodyData);
     final response = await http.post(Uri.parse(crypto_baseURL + loginURL),
         body: emailbodyData);
 
@@ -179,6 +184,54 @@ print(response.body);
           "authorization": "Bearer " + preferences.getString("token").toString()
         });
     return CommonModel.fromJson(json.decode(response.body));
+  }
+
+  Future<CommonModel> doCancelTrade(
+      String category,
+      String orderid,
+      String symbol
+      ) async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    var bankData = {
+      "category": category,
+      "orderId": orderid,
+      "symbol":symbol,
+    };
+    print("testing");
+print(bankData);
+    final response = await http.post(
+        Uri.parse(
+          crypto_baseURL + cancelTrade,
+        ),
+        body: bankData,
+        headers: {
+          "authorization": "Bearer " + preferences.getString("token").toString()
+        });
+    print(response.body);
+    return CommonModel.fromJson(json.decode(response.body));
+  }
+
+  Future<PairDetailsModel> getPairDetails(
+      String pair,
+      String type,
+      ) async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    var bankData = {
+      "pair": pair,
+      "type": type,
+    };
+    print("testing");
+    print(bankData);
+    final response = await http.post(
+        Uri.parse(
+          crypto_baseURL + getpairDetailsURL,
+        ),
+        body: bankData,
+        headers: {
+          "authorization": "Bearer " + preferences.getString("token").toString()
+        });
+    print(response.body);
+    return PairDetailsModel.fromJson(json.decode(response.body));
   }
 
   Future<CommonModel> veifyEmailOTP( String Code) async {
@@ -455,6 +508,7 @@ print(response.body);
   }
 
   Future<TradeHistoryListModel> getTradehistory(String pair) async {
+    print("pair$pair");
     SharedPreferences preferences = await SharedPreferences.getInstance();
 
     var emailbodyData = {
@@ -467,6 +521,7 @@ print(response.body);
         "authorization": "Bearer " + preferences.getString("token").toString()
       },
     );
+    print(response.body);
 
     return TradeHistoryListModel.fromJson(json.decode(response.body));
   }
@@ -593,8 +648,13 @@ print(response.body);
   // }
 
   Future<CommonModel> tradeInfo(String instId, String tdMode, String ccy, String lever, String side, String orderType,
-      String px, String sz, String trade_at, tpslType, String tpPice, String slPrice) async {
+      String px, String sz, String trade_at, bool tpslType, String tpPrice, String slPrice) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
+
+    // Ensure tpPrice and slPrice are strings
+    String tpPriceStr = tpPrice ?? "";
+    String slPriceStr = slPrice ?? "";
+
     var bankData = {
       "instId": instId,
       "tdMode": tdMode,
@@ -606,8 +666,9 @@ print(response.body);
       "px": px,
       "sz": sz,
       "trade_at": trade_at,
-      "istpsl": tpslType,
+      "istpsl": tpslType.toString(),
     };
+
     var TradeData = {
       "instId": instId,
       "tdMode": tdMode,
@@ -619,22 +680,31 @@ print(response.body);
       "px": px,
       "sz": sz,
       "trade_at": trade_at,
-      "istpsl": tpslType,
-      "tpPrice": tpPice,
-      "slPrice": slPrice,
+      "istpsl": tpslType.toString(),
+      "tpPrice": tpPriceStr,
+      "slPrice": slPriceStr,
     };
+
     print(bankData);
     print(TradeData);
-    final response = await http.post(Uri.parse(crypto_baseURL + tradeURL),
-        body: tpslType? TradeData : bankData,
-        headers: {"authorization": "Bearer " + preferences.getString("token").toString()});
+
+    final response = await http.post(
+      Uri.parse(crypto_baseURL + tradeURL),
+      body: tpslType==true ? TradeData : bankData,
+      headers: {
+        "authorization": "Bearer " + (preferences.getString("token") ?? ""),
+      },
+    );
+
     print("bankDataDetails");
     print(response.body);
+
     return CommonModel.fromJson(json.decode(response.body));
   }
 
+
   Future<CommonModel> masterTradeInfo(String instId, String tdMode, String ccy, String lever, String side, String orderType,
-      String px, String sz, String trade_at, tpslType, String tpPice, String slPrice) async {
+      String px, String sz, String trade_at, bool tpslType, String tpPice, String slPrice) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
     var bankData = {
       "instId": instId,
@@ -649,6 +719,7 @@ print(response.body);
       "trade_at": trade_at,
       "istpsl": tpslType,
     };
+    print(bankData);
     var TradeData = {
       "instId": instId,
       "tdMode": tdMode,
@@ -664,9 +735,11 @@ print(response.body);
       "tpPrice": tpPice,
       "slPrice": slPrice,
     };
+    print(TradeData);
     final response = await http.post(Uri.parse(crypto_baseURL + masterTradeURL),
-        body: tpslType? TradeData : bankData,
+        body: tpslType==true? TradeData : bankData,
         headers: {"authorization": "Bearer " + preferences.getString("token").toString()});
+    print("bodys${response.body}");
     return CommonModel.fromJson(json.decode(response.body));
   }
 

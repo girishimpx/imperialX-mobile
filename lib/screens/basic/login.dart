@@ -551,6 +551,8 @@ class _Login_ScreenState extends State<Login_Screen>
 
   storeData(
     String token, String trader_type) async {
+    print("token${token}");
+    print("type$trader_type");
     SharedPreferences preferences = await SharedPreferences.getInstance();
     preferences.setString("token", token);
     preferences.setString("trader_type", trader_type);

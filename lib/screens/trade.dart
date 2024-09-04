@@ -7,6 +7,7 @@ import 'package:flutter_svg/svg.dart';
 import 'package:imperial/data/crypt_model/all_wallet_pairs.dart';
 import 'package:imperial/data/crypt_model/common_model.dart';
 import 'package:imperial/data/crypt_model/future_trade_pair_model.dart';
+import 'package:imperial/data/crypt_model/get_pair_details.dart';
 import 'package:imperial/data/crypt_model/trade_his_list_model.dart';
 import 'package:imperial/data/crypt_model/trade_pair_model.dart';
 import 'package:imperial/data/crypt_model/trade_pairs_list_model.dart';
@@ -36,7 +37,7 @@ class _SellTradeScreenState extends State<TradeScreen>
 
   List<String> tradeType = ["Cross", "Isolated"];
   String selectedTime = "";
-  String selectedSymbol="";
+  String selectedSymbol = "";
   String selectedFutureTime = "";
 
   List<TradePairsSpot> tradePair = [];
@@ -47,9 +48,11 @@ class _SellTradeScreenState extends State<TradeScreen>
   List<TradeHistoryList> completedOrders = [];
   List<TradeHistoryList> AllopenOrders = [];
   List<MarketDetailsList> marketList = [];
-
+  int decimal_val=0;
   bool buySell = true;
   String traderType = "";
+
+
 
   late TabController _tabController, tradeTabController;
   bool spotOption = true;
@@ -93,7 +96,15 @@ class _SellTradeScreenState extends State<TradeScreen>
   double _currentSliderValue = 0;
 
   //search function
-  List<String> marketAssetList = ["USDT","USDC","EUR","BTC","ETH","DAI","BRZ"];
+  List<String> marketAssetList = [
+    "USDT",
+    "USDC",
+    "EUR",
+    "BTC",
+    "ETH",
+    "DAI",
+    "BRZ"
+  ];
   String selectedMarketAsset = "";
   int indexVal = 0;
 
@@ -129,15 +140,28 @@ class _SellTradeScreenState extends State<TradeScreen>
   List<FutureTradePair> futuretradePair = [];
   List<FutureTradePair> futuresearchPair = [];
   FutureTradePair? futureselectPair;
-  int count=0;
+  int count = 0;
   String currentSymbol = "ADAUSDT";
-  Timer? timer,timerS;
+  Timer? timer, timerS;
   bool futurelong = true;
 
   //late final WebViewController webcontroller;
   void _loadWebViewUrl() {
-    final urls = "https://app.imperialx.exchange/chart/" + (selectPair?.symbol?.toString() ?? "");
+    final urls = "https://app.imperialx.exchange/chart/" +
+        (selectPair?.symbol?.toString() ?? "");
     webViewController?.loadUrl(urlRequest: URLRequest(url: Uri.parse(urls)));
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+
+    channelOpenOrder!.sink.close();
+    channelFutureOpenOrder!.sink.close();
+    webViewController!.clearCache();
+    timer?.cancel();
+    timerS?.cancel();
+    super.dispose();
   }
 
   @override
@@ -155,11 +179,13 @@ class _SellTradeScreenState extends State<TradeScreen>
     getDetails();
     getCoinList();
     getFutureCoinList();
+    Future.delayed(Duration(seconds: 1));
 
-    channelOpenOrder = IOWebSocketChannel.connect( Uri.parse("wss://stream.bybit.com/v5/public/spot"),);
+    channelOpenOrder = IOWebSocketChannel.connect(
+      Uri.parse("wss://stream.bybit.com/v5/public/spot"),);
     // channelFutureOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/linear"),);
 
-    selectedMarketAsset= marketAssetList.first;
+    selectedMarketAsset = marketAssetList.first;
   }
 
 
@@ -171,27 +197,61 @@ class _SellTradeScreenState extends State<TradeScreen>
           // print(decode);
           if (mounted) {
             setState(() {
-              if(decode['type'].toString()=="snapshot")
-                {
-                 if(spotOption || marginOption){
-                   if (decode["data"][0]["s"].toString() == selectPair!.symbol.toString()) {
-                     livePrice= decode['data'][0]['p'].toString();
-                     print("livePrice");
-                     print(selectPair!.symbol.toString());
-                     print(livePrice);
-                   }
-                 }  else if(decode["data"][0]["s"].toString() == futureselectPair!.symbol.toString())
-                 {
-                   livePrice= decode['data'][0]['p'].toString();
-                   print("Future livePrice");
-                   print(futureselectPair!.symbol.toString());
-                   print(livePrice);
-                 }
-
-                } else { if (spotOption || marginOption){
-                if (decode["data"]["s"].toString() == selectPair!.symbol.toString()) {
-                  if(buyData.length>30)
-                  {
+              if (decode['type'].toString() == "snapshot") {
+                if (spotOption || marginOption) {
+                  if (decode["data"][0]["s"].toString() ==
+                      selectPair!.symbol.toString()) {
+                    livePrice = decode['data'][0]['p'].toString();
+                    print("livePrice");
+                    print(selectPair!.symbol.toString());
+                    print(livePrice);
+                  }
+                } else if (decode["data"][0]["s"].toString() ==
+                    futureselectPair!.symbol.toString()) {
+                  livePrice = decode['data'][0]['p'].toString();
+                  print("Future livePrice");
+                  print(futureselectPair!.symbol.toString());
+                  print(livePrice);
+                }
+              } else {
+                if (spotOption || marginOption) {
+                  if (decode["data"]["s"].toString() ==
+                      selectPair!.symbol.toString()) {
+                    if (buyData.length > 30) {
+                      buyData.removeRange(1, 15);
+                      sellData.removeRange(1, 15);
+                      // buyData.clear();
+                      // sellData.clear();
+                      // buyData = [];
+                      // sellData = [];
+                    }
+                    //
+                    var list1 = List<dynamic>.from(decode['data']['b']);
+                    var list2 = List<dynamic>.from(decode['data']['a']);
+                    for (int m = 0; m < list1.length; m++) {
+                      if (double.parse(list1[m][1].toString()) > 0) {
+                        buyData.add(BuySellData(
+                          list1[m][0].toString(),
+                          list1[m][1].toString(),
+                        ));
+                      }
+                    }
+                    for (int m = 0; m < list2.length; m++) {
+                      if (list2[m].toString() != null ||
+                          list2[m].toString() != "null") {
+                        if (double.parse(list2[m][1].toString()) > 0) {
+                          sellData.add(BuySellData(
+                            list2[m][0].toString(),
+                            list2[m][1].toString(),
+                          ));
+                        }
+                      }
+                    }
+                  }
+                }
+                else if (decode["data"]["s"].toString() ==
+                    futureselectPair!.symbol.toString()) {
+                  if (buyData.length > 30) {
                     buyData.removeRange(1, 15);
                     sellData.removeRange(1, 15);
                     // buyData.clear();
@@ -208,7 +268,6 @@ class _SellTradeScreenState extends State<TradeScreen>
                         list1[m][0].toString(),
                         list1[m][1].toString(),
                       ));
-
                     }
                   }
                   for (int m = 0; m < list2.length; m++) {
@@ -219,50 +278,11 @@ class _SellTradeScreenState extends State<TradeScreen>
                           list2[m][0].toString(),
                           list2[m][1].toString(),
                         ));
-
                       }
                     }
                   }
-
-                } }
-                else if (decode["data"]["s"].toString() == futureselectPair!.symbol.toString()) {
-                  if(buyData.length>30)
-                  {
-                    buyData.removeRange(1, 15);
-                    sellData.removeRange(1, 15);
-                    // buyData.clear();
-                    // sellData.clear();
-                    // buyData = [];
-                    // sellData = [];
-                  }
-                  //
-                  var list1 = List<dynamic>.from(decode['data']['b']);
-                  var list2 = List<dynamic>.from(decode['data']['a']);
-                  for (int m = 0; m < list1.length; m++) {
-                    if (double.parse(list1[m][1].toString()) > 0) {
-                      buyData.add(BuySellData(
-                        list1[m][0].toString(),
-                        list1[m][1].toString(),
-                      ));
-
-                    }
-                  }
-                  for (int m = 0; m < list2.length; m++) {
-                    if (list2[m].toString() != null ||
-                        list2[m].toString() != "null") {
-                      if (double.parse(list2[m][1].toString()) > 0) {
-                        sellData.add(BuySellData(
-                          list2[m][0].toString(),
-                          list2[m][1].toString(),
-                        ));
-
-                      }
-                    }
-                  }
-
                 }
               }
-
             });
           }
 
@@ -276,7 +296,8 @@ class _SellTradeScreenState extends State<TradeScreen>
           "op": "subscribe",
           "args": arrData
         };
-        channelOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/spot"),);
+        channelOpenOrder = IOWebSocketChannel.connect(
+          Uri.parse("wss://stream.bybit.com/v5/public/spot"),);
 
         channelOpenOrder!.sink.add(json.encode(messageJSON));
         socketData();
@@ -305,12 +326,11 @@ class _SellTradeScreenState extends State<TradeScreen>
                     decode["data"]['symbol'].toString().toLowerCase()) {
                   marketList[m].last = last;
                   marketList[m].change = lastChangge;
-                  changePercentage= marketList[m].change.toString();
+                  changePercentage = marketList[m].change.toString();
                 }
               }
             });
           }
-
         }
       },
       onDone: () async {
@@ -320,13 +340,14 @@ class _SellTradeScreenState extends State<TradeScreen>
           "args": arrChangeData,
         };
 
-        channelOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/spot"),);
+        channelOpenOrder = IOWebSocketChannel.connect(
+          Uri.parse("wss://stream.bybit.com/v5/public/spot"),);
 
         channelOpenOrder!.sink.add(json.encode(messageChangeJSON));
         socketLivePriceData();
       },
-      onError: (error) => {
-
+      onError: (error) =>
+      {
       },
     );
   }
@@ -413,13 +434,21 @@ class _SellTradeScreenState extends State<TradeScreen>
 
   Widget comingsoon() {
     return Container(
-      height: MediaQuery.of(context).size.height,
-      width: MediaQuery.of(context).size.width,
+      height: MediaQuery
+          .of(context)
+          .size
+          .height,
+      width: MediaQuery
+          .of(context)
+          .size
+          .width,
       child: Center(
         child: Text(
           "Coming Soon..!",
           style: CustomWidget(context: context).CustomSizedTextStyle(16.0,
-              Theme.of(context).focusColor, FontWeight.w400, 'FontRegular'),
+              Theme
+                  .of(context)
+                  .focusColor, FontWeight.w400, 'FontRegular'),
         ),
       ),
     );
@@ -431,314 +460,356 @@ class _SellTradeScreenState extends State<TradeScreen>
         data: MediaQuery.of(context).copyWith(textScaleFactor: 1.0),
         child: Scaffold(
           resizeToAvoidBottomInset: false,
-          backgroundColor: CustomTheme.of(context).primaryColor,
+          backgroundColor: CustomTheme
+              .of(context)
+              .primaryColor,
           body: Container(
-            height: MediaQuery.of(context).size.height,
-            width: MediaQuery.of(context).size.width,
+            height: MediaQuery
+                .of(context)
+                .size
+                .height,
+            width: MediaQuery
+                .of(context)
+                .size
+                .width,
             padding: EdgeInsets.all(10.0),
-            color: CustomTheme.of(context).primaryColor,
+            color: CustomTheme
+                .of(context)
+                .primaryColor,
             child: Stack(
               children: [
                 Container(
                     child: SingleChildScrollView(
-                  controller: controller,
-                  child: Column(
-                    children: [
-                      Container(
-                        decoration: BoxDecoration(
-                          color: CustomTheme.of(context).primaryColor,
-                        ),
-                        child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
-                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                            children: [
-                              Flexible(
-                                flex: 1,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      tpslCheck = false;
-                                      spotOption = true;
-                                      marginOption = false;
-                                      enableStopLimit = false;
+                      controller: controller,
+                      child: Column(
+                        children: [
+                          Container(
+                            decoration: BoxDecoration(
+                              color: CustomTheme
+                                  .of(context)
+                                  .primaryColor,
+                            ),
+                            child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                mainAxisAlignment: MainAxisAlignment
+                                    .spaceBetween,
+                                children: [
+                                  Flexible(
+                                    flex: 1,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          tpslCheck = false;
+                                          spotOption = true;
+                                          marginOption = false;
+                                          enableStopLimit = false;
 
-                                      futureOption = false;
-                                      enableTrade = false;
+                                          futureOption = false;
+                                          enableTrade = false;
 
 
-                                      livePrice = "0.000";
-                                      getCoinList();
+                                          livePrice = "0.000";
+                                          getCoinList();
+                                        });
+                                        setState(() {
+                                          buySell = true;
+                                          selectPair = tradePair[0];
+                                          _currentSliderValue = 0;
+                                          totalAmount = "0.0";
+                                          openOrders = [];
+                                          searchPair=[];
 
-                                    });
-                                    setState(() {
-                                      buySell = true;
-                                      selectPair = tradePair[0];
-                                      _currentSliderValue = 0;
-                                      totalAmount = "0.0";
-                                      openOrders = [];
+                                          spotOption = true;
+                                          marginOption = false;
+                                          enableStopLimit = false;
+                                          priceController.clear();
+                                          amountController.clear();
+                                          stopPriceController.clear();
 
-                                      spotOption = true;
-                                      marginOption = false;
-                                      enableStopLimit = false;
-                                      priceController.clear();
-                                      amountController.clear();
-                                      stopPriceController.clear();
-
-                                      futureOption = false;
-                                      getBalance(firstCoin);
-                                      enableTrade = false;
-                                      balance = "0.00";
-                                      selectedTime = chartTime.first;
-                                      livePrice = "0.000";
-                                      getCoinList();
-                                    });
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                        color: spotOption
-                                            ? CustomTheme.of(context)
+                                          futureOption = false;
+                                          getBalance(firstCoin);
+                                          enableTrade = false;
+                                          balance = "0.00";
+                                          selectedTime = chartTime.first;
+                                          livePrice = "0.000";
+                                          getCoinList();
+                                        });
+                                      },
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                            color: spotOption
+                                                ? CustomTheme
+                                                .of(context)
                                                 .canvasColor
-                                            : CustomTheme.of(context)
+                                                : CustomTheme
+                                                .of(context)
                                                 .primaryColor,
-                                        borderRadius:
+                                            borderRadius:
                                             BorderRadius.circular(8.0)),
-                                    child: Center(
-                                        child: Padding(
-                                      padding: spotOption
-                                          ? EdgeInsets.only(
-                                              top: 10.0, bottom: 10.0)
-                                          : EdgeInsets.only(
-                                              top: 11.0, bottom: 11.0),
-                                      child: Text(
-                                        AppLocalizations.instance
-                                            .text("loc_sell_trade_txt1"),
-                                        style: CustomWidget(context: context)
-                                            .CustomSizedTextStyle(
-                                                13.0,
-                                                spotOption
-                                                    ? CustomTheme.of(context)
+                                        child: Center(
+                                            child: Padding(
+                                              padding: spotOption
+                                                  ? EdgeInsets.only(
+                                                  top: 10.0, bottom: 10.0)
+                                                  : EdgeInsets.only(
+                                                  top: 11.0, bottom: 11.0),
+                                              child: Text(
+                                                AppLocalizations.instance
+                                                    .text(
+                                                    "loc_sell_trade_txt1"),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    13.0,
+                                                    spotOption
+                                                        ? CustomTheme
+                                                        .of(context)
                                                         .disabledColor
-                                                    : CustomTheme.of(context)
+                                                        : CustomTheme
+                                                        .of(context)
                                                         .focusColor
                                                         .withOpacity(0.5),
-                                                FontWeight.w500,
-                                                'FontRegular'),
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
+                                              ),
+                                            )),
                                       ),
-                                    )),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              Flexible(
-                                flex: 1,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      tpslCheck = false;
-                                      spotOption = false;
-                                      marginOption = true;
-                                      enableStopLimit = false;
+                                  Flexible(
+                                    flex: 1,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          tpslCheck = false;
+                                          spotOption = false;
+                                          marginOption = true;
+                                          enableStopLimit = false;
 
-                                      futureOption = false;
-                                      enableTrade = false;
-                                      selectPair = tradePair[0];
-                                      // coinName =
-                                      //     selectPair!.coinname1.toString();
-                                      // coinTwoName =
-                                      //     selectPair!.coinname2.toString();
-                                      //
-                                      livePrice = "0.000";
-                                      getCoinList();
-                                      //
-                                      // firstCoin =
-                                      //     selectPair!.coinname1.toString();
-                                      // secondCoin =
-                                      //     selectPair!.coinname2.toString();
-                                    });
-                                    setState(() {
-                                      buySell = true;
-                                      selectPair = tradePair[0];
-                                      openOrders = [];
-                                      _currentSliderValue = 0;
-                                      tleverageVal = "1";
-                                      totalAmount = "0.0";
-                                      spotOption = false;
-                                      marginOption = true;
-                                      enableStopLimit = false;
-                                      balance = "0.00";
-                                      getTradeHistory(selectPair!.symbol.toString());
+                                          futureOption = false;
+                                          enableTrade = false;
+                                          selectPair = tradePair[0];
+                                          // coinName =
+                                          //     selectPair!.coinname1.toString();
+                                          // coinTwoName =
+                                          //     selectPair!.coinname2.toString();
+                                          //
+                                          livePrice = "0.000";
+                                          getCoinList();
+                                          //
+                                          // firstCoin =
+                                          //     selectPair!.coinname1.toString();
+                                          // secondCoin =
+                                          //     selectPair!.coinname2.toString();
+                                        });
+                                        setState(() {
+                                          buySell = true;
+                                          selectPair = tradePair[0];
+                                          openOrders = [];
+                                          _currentSliderValue = 0;
+                                          tleverageVal = "1";
+                                          totalAmount = "0.0";
+                                          spotOption = false;
+                                          marginOption = true;
+                                          enableStopLimit = false;
+                                          balance = "0.00";
+                                          searchPair=[];
+                                          Future.delayed(Duration(seconds: 0));
+                                          getTradeHistory(
+                                              selectPair!.symbol.toString());
 
-                                      futureOption = false;
-                                      priceController.clear();
-                                      amountController.clear();
-                                      stopPriceController.clear();
+                                          futureOption = false;
+                                          priceController.clear();
+                                          amountController.clear();
+                                          stopPriceController.clear();
 
-                                      enableTrade = false;
-                                      selectedTime = chartTime.first;
-                                      getBalance(firstCoin);
-                                      livePrice = "0.000";
-                                      getCoinList();
-                                    });
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                        color: marginOption
-                                            ? CustomTheme.of(context)
+                                          enableTrade = false;
+                                          selectedTime = chartTime.first;
+                                          getBalance(firstCoin);
+                                          livePrice = "0.000";
+                                          getCoinList();
+                                        });
+                                      },
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                            color: marginOption
+                                                ? CustomTheme
+                                                .of(context)
                                                 .canvasColor
-                                            : CustomTheme.of(context)
+                                                : CustomTheme
+                                                .of(context)
                                                 .primaryColor,
-                                        borderRadius:
+                                            borderRadius:
                                             BorderRadius.circular(8.0)),
-                                    child: Center(
-                                        child: Padding(
-                                      padding: marginOption
-                                          ? EdgeInsets.only(
-                                              top: 10.0, bottom: 10.0)
-                                          : EdgeInsets.only(
-                                              top: 11.0, bottom: 11.0),
-                                      child: Text(
-                                        AppLocalizations.instance
-                                            .text("loc_sell_trade_txt2"),
-                                        style: CustomWidget(context: context)
-                                            .CustomSizedTextStyle(
-                                                13.0,
-                                                marginOption
-                                                    ? CustomTheme.of(context)
+                                        child: Center(
+                                            child: Padding(
+                                              padding: marginOption
+                                                  ? EdgeInsets.only(
+                                                  top: 10.0, bottom: 10.0)
+                                                  : EdgeInsets.only(
+                                                  top: 11.0, bottom: 11.0),
+                                              child: Text(
+                                                AppLocalizations.instance
+                                                    .text(
+                                                    "loc_sell_trade_txt2"),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    13.0,
+                                                    marginOption
+                                                        ? CustomTheme
+                                                        .of(context)
                                                         .disabledColor
-                                                    : CustomTheme.of(context)
+                                                        : CustomTheme
+                                                        .of(context)
                                                         .focusColor
                                                         .withOpacity(0.5),
-                                                FontWeight.w500,
-                                                'FontRegular'),
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
+                                              ),
+                                            )),
                                       ),
-                                    )),
+                                    ),
                                   ),
-                                ),
-                              ),
-                              Flexible(
-                                flex: 1,
-                                child: GestureDetector(
-                                  onTap: () {
-                                    setState(() {
-                                      tpslCheck = false;
-                                      buyData = [];
-                                      sellData = [];
-                                      buySell = true;
-                                      spotOption = false;
-                                      marginOption = false;
-                                      futureOption = true;
-                                      livePrice = "0.000";
-                                      getFutureCoinList();
-                                      enableStopLimit = false;
-                                      futureselectPair = futuretradePair[0];
+                                  Flexible(
+                                    flex: 1,
+                                    child: GestureDetector(
+                                      onTap: () {
+                                        setState(() {
+                                          tpslCheck = false;
+                                          buyData = [];
+                                          sellData = [];
+                                          buySell = true;
+                                          spotOption = false;
+                                          marginOption = false;
+                                          futureOption = true;
+                                          livePrice = "0.000";
+                                          getFutureCoinList();
+                                          enableStopLimit = false;
+                                          futureselectPair = futuretradePair[0];
 
 
-                                      FuturefirstCoin = futureselectPair!.symbol.toString();
-                                      FuturesecondCoin = futureselectPair!.symbol.toString();
-                                    });
-                                    setState(() {
-                                      buySell = true;
-                                      futureselectPair = futuretradePair[0];
-                                      _currentSliderValue = 0;
-                                      openOrders = [];
-                                      tleverageVal = "1";
-                                      spotOption = false;
-                                      marginOption = false;
-                                      enableStopLimit = false;
-                                      priceController.clear();
-                                      amountController.clear();
-                                      stopPriceController.clear();
+                                          FuturefirstCoin =
+                                              futureselectPair!.symbol
+                                                  .toString();
+                                          FuturesecondCoin =
+                                              futureselectPair!.symbol
+                                                  .toString();
+                                        });
+                                        setState(() {
+                                          buySell = true;
+                                          futureselectPair = futuretradePair[0];
+                                          _currentSliderValue = 0;
+                                          openOrders = [];
+                                          tleverageVal = "1";
+                                          spotOption = false;
+                                          marginOption = false;
+                                          enableStopLimit = false;
+                                          priceController.clear();
+                                          amountController.clear();
+                                          stopPriceController.clear();
 
-                                      getTradeHistory(
-                                          futureselectPair!.symbol.toString());
-                                      futureOption = true;
+                                          getTradeHistory(
+                                              futureselectPair!.symbol
+                                                  .toString());
+                                          futureOption = true;
 
-                                      livePrice = "0.000";
-                                      getFutureCoinList();
-                                      // getFutureOpenOrder();
-                                      enableTrade = false;
-                                      selectedFutureTime = chartFutureTime.first;
-                                      totalAmount = "0.0";
-                                      balance = "0.00";
-                                      getBalance(secondCoin);
-                                    });
-                                  },
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                        color: futureOption
-                                            ? CustomTheme.of(context)
+                                          livePrice = "0.000";
+                                          getFutureCoinList();
+                                          // getFutureOpenOrder();
+                                          enableTrade = false;
+                                          selectedFutureTime =
+                                              chartFutureTime.first;
+                                          totalAmount = "0.0";
+                                          balance = "0.00";
+                                          getBalance(secondCoin);
+                                        });
+                                      },
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                            color: futureOption
+                                                ? CustomTheme
+                                                .of(context)
                                                 .canvasColor
-                                            : CustomTheme.of(context)
+                                                : CustomTheme
+                                                .of(context)
                                                 .primaryColor,
-                                        borderRadius:
+                                            borderRadius:
                                             BorderRadius.circular(8.0)),
-                                    child: Center(
-                                        child: Padding(
-                                      padding: futureOption
-                                          ? const EdgeInsets.only(
-                                              top: 10.0, bottom: 10.0)
-                                          : const EdgeInsets.only(
-                                              top: 11.0, bottom: 11.0),
-                                      child: Text(
-                                        AppLocalizations.instance
-                                            .text("loc_sell_trade_txt3"),
-                                        style: CustomWidget(context: context)
-                                            .CustomSizedTextStyle(
-                                                13.0,
-                                                futureOption
-                                                    ? CustomTheme.of(context)
+                                        child: Center(
+                                            child: Padding(
+                                              padding: futureOption
+                                                  ? const EdgeInsets.only(
+                                                  top: 10.0, bottom: 10.0)
+                                                  : const EdgeInsets.only(
+                                                  top: 11.0, bottom: 11.0),
+                                              child: Text(
+                                                AppLocalizations.instance
+                                                    .text(
+                                                    "loc_sell_trade_txt3"),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    13.0,
+                                                    futureOption
+                                                        ? CustomTheme
+                                                        .of(context)
                                                         .disabledColor
-                                                    : CustomTheme.of(context)
+                                                        : CustomTheme
+                                                        .of(context)
                                                         .focusColor
                                                         .withOpacity(0.5),
-                                                FontWeight.w500,
-                                                'FontRegular'),
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
+                                              ),
+                                            )),
                                       ),
-                                    )),
+                                    ),
                                   ),
-                                ),
-                              ),
-                            ]),
-                      ),
+                                ]),
+                          ),
 
-                      const SizedBox(
-                        height: 10.0,
-                      ),
-                      // Container(
-                      //     width: MediaQuery.of(context).size.width,
-                      //     height: MediaQuery.of(context).size.height * 0.4,
-                      //     child: InAppWebView(
-                      //       initialUrlRequest: URLRequest(
-                      //           url: Uri.parse(
-                      //               "https://app.imperialx.exchange/chart/"+pair)),
-                      //       onWebViewCreated: (controller){
-                      //         webViewController = controller;
-                      //       },
-                      //       onReceivedServerTrustAuthRequest: (controller, challenge) async {
-                      //         print(challenge);
-                      //         return ServerTrustAuthResponse(action: ServerTrustAuthResponseAction.PROCEED);
-                      //       },
-                      //     )
-                      //     // child: WebViewWidget(controller: webcontroller),
-                      //     ),
-                      // const SizedBox(
-                      //   height: 10.0,
-                      // ),
-                      spotOption
-                          ? spotUI()
-                          : marginOption
+                          const SizedBox(
+                            height: 10.0,
+                          ),
+                          // Container(
+                          //     width: MediaQuery.of(context).size.width,
+                          //     height: MediaQuery.of(context).size.height * 0.4,
+                          //     child: InAppWebView(
+                          //       initialUrlRequest: URLRequest(
+                          //           url: Uri.parse(
+                          //               "https://app.imperialx.exchange/chart/"+pair)),
+                          //       onWebViewCreated: (controller){
+                          //         webViewController = controller;
+                          //       },
+                          //       onReceivedServerTrustAuthRequest: (controller, challenge) async {
+                          //         print(challenge);
+                          //         return ServerTrustAuthResponse(action: ServerTrustAuthResponseAction.PROCEED);
+                          //       },
+                          //     )
+                          //     // child: WebViewWidget(controller: webcontroller),
+                          //     ),
+                          // const SizedBox(
+                          //   height: 10.0,
+                          // ),
+                          spotOption
+                              ? spotUI()
+                              : marginOption
                               ? spotUI()
                               : futureOption
-                                  ? futureUI()
-                                  : comingsoon(),
+                              ? futureUI()
+                              : comingsoon(),
 
-                      //orderWidget()
-                    ],
-                  ),
-                )),
+                          //orderWidget()
+                        ],
+                      ),
+                    )),
                 loading
                     ? CustomWidget(context: context)
-                        .loadingIndicator(CustomTheme.of(context).disabledColor)
-                    : Container()
+                    .loadingIndicator(CustomTheme
+                    .of(context)
+                    .disabledColor)
+                    : SizedBox(height: 0, width: 0)
               ],
             ),
           ),
@@ -749,200 +820,196 @@ class _SellTradeScreenState extends State<TradeScreen>
     return SingleChildScrollView(
       child: Column(
         children: [
-          const SizedBox(
-            height: 10.0,
-          ),
+          const SizedBox(height: 10.0),
           Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              InkWell(
+                onTap: () {
+                  setState(() {
+                   // searchPair=[];
+                  });
+                  showSheeet();
+                },
+                child: Row(
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(right: 5.0),
+                      child: Icon(
+                        Icons.menu_rounded,
+                        size: 25.0,
+                        color: Theme
+                            .of(context)
+                            .focusColor,
+                      ),
+                    ),
+                    tradePair.isNotEmpty
+                        ? Text(
+                      selectPair?.symbol ?? "BTCUSTD",
+                      style: CustomWidget(context: context)
+                          .CustomSizedTextStyle(
+                        14.0,
+                        Theme
+                            .of(context)
+                            .focusColor,
+                        FontWeight.w500,
+                        'FontRegular',
+                      ),
+                    )
+                        : Container(),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10.0),
+          SizedBox(
+            width: MediaQuery
+                .of(context)
+                .size
+                .width,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.start,
               children: [
-                InkWell(
-                  onTap: () {
-                    showSheeet();
-                  },
-                  child: Row(
-                    children: [
-                      Container(
-                        margin: EdgeInsets.fromLTRB(0, 0, 5, 0),
-                        padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-                        child: InkWell(
-                          onTap: () {
-                            setState(() {
-                              showSheeet();
-                            });
-                          },
-                          child: Icon(
-                            Icons.menu_rounded,
-                            size: 25.0,
-                            color: Theme.of(context).focusColor,
+                const SizedBox(width: 5.0),
+                Flexible(flex: 2,child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Text(
+                          selectPair?.symbol ?? "BTCUSTD",
+                          style: CustomWidget(context: context)
+                              .CustomSizedTextStyle(
+                            16.0,
+                            Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular',
                           ),
                         ),
+                      ],
+                    ),
+                    Row(
+                      children: [
+                        Text(
+                          selectPair?.lastPrice.toString() ?? "",
+                          style: CustomWidget(context: context)
+                              .CustomSizedTextStyle(
+                            16.0,
+                            Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular',
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),),
+                Flexible(flex: 2, child: GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      // searchPair=[];
+                      showSheeet();
+                    });
+                  },
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Image.asset(
+                        "assets/menu/graph.png",
+
+                        height: MediaQuery
+                            .of(context)
+                            .size
+                            .height * 0.10,
+                        width: MediaQuery
+                            .of(context)
+                            .size
+                            .width * 0.28,
                       ),
-                      tradePair.length > 0
-                          ? Text(
-                              selectPair?.symbol.toString()?? "",
-                              style: CustomWidget(context: context)
-                                  .CustomSizedTextStyle(
-                                      14.0,
-                                      Theme.of(context).focusColor,
-                                      FontWeight.w500,
-                                      'FontRegular'),
-                            )
-                          : Container(),
-                      // const SizedBox(width: 3.0,),
-                      // Container(
-                      //   padding: EdgeInsets.only(left: 6.0, right: 6.0, top: 2.0, bottom: 2.0),
-                      //   decoration: BoxDecoration(
-                      //       borderRadius: BorderRadius.circular(2.0),
-                      //     color: Theme.of(context).indicatorColor.withOpacity(0.3),
-                      //   ),
-                      //   child: Text(
-                      //     double.parse(changePercentage.toString()).toStringAsFixed(2) + " %",
-                      //     style: CustomWidget(context: context)
-                      //         .CustomSizedTextStyle(
-                      //         8.0,
-                      //         Theme.of(context).focusColor,
-                      //         FontWeight.w500,
-                      //         'FontRegular'),
-                      //   ),
-                      // )
+                      Icon(
+                        Icons.keyboard_arrow_down_rounded,
+                        size: 30,
+                        color: Theme
+                            .of(context)
+                            .focusColor,
+                      ),
                     ],
                   ),
-                ),
-              ]),
-          const SizedBox(height: 10,),
-          Container(width: MediaQuery.of(context).size.width,child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,children: [
-           // Flexible(flex: 1,child:Image.asset("assets/images/blogo.png",height: MediaQuery.of(context).size.height*0.06,width: MediaQuery.of(context).size.height*0.06), ),
-            const SizedBox(width: 5,),
-            Flexible(flex: 2,child: Column(children: [
-              Row(children: [
-                Text(
-                  selectPair?.symbol.toString() ?? "",
-                  style: CustomWidget(context: context)
-                      .CustomSizedTextStyle(
-                      16.0,
-                      Theme.of(context).focusColor,
-                      FontWeight.w500,
-                      'FontRegular'),
-                ),
-                // Text(
-                //   "",
-                //   style: CustomWidget(context: context)
-                //       .CustomSizedTextStyle(
-                //       12.0,
-                //       Theme.of(context).focusColor.withOpacity(0.5),
-                //       FontWeight.w500,
-                //       'FontRegular'),
-                // ),
-              ],),
-              Row(children: [
-                Text(
-                  selectPair?.lastPrice.toString() ?? "",
-                  style: CustomWidget(context: context)
-                      .CustomSizedTextStyle(
-                      16.0,
-                      Theme.of(context).focusColor,
-                      FontWeight.w500,
-                      'FontRegular'),
-                ),
-                // Text(
-                //   "USD",
-                //   style: CustomWidget(context: context)
-                //       .CustomSizedTextStyle(
-                //       12.0,
-                //       Theme.of(context).focusColor.withOpacity(0.5),
-                //       FontWeight.w500,
-                //       'FontRegular'),
-                // ),
-                // Row(children: [
-                //   Icon(Icons.arrow_drop_up,size: 8,color: Theme.of(context).disabledColor,),
-                //   Text(
-                //     "USD",
-                //     style: CustomWidget(context: context)
-                //         .CustomSizedTextStyle(
-                //         12.0,
-                //         Theme.of(context).disabledColor,
-                //         FontWeight.w500,
-                //         'FontRegular'),
-                //   ),
-                // ],)
-
-              ],)
-            ],)),
-    GestureDetector(child: Flexible(flex: 2,child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,children: [
-              Image.asset("assets/menu/graph.png",height: MediaQuery.of(context).size.height*0.08,width: MediaQuery.of(context).size.width*0.28),
-              Icon(Icons.keyboard_arrow_down_rounded,size: 30,color: Theme.of(context).focusColor,)
-            ],)),onTap: () {
-            setState(() {
-            showSheeet();
-            });
-            },),
-          ],),),
-          const SizedBox(
-            height: 10.0,
-          ),
-          // Image.asset("assets/images/newchart.png",height: MediaQuery.of(context).size.height*0.40,width: MediaQuery.of(context).size.width,),
-          Container(
-              width: MediaQuery.of(context).size.width,
-              height: MediaQuery.of(context).size.height * 0.4,
-              child: InAppWebView(
-
-                initialUrlRequest: URLRequest(
-                    url: Uri.parse(
-                        "https://app.imperialx.exchange/chart/${selectPair?.symbol?.toString() ?? " "}")),
-                onProgressChanged: (controller, progress) {
-
-                },
-                onWebViewCreated: (controller){
-                  webViewController = controller;
-                },
-                onReceivedServerTrustAuthRequest: (controller, challenge) async {
-                  print(challenge);
-                  return ServerTrustAuthResponse(action: ServerTrustAuthResponseAction.PROCEED);
-                },
-              )
-            // child: WebViewWidget(controller: webcontroller),
-          ),
-          const SizedBox(
-            height: 10.0,
-          ),
-          Container(
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Flexible(
-                  child: OrderWidget(),
-                  flex: 1,
-                ),
-                const SizedBox(
-                  width: 10.0,
-                ),
-                Flexible(
-                  child: marketWidget(),
-                  flex: 1,
-                ),
+                ),)
               ],
             ),
           ),
-
-          const SizedBox(
-            height: 10.0,
+          const SizedBox(height: 10.0),
+          Container(
+            width: MediaQuery
+                .of(context)
+                .size
+                .width,
+            height: MediaQuery
+                .of(context)
+                .size
+                .height * 0.4,
+            child: InAppWebView(
+              initialUrlRequest: URLRequest(
+                url: Uri.parse(
+                  "https://app.imperialx.exchange/chart/${selectPair?.symbol.toString() ??
+                      "BTCUSTD"}",
+                ),
+              ),
+              onWebViewCreated: (controller) {
+                webViewController = controller;
+              },
+              onReceivedServerTrustAuthRequest: (controller, challenge) async {
+                print(challenge);
+                return ServerTrustAuthResponse(
+                    action: ServerTrustAuthResponseAction.PROCEED);
+              },
+            ),
           ),
+          const SizedBox(height: 10.0),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Flexible(
+                child: OrderWidget(),
+                flex: 1,
+              ),
+              const SizedBox(width: 10.0),
+              Flexible(
+                child: marketWidget(),
+                flex: 1,
+              ),
+            ],
+          ),
+          const SizedBox(height: 10.0),
           InkWell(
             onTap: () {
-              showOrders();
+              setState(() {
+                showOrders();
+              });
+
             },
             child: Padding(
-              padding: const EdgeInsets.only(left: 0.0, right: 0.0),
+              padding: const EdgeInsets.symmetric(horizontal: 0.0),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                    "Open Orders ( " + (openOrders.length.toString()) + " )",
+                    "Open Orders (${openOrders.length})",
                     style: CustomWidget(context: context).CustomTextStyle(
-                        Theme.of(context).focusColor.withOpacity(0.5),
-                        FontWeight.w400,
-                        'FontRegular'),
+                      Theme
+                          .of(context)
+                          .focusColor
+                          .withOpacity(0.5),
+                      FontWeight.w400,
+                      'FontRegular',
+                    ),
                     textAlign: TextAlign.center,
                   ),
                   Row(
@@ -951,31 +1018,37 @@ class _SellTradeScreenState extends State<TradeScreen>
                         "Show all",
                         style: CustomWidget(context: context)
                             .CustomSizedTextStyle(
-                                12.0,
-                                Theme.of(context).focusColor.withOpacity(0.5),
-                                FontWeight.w500,
-                                'FontRegular'),
+                          12.0,
+                          Theme
+                              .of(context)
+                              .focusColor
+                              .withOpacity(0.5),
+                          FontWeight.w500,
+                          'FontRegular',
+                        ),
                         textAlign: TextAlign.center,
                       ),
                       Icon(
                         Icons.arrow_forward_ios_outlined,
-                        color: Theme.of(context).focusColor.withOpacity(0.5),
+                        color: Theme
+                            .of(context)
+                            .focusColor
+                            .withOpacity(0.5),
                         size: 10.0,
-                      )
+                      ),
                     ],
-                  )
+                  ),
                 ],
               ),
             ),
           ),
-          const SizedBox(
-            height: 10.0,
-          ),
+          const SizedBox(height: 10.0),
           openOrdersUIS(),
         ],
       ),
     );
   }
+
 
   Widget futureUI() {
     return SingleChildScrollView(
@@ -990,7 +1063,10 @@ class _SellTradeScreenState extends State<TradeScreen>
               children: [
                 InkWell(
                   onTap: () {
-                    showFutureSheeet();
+                    setState(() {
+                      getFutureCoinList();
+                      showFutureSheeet();
+                    });
                   },
                   child: Row(
                     children: [
@@ -1001,93 +1077,120 @@ class _SellTradeScreenState extends State<TradeScreen>
                           child: Icon(
                             Icons.menu_rounded,
                             size: 20.0,
-                            color: Theme.of(context).focusColor,
+                            color: Theme
+                                .of(context)
+                                .focusColor,
                           ),
                         ),
                       ),
                       // futuretradePair.length > 0 ?
                       Text(
-                              futureselectPair?.symbol.toString() ?? "",
-                              style: CustomWidget(context: context)
-                                  .CustomSizedTextStyle(
-                                      12.0,
-                                      Theme.of(context).focusColor,
-                                      FontWeight.w500,
-                                      'FontRegular'),
-                            )
-                          // : Container(),
+                        futureselectPair?.symbol.toString() ?? "",
+                        style: CustomWidget(context: context)
+                            .CustomSizedTextStyle(
+                            12.0,
+                            Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular'),
+                      )
+                      // : Container(),
                     ],
                   ),
                 ),
               ]),
           const SizedBox(height: 10,),
-          Container(width: MediaQuery.of(context).size.width,child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,children: [
-            //Flexible(flex: 1,child:Image.asset("assets/images/blogo.png",height: MediaQuery.of(context).size.height*0.06,width: MediaQuery.of(context).size.height*0.06), ),
-            const SizedBox(width: 5,),
-            Flexible(flex: 3,child: Column(children: [
-              Row(children: [
-                Flexible(child:Text(
-               "${futureselectPair?.symbol.toString() ?? ""}",
-                style: CustomWidget(context: context)
-                    .CustomSizedTextStyle(
-                    14.0,
-                    Theme.of(context).focusColor,
-                    FontWeight.w500,
-                    'FontRegular'),
-              ),),
-                // Text(
-                //   "Bitcoin",
-                //   style: CustomWidget(context: context)
-                //       .CustomSizedTextStyle(
-                //       12.0,
-                //       Theme.of(context).focusColor.withOpacity(0.5),
-                //       FontWeight.w500,
-                //       'FontRegular'),
-                // ),
-              ],),
-              Row(children: [
-                Text(
-                  "${futureselectPair?.lastPrice.toString() ?? ""}",
-                  style: CustomWidget(context: context)
-                      .CustomSizedTextStyle(
-                      16.0,
-                      Theme.of(context).focusColor,
-                      FontWeight.w500,
-                      'FontRegular'),
-                ),
-                // Text(
-                //   "USD",
-                //   style: CustomWidget(context: context)
-                //       .CustomSizedTextStyle(
-                //       12.0,
-                //       Theme.of(context).focusColor.withOpacity(0.5),
-                //       FontWeight.w500,
-                //       'FontRegular'),
-                // ),
-                // Row(children: [
-                //   Icon(Icons.arrow_drop_up,size: 8,color: Theme.of(context).disabledColor,),
-                //   Text(
-                //     "USD",
-                //     style: CustomWidget(context: context)
-                //         .CustomSizedTextStyle(
-                //         12.0,
-                //         Theme.of(context).disabledColor,
-                //         FontWeight.w500,
-                //         'FontRegular'),
-                //   ),
-                // ],)
+          Container(width: MediaQuery
+              .of(context)
+              .size
+              .width,
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              //Flexible(flex: 1,child:Image.asset("assets/images/blogo.png",height: MediaQuery.of(context).size.height*0.06,width: MediaQuery.of(context).size.height*0.06), ),
+              const SizedBox(width: 5,),
+              Flexible(flex: 3, child: Column(children: [
+                Row(children: [
+                  Flexible(child: Text(
+                    "${futureselectPair?.symbol.toString() ?? ""}",
+                    style: CustomWidget(context: context)
+                        .CustomSizedTextStyle(
+                        14.0,
+                        Theme
+                            .of(context)
+                            .focusColor,
+                        FontWeight.w500,
+                        'FontRegular'),
+                  ),),
+                  // Text(
+                  //   "Bitcoin",
+                  //   style: CustomWidget(context: context)
+                  //       .CustomSizedTextStyle(
+                  //       12.0,
+                  //       Theme.of(context).focusColor.withOpacity(0.5),
+                  //       FontWeight.w500,
+                  //       'FontRegular'),
+                  // ),
+                ],),
+                Row(children: [
+                  Text(
+                    "${futureselectPair?.lastPrice.toString() ?? ""}",
+                    style: CustomWidget(context: context)
+                        .CustomSizedTextStyle(
+                        16.0,
+                        Theme
+                            .of(context)
+                            .focusColor,
+                        FontWeight.w500,
+                        'FontRegular'),
+                  ),
+                  // Text(
+                  //   "USD",
+                  //   style: CustomWidget(context: context)
+                  //       .CustomSizedTextStyle(
+                  //       12.0,
+                  //       Theme.of(context).focusColor.withOpacity(0.5),
+                  //       FontWeight.w500,
+                  //       'FontRegular'),
+                  // ),
+                  // Row(children: [
+                  //   Icon(Icons.arrow_drop_up,size: 8,color: Theme.of(context).disabledColor,),
+                  //   Text(
+                  //     "USD",
+                  //     style: CustomWidget(context: context)
+                  //         .CustomSizedTextStyle(
+                  //         12.0,
+                  //         Theme.of(context).disabledColor,
+                  //         FontWeight.w500,
+                  //         'FontRegular'),
+                  //   ),
+                  // ],)
 
-              ],),
-            ],)),
-            Flexible(flex: 2,child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,children: [
-              Image.asset("assets/menu/graph.png",height: MediaQuery.of(context).size.height*0.08,width: MediaQuery.of(context).size.width*0.28),
-              // Icon(Icons.keyboard_arrow_down_rounded,size: 30,color: Theme.of(context).focusColor,)
-            ],)),
-          ],),),
+                ],),
+              ],)),
+              Flexible(flex: 2,
+                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                      Image.asset("assets/menu/graph.png", height: MediaQuery
+                          .of(context)
+                          .size
+                          .height * 0.08, width: MediaQuery
+                          .of(context)
+                          .size
+                          .width * 0.28),
+                      // Icon(Icons.keyboard_arrow_down_rounded,size: 30,color: Theme.of(context).focusColor,)
+                    ],)),
+            ],),),
           const SizedBox(
             height: 10.0,
           ),
-          Image.asset("assets/images/newchart.png",height: MediaQuery.of(context).size.height*0.40,width: MediaQuery.of(context).size.width,),
+          Image.asset("assets/images/newchart.png", height: MediaQuery
+              .of(context)
+              .size
+              .height * 0.40, width: MediaQuery
+              .of(context)
+              .size
+              .width,),
           const SizedBox(
             height: 10.0,
           ),
@@ -1124,30 +1227,38 @@ class _SellTradeScreenState extends State<TradeScreen>
                   borderRadius: BorderRadius.circular(5.0),
                   border: Border.all(
                     width: 1.0,
-                    color: CustomTheme.of(context).focusColor.withOpacity(0.5),
+                    color: CustomTheme
+                        .of(context)
+                        .focusColor
+                        .withOpacity(0.5),
                   ),
                   // color: CustomTheme.of(context).disabledColor,
                 ),
                 child: Center(
                   child: Theme(
                     data: Theme.of(context).copyWith(
-                      canvasColor: CustomTheme.of(context).canvasColor,
+                      canvasColor: CustomTheme
+                          .of(context)
+                          .canvasColor,
                     ),
                     child: DropdownButtonHideUnderline(
                       child: DropdownButton(
                         items: _decimal
-                            .map((value) => DropdownMenuItem(
-                                  child: Text(
-                                    value,
-                                    style: CustomWidget(context: context)
-                                        .CustomSizedTextStyle(
-                                            12.0,
-                                            Theme.of(context).focusColor,
-                                            FontWeight.w500,
-                                            'FontRegular'),
-                                  ),
-                                  value: value,
-                                ))
+                            .map((value) =>
+                            DropdownMenuItem(
+                              child: Text(
+                                value,
+                                style: CustomWidget(context: context)
+                                    .CustomSizedTextStyle(
+                                    12.0,
+                                    Theme
+                                        .of(context)
+                                        .focusColor,
+                                    FontWeight.w500,
+                                    'FontRegular'),
+                              ),
+                              value: value,
+                            ))
                             .toList(),
                         onChanged: (value) {
                           setState(() {
@@ -1169,7 +1280,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                         value: selectedDecimal,
                         icon: Icon(
                           Icons.arrow_drop_down,
-                          color: CustomTheme.of(context).focusColor,
+                          color: CustomTheme
+                              .of(context)
+                              .focusColor,
                         ),
                       ),
                     ),
@@ -1188,7 +1301,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                   ),
                   child: Icon(
                     Icons.settings,
-                    color: Theme.of(context).disabledColor,
+                    color: Theme
+                        .of(context)
+                        .disabledColor,
                     size: 20.0,
                   ),
                 ),
@@ -1208,15 +1323,19 @@ class _SellTradeScreenState extends State<TradeScreen>
                     "Live Price",
                     style: CustomWidget(context: context).CustomSizedTextStyle(
                         12.0,
-                        Theme.of(context).focusColor,
+                        Theme
+                            .of(context)
+                            .focusColor,
                         FontWeight.bold,
                         'FontRegular'),
                   ),
                   Text(
-                    livePrice ,
+                    livePrice,
                     style: CustomWidget(context: context).CustomSizedTextStyle(
                         11.5,
-                        Theme.of(context).focusColor,
+                        Theme
+                            .of(context)
+                            .focusColor,
                         FontWeight.w500,
                         'FontRegular'),
                   ),
@@ -1233,15 +1352,20 @@ class _SellTradeScreenState extends State<TradeScreen>
                     "Available",
                     style: CustomWidget(context: context).CustomSizedTextStyle(
                         12.0,
-                        Theme.of(context).focusColor.withOpacity(0.5),
+                        Theme
+                            .of(context)
+                            .focusColor
+                            .withOpacity(0.5),
                         FontWeight.w500,
                         'FontRegular'),
                   ),
                   Text(
-                    balance ,
+                    balance,
                     style: CustomWidget(context: context).CustomSizedTextStyle(
                         11.5,
-                        Theme.of(context).focusColor,
+                        Theme
+                            .of(context)
+                            .focusColor,
                         FontWeight.w500,
                         'FontRegular'),
                   ),
@@ -1280,15 +1404,20 @@ class _SellTradeScreenState extends State<TradeScreen>
                     "Frozen amount",
                     style: CustomWidget(context: context).CustomSizedTextStyle(
                         12.0,
-                        Theme.of(context).focusColor.withOpacity(0.5),
+                        Theme
+                            .of(context)
+                            .focusColor
+                            .withOpacity(0.5),
                         FontWeight.w500,
                         'FontRegular'),
                   ),
                   Text(
-                    escrow ,
+                    escrow,
                     style: CustomWidget(context: context).CustomSizedTextStyle(
                         11.5,
-                        Theme.of(context).focusColor,
+                        Theme
+                            .of(context)
+                            .focusColor,
                         FontWeight.w500,
                         'FontRegular'),
                   ),
@@ -1305,15 +1434,20 @@ class _SellTradeScreenState extends State<TradeScreen>
                     "Total Asset",
                     style: CustomWidget(context: context).CustomSizedTextStyle(
                         12.0,
-                        Theme.of(context).focusColor.withOpacity(0.5),
+                        Theme
+                            .of(context)
+                            .focusColor
+                            .withOpacity(0.5),
                         FontWeight.w500,
                         'FontRegular'),
                   ),
                   Text(
-                    totalBalance ,
+                    totalBalance,
                     style: CustomWidget(context: context).CustomSizedTextStyle(
                         11.5,
-                        Theme.of(context).focusColor,
+                        Theme
+                            .of(context)
+                            .focusColor,
                         FontWeight.w500,
                         'FontRegular'),
                   ),
@@ -1339,8 +1473,11 @@ class _SellTradeScreenState extends State<TradeScreen>
                   Text(
                     "Open Orders ( " + (openOrders.length.toString()) + " )",
                     style: CustomWidget(context: context).CustomSizedTextStyle(
-                      13.0,
-                        Theme.of(context).focusColor.withOpacity(0.5),
+                        13.0,
+                        Theme
+                            .of(context)
+                            .focusColor
+                            .withOpacity(0.5),
                         FontWeight.w400,
                         'FontRegular'),
                     textAlign: TextAlign.center,
@@ -1351,15 +1488,21 @@ class _SellTradeScreenState extends State<TradeScreen>
                         "Show all",
                         style: CustomWidget(context: context)
                             .CustomSizedTextStyle(
-                                12.0,
-                                Theme.of(context).focusColor.withOpacity(0.5),
-                                FontWeight.w500,
-                                'FontRegular'),
+                            12.0,
+                            Theme
+                                .of(context)
+                                .focusColor
+                                .withOpacity(0.5),
+                            FontWeight.w500,
+                            'FontRegular'),
                         textAlign: TextAlign.center,
                       ),
                       Icon(
                         Icons.arrow_forward_ios_outlined,
-                        color: Theme.of(context).focusColor.withOpacity(0.5),
+                        color: Theme
+                            .of(context)
+                            .focusColor
+                            .withOpacity(0.5),
                         size: 10.0,
                       )
                     ],
@@ -1388,26 +1531,35 @@ class _SellTradeScreenState extends State<TradeScreen>
           children: [
             Expanded(
               child: Text(
-                spotOption|| marginOption?    (AppLocalizations.instance.text("loc_sell_trade_price") +
+                spotOption || marginOption ? (AppLocalizations.instance.text(
+                    "loc_sell_trade_price") +
                     "\n(" +
-                     secondCoin  +
-                    ")"):AppLocalizations.instance.text("loc_sell_trade_price"),
+                    secondCoin +
+                    ")") : AppLocalizations.instance.text(
+                    "loc_sell_trade_price"),
                 style: CustomWidget(context: context).CustomSizedTextStyle(
                     12.0,
-                    Theme.of(context).focusColor.withOpacity(0.5),
+                    Theme
+                        .of(context)
+                        .focusColor
+                        .withOpacity(0.5),
                     FontWeight.w500,
                     'FontRegular'),
               ),
             ),
             Expanded(
               child: Text(
-           spotOption|| marginOption?     (AppLocalizations.instance.text("loc_sell_trade_Qty") +
+                spotOption || marginOption ? (AppLocalizations.instance.text(
+                    "loc_sell_trade_Qty") +
                     "\n(" +
-               firstCoin +
-                    ")"):AppLocalizations.instance.text("loc_sell_trade_Qty"),
+                    firstCoin +
+                    ")") : AppLocalizations.instance.text("loc_sell_trade_Qty"),
                 style: CustomWidget(context: context).CustomSizedTextStyle(
                     12.0,
-                    Theme.of(context).focusColor.withOpacity(0.5),
+                    Theme
+                        .of(context)
+                        .focusColor
+                        .withOpacity(0.5),
                     FontWeight.w500,
                     'FontRegular'),
                 textAlign: TextAlign.end,
@@ -1420,266 +1572,312 @@ class _SellTradeScreenState extends State<TradeScreen>
         ),
         socketLoader
             ? Container(
-                height: MediaQuery.of(context).size.height * 0.4,
-                child: CustomWidget(context: context)
-                    .loadingIndicator(CustomTheme.of(context).focusColor),
-              )
+          height: MediaQuery
+              .of(context)
+              .size
+              .height * 0.4,
+          child: CustomWidget(context: context)
+              .loadingIndicator(CustomTheme
+              .of(context)
+              .focusColor),
+        )
             : buyData.length > 0 && sellData.length > 0
-                ? Column(
-                    children: [
-                      sellOption
-                          ? SizedBox(
-                              height: !buyOption
-                                  ? MediaQuery.of(context).size.height * 0.4
-                                  : MediaQuery.of(context).size.height * 0.2,
-                              child: sellData.length > 0
-                                  ? ListView.builder(
-                                      controller: controller,
-                                      itemCount: sellData.length,
-
-                                      itemBuilder:
-                                          ((BuildContext context, int index) {
-                                        return Column(
-                                          children: [
-                                            InkWell(
-                                              onTap: () {
-                                                setState(() {
-                                                  buySell = true;
-                                                  priceController.text =
-                                                      sellData[index]
-                                                          .price
-                                                          .toString()
-                                                          .replaceAll(",", "");
-                                                  amountController.text =
-                                                      sellData[index]
-                                                          .quantity
-                                                          .toString()
-                                                          .replaceAll(",", "");
-                                                  totalAmount = (double.parse(
-                                                              amountController
-                                                                  .text
-                                                                  .toString()) *
-                                                          double.parse(
-                                                              priceController
-                                                                  .text
-                                                                  .toString()))
-                                                      .toStringAsFixed(4);
-                                                  // coinName = selectPair!
-                                                  //     .coinname1
-                                                  //     .toString();
-                                                  // coinTwoName = selectPair!
-                                                  //     .coinname2
-                                                  //     .toString();
-                                                  // getCoinDetailsList(selectPair!
-                                                  //     .id
-                                                  //     .toString());
-                                                });
-                                              },
-                                              child: Row(
-                                                mainAxisAlignment:
-                                                    MainAxisAlignment
-                                                        .spaceBetween,
-                                                children: [
-                                                  Text(
-                                                    double.parse(sellData[index]
-                                                            .price
-                                                            .toString())
-                                                        .toStringAsFixed(
-                                                            decimalIndex),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            8.0,
-                                                            Theme.of(context)
-                                                                .indicatorColor,
-                                                            FontWeight.w500,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
-                                                    double.parse(sellData[index]
-                                                            .quantity
-                                                            .toString()
-                                                            .replaceAll(
-                                                                ",", ""))
-                                                        .toStringAsFixed(
-                                                            decimalIndex),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            8.0,
-                                                            Theme.of(context)
-                                                                .focusColor,
-                                                            FontWeight.w500,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
-                                              ),
-                                            )
-                                          ],
-                                        );
-                                      }))
-                                  : Container(
-                                      height: !buyOption
-                                          ? MediaQuery.of(context).size.height *
-                                              0.32
-                                          : MediaQuery.of(context).size.height *
-                                              0.16,
-                                      color:
-                                          CustomTheme.of(context).primaryColor,
-                                      child: Center(
-                                        child: Text(
-                                          " No Data Found..!",
-                                          style: TextStyle(
-                                            fontFamily: "FontRegular",
-                                            color: CustomTheme.of(context)
-                                                .focusColor,
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                            )
-                          : Container(
-                              color: Colors.white,
-                            ),
-                      const SizedBox(
-                        height: 10.0,
-                      ),
-                      buyOption
-                          ? SizedBox(
-                              height: !sellOption
-                                  ? MediaQuery.of(context).size.height * 0.40
-                                  : MediaQuery.of(context).size.height * 0.20,
-                              child: buyData.length > 0
-                                  ? ListView.builder(
-                                      controller: controller,
-                                      itemCount: buyData.length,
-                                      itemBuilder:
-                                          ((BuildContext context, int index) {
-                                        return InkWell(
-                                            onTap: () {
-                                              setState(() {
-                                                buySell = false;
-                                                priceController.text =
-                                                    buyData[index]
-                                                        .price
-                                                        .toString()
-                                                        .replaceAll(",", "");
-                                                amountController.text =
-                                                    buyData[index]
-                                                        .quantity
-                                                        .toString()
-                                                        .replaceAll(",", "");
-
-                                                takerFee = ((double.parse(
-                                                                amountController
-                                                                    .text
-                                                                    .toString()) *
-                                                            double.parse(
-                                                                priceController
-                                                                    .text
-                                                                    .toString()) *
-                                                            double.parse(
-                                                                takerFeeValue
-                                                                    .toString())) /
-                                                        100)
-                                                    .toStringAsFixed(4);
-                                                totalAmount = ((double.parse(
-                                                            priceController
-                                                                .text) *
-                                                        double.parse(
-                                                            amountController
-                                                                .text)))
-                                                    .toStringAsFixed(4);
-                                                if (futureOption) {
-                                                  FuturefirstCoin = futureselectPair!
-                                                      .symbol
-                                                      .toString();
-                                                  FuturesecondCoin = futureselectPair!
-                                                      .symbol
-                                                      .toString();
+            ? Column(
+          children: [
+            sellOption
+                ? SizedBox(
+              height: !buyOption
+                  ? MediaQuery
+                  .of(context)
+                  .size
+                  .height * 0.4
+                  : MediaQuery
+                  .of(context)
+                  .size
+                  .height * 0.2,
+              child: sellData.length > 0
+                  ? ListView.builder(
+                  controller: controller,
+                  itemCount: sellData.length,
 
 
-                                                } else {
+                  itemBuilder:
+                  ((BuildContext context, int index) {
+                    return Column(
+                      children: [
+                        InkWell(
+                          onTap: () {
+                            setState(() {
+                              buySell = true;
+                              priceController.text =
+                                  sellData[index]
+                                      .price
+                                      .toString()
+                                      .replaceAll(",", "");
+                              amountController.text =(
+                              (((double.parse(balance)) * int.parse(tleverageVal)) /
+                                      double.parse(priceController.text)) /
+                                      100).toStringAsFixed(decimal_val);
 
-                                                }
-                                                // getCoinDetailsList(
-                                                //     selectPair!.id.toString());
-                                              });
-                                            },
-                                            child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              children: [
-                                                Text(
-                                                  double.parse(buyData[index].price.toString())
-                                                      .toStringAsFixed(
-                                                          decimalIndex),
-                                                  style: CustomWidget(
-                                                          context: context)
-                                                      .CustomSizedTextStyle(
-                                                          8.0,
-                                                          Theme.of(context)
-                                                              .hoverColor,
-                                                          FontWeight.w500,
-                                                          'FontRegular'),
-                                                ),
-                                                Text(
-                                                  double.parse(buyData[index]
-                                                          .quantity
-                                                          .toString()
-                                                          .replaceAll(",", ""))
-                                                      .toStringAsFixed(
-                                                          decimalIndex),
-                                                  style: CustomWidget(
-                                                          context: context)
-                                                      .CustomSizedTextStyle(
-                                                          8.0,
-                                                          Theme.of(context)
-                                                              .focusColor,
-                                                          FontWeight.w500,
-                                                          'FontRegular'),
-                                                ),
-                                              ],
-                                            ));
-                                      }))
-                                  : Container(
-                                      height: !sellOption
-                                          ? MediaQuery.of(context).size.height *
-                                              0.40
-                                          : MediaQuery.of(context).size.height *
-                                              0.20,
-                                      color:
-                                          CustomTheme.of(context).primaryColor,
-                                      child: Center(
-                                        child: Text(
-                                          " No Data Found..!",
-                                          style: TextStyle(
-                                            fontFamily: "FontRegular",
-                                            color: CustomTheme.of(context)
-                                                .focusColor,
-                                          ),
-                                        ),
-                                      ),
-                                    ))
-                          : Container(),
-                    ],
-                  )
+                              totalAmount = (double.parse(
+                                  amountController
+                                      .text
+                                      .toString()) *
+                                  double.parse(
+                                      priceController
+                                          .text
+                                          .toString()))
+                                  .toStringAsFixed(decimal_val);
+                              // coinName = selectPair!
+                              //     .coinname1
+                              //     .toString();
+                              // coinTwoName = selectPair!
+                              //     .coinname2
+                              //     .toString();
+                              // getCoinDetailsList(selectPair!
+                              //     .id
+                              //     .toString());
+                            });
+                          },
+                          child: Row(
+                            mainAxisAlignment:
+                            MainAxisAlignment
+                                .spaceBetween,
+                            children: [
+                              Text(
+                                double.parse(sellData[index]
+                                    .price
+                                    .toString())
+                                    .toStringAsFixed(
+                                    decimalIndex),
+                                style: CustomWidget(
+                                    context: context)
+                                    .CustomSizedTextStyle(
+                                    8.0,
+                                    Theme
+                                        .of(context)
+                                        .indicatorColor,
+                                    FontWeight.w500,
+                                    'FontRegular'),
+                              ),
+                              Text(
+                                double.parse(sellData[index]
+                                    .quantity
+                                    .toString()
+                                    .replaceAll(
+                                    ",", ""))
+                                    .toStringAsFixed(
+                                    decimalIndex),
+                                style: CustomWidget(
+                                    context: context)
+                                    .CustomSizedTextStyle(
+                                    8.0,
+                                    Theme
+                                        .of(context)
+                                        .focusColor,
+                                    FontWeight.w500,
+                                    'FontRegular'),
+                              ),
+                            ],
+                          ),
+                        )
+                      ],
+                    );
+                  }))
+                  : Container(
+                height: !buyOption
+                    ? MediaQuery
+                    .of(context)
+                    .size
+                    .height *
+                    0.32
+                    : MediaQuery
+                    .of(context)
+                    .size
+                    .height *
+                    0.16,
+                color:
+                CustomTheme
+                    .of(context)
+                    .primaryColor,
+                child: Center(
+                  child: Text(
+                    " No Data Found..!",
+                    style: TextStyle(
+                      fontFamily: "FontRegular",
+                      color: CustomTheme
+                          .of(context)
+                          .focusColor,
+                    ),
+                  ),
+                ),
+              ),
+            )
                 : Container(
-                    height: MediaQuery.of(context).size.height * 0.30,
-                    color: CustomTheme.of(context).primaryColor,
-                    child: Center(
-                      child: Text(
-                        " No Data Found..!",
-                        style: TextStyle(
-                          fontFamily: "FontRegular",
-                          color: CustomTheme.of(context).focusColor,
-                        ),
+              color: Colors.white,
+            ),
+            const SizedBox(
+              height: 10.0,
+            ),
+            buyOption
+                ? SizedBox(
+                height: !sellOption
+                    ? MediaQuery
+                    .of(context)
+                    .size
+                    .height * 0.40
+                    : MediaQuery
+                    .of(context)
+                    .size
+                    .height * 0.20,
+                child: buyData.length > 0
+                    ? ListView.builder(
+                    controller: controller,
+                    itemCount: buyData.length,
+
+                    itemBuilder:
+                    ((BuildContext context, int index) {
+                      return InkWell(
+                          onTap: () {
+                            setState(() {
+                              buySell = false;
+                              priceController.text =
+                                  buyData[index]
+                                      .price
+                                      .toString()
+                                      .replaceAll(",", "");
+                              amountController.text =
+                                  buyData[index]
+                                      .quantity
+                                      .toString()
+                                      .replaceAll(",", "");
+
+                              takerFee = ((double.parse(
+                                  amountController
+                                      .text
+                                      .toString()) *
+                                  double.parse(
+                                      priceController
+                                          .text
+                                          .toString()) *
+                                  double.parse(
+                                      takerFeeValue
+                                          .toString())) /
+                                  100)
+                                  .toStringAsFixed(decimal_val);
+                              totalAmount = ((double.parse(
+                                  priceController
+                                      .text) *
+                                  double.parse(
+                                      amountController
+                                          .text)))
+                                  .toStringAsFixed(decimal_val);
+                              if (futureOption) {
+                                FuturefirstCoin = futureselectPair!
+                                    .symbol
+                                    .toString();
+                                FuturesecondCoin = futureselectPair!
+                                    .symbol
+                                    .toString();
+                              } else {
+
+                              }
+                              // getCoinDetailsList(
+                              //     selectPair!.id.toString());
+                            });
+                          },
+                          child: Row(
+                            mainAxisAlignment:
+                            MainAxisAlignment
+                                .spaceBetween,
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                double.parse(buyData[index].price.toString())
+                                    .toStringAsFixed(
+                                    decimalIndex),
+                                style: CustomWidget(
+                                    context: context)
+                                    .CustomSizedTextStyle(
+                                    8.0,
+                                    Theme
+                                        .of(context)
+                                        .hoverColor,
+                                    FontWeight.w500,
+                                    'FontRegular'),
+                              ),
+                              Text(
+                                double.parse(buyData[index]
+                                    .quantity
+                                    .toString()
+                                    .replaceAll(",", ""))
+                                    .toStringAsFixed(
+                                    decimalIndex),
+                                style: CustomWidget(
+                                    context: context)
+                                    .CustomSizedTextStyle(
+                                    8.0,
+                                    Theme
+                                        .of(context)
+                                        .focusColor,
+                                    FontWeight.w500,
+                                    'FontRegular'),
+                              ),
+                            ],
+                          ));
+                    }))
+                    : Container(
+                  height: !sellOption
+                      ? MediaQuery
+                      .of(context)
+                      .size
+                      .height *
+                      0.40
+                      : MediaQuery
+                      .of(context)
+                      .size
+                      .height *
+                      0.20,
+                  color:
+                  CustomTheme
+                      .of(context)
+                      .primaryColor,
+                  child: Center(
+                    child: Text(
+                      " No Data Found..!",
+                      style: TextStyle(
+                        fontFamily: "FontRegular",
+                        color: CustomTheme
+                            .of(context)
+                            .focusColor,
                       ),
                     ),
                   ),
+                ))
+                : Container(),
+          ],
+        )
+            : Container(
+          height: MediaQuery
+              .of(context)
+              .size
+              .height * 0.30,
+          color: CustomTheme
+              .of(context)
+              .primaryColor,
+          child: Center(
+            child: Text(
+              " No Data Found..!",
+              style: TextStyle(
+                fontFamily: "FontRegular",
+                color: CustomTheme
+                    .of(context)
+                    .focusColor,
+              ),
+            ),
+          ),
+        ),
         const SizedBox(
           height: 12.0,
         ),
@@ -1692,381 +1890,428 @@ class _SellTradeScreenState extends State<TradeScreen>
       children: [
         openOrders.length > 0
             ? Container(
-                color: Theme.of(context).primaryColorLight,
-                width: MediaQuery.of(context).size.width,
-                height: MediaQuery.of(context).size.height * 0.3,
-                child: ListView.builder(
-                  itemCount: openOrders.length,
-                  shrinkWrap: true,
-                  controller: controller,
-                  itemBuilder: (BuildContext context, int index) {
-                    // Moment spiritRoverOnMars =
-                    // Moment(openOrders[index].createdAt!).toLocal();
-                    return Column(
+          color: Theme
+              .of(context)
+              .primaryColorLight,
+          width: MediaQuery
+              .of(context)
+              .size
+              .width,
+          height: MediaQuery
+              .of(context)
+              .size
+              .height * 0.3,
+          child: ListView.builder(
+            itemCount: openOrders.length,
+            shrinkWrap: true,
+            controller: controller,
+
+            itemBuilder: (BuildContext context, int index) {
+              // Moment spiritRoverOnMars =
+              // Moment(openOrders[index].createdAt!).toLocal();
+              return Column(
+                children: [
+                  Theme(
+                    data: Theme.of(context)
+                        .copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      key: PageStorageKey(index.toString()),
+                      title: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                "Pair",
+                                style: CustomWidget(context: context)
+                                    .CustomSizedTextStyle(
+                                    12.0,
+                                    Theme
+                                        .of(context)
+                                        .focusColor
+                                        .withOpacity(0.5),
+                                    FontWeight.w400,
+                                    'FontRegular'),
+                              ),
+                              Text(
+                                openOrders[index].pair.toString(),
+                                style: CustomWidget(context: context)
+                                    .CustomSizedTextStyle(
+                                    14.0,
+                                    Theme
+                                        .of(context)
+                                        .focusColor,
+                                    FontWeight.w400,
+                                    'FontRegular'),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(
+                            width: 10.0,
+                          ),
+                          Icon(
+                            Icons.keyboard_arrow_down_outlined,
+                            color: Theme
+                                .of(context)
+                                .focusColor,
+                            size: 18.0,
+                          )
+                        ],
+                      ),
                       children: [
-                        Theme(
-                          data: Theme.of(context)
-                              .copyWith(dividerColor: Colors.transparent),
-                          child: ExpansionTile(
-                            key: PageStorageKey(index.toString()),
-                            title: Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.center,
-                              children: [
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
+                        Padding(
+                          padding: const EdgeInsets.only(
+                              left: 10.0, right: 10.0),
+                          child: Column(
+                            children: [
+                              Padding(
+                                padding: EdgeInsets.only(
+                                    left: 5.0, right: 5.0),
+                                child: Row(
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.center,
                                   children: [
-                                    Text(
-                                      "Pair",
-                                      style: CustomWidget(context: context)
-                                          .CustomSizedTextStyle(
+                                    Column(
+                                      children: [
+                                        Text(
+                                          "Date",
+                                          style: CustomWidget(
+                                              context: context)
+                                              .CustomSizedTextStyle(
                                               12.0,
-                                              Theme.of(context)
+                                              Theme
+                                                  .of(context)
                                                   .focusColor
                                                   .withOpacity(0.5),
                                               FontWeight.w400,
                                               'FontRegular'),
-                                    ),
-                                    Text(
-                                      openOrders[index].symbol.toString(),
-                                      style: CustomWidget(context: context)
-                                          .CustomSizedTextStyle(
-                                              14.0,
-                                              Theme.of(context).focusColor,
+                                        ),
+                                        Text(
+                                          // spiritRoverOnMars
+                                          //     .format(
+                                          //     "YYYY MMMM Do - hh:mm:ssa")
+                                          //     .toString(),
+                                          openOrders[index].createdAt.toString(),
+                                          style: CustomWidget(
+                                              context: context)
+                                              .CustomSizedTextStyle(
+                                              12.0,
+                                              Theme
+                                                  .of(context)
+                                                  .focusColor,
                                               FontWeight.w400,
                                               'FontRegular'),
+                                        ),
+                                      ],
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                     ),
+                                    Column(
+                                      children: [
+                                        Text(
+                                          "Type",
+                                          style: CustomWidget(
+                                              context: context)
+                                              .CustomSizedTextStyle(
+                                              12.0,
+                                              Theme
+                                                  .of(context)
+                                                  .focusColor
+                                                  .withOpacity(0.5),
+                                              FontWeight.w400,
+                                              'FontRegular'),
+                                        ),
+                                        Text(
+                                          openOrders[index]
+                                              .tradeType
+                                              .toString(),
+                                          style: CustomWidget(
+                                              context: context)
+                                              .CustomSizedTextStyle(
+                                              14.0,
+                                              openOrders[index]
+                                                  .tradeType
+                                                  .toString()
+                                                  .toLowerCase() ==
+                                                  "buy"
+                                                  ? CustomTheme
+                                                  .of(
+                                                  context)
+                                                  .indicatorColor
+                                                  : CustomTheme
+                                                  .of(
+                                                  context)
+                                                  .hoverColor,
+                                              FontWeight.w500,
+                                              'FontRegular'),
+                                        ),
+                                      ],
+                                    ),
+                                    Column(
+                                      children: [
+                                        Text(
+                                          "Order Type",
+                                          style: CustomWidget(
+                                              context: context)
+                                              .CustomSizedTextStyle(
+                                              12.0,
+                                              Theme
+                                                  .of(context)
+                                                  .focusColor
+                                                  .withOpacity(0.5),
+                                              FontWeight.w400,
+                                              'FontRegular'),
+                                        ),
+                                        Text(
+                                          openOrders[index]
+                                              .orderType
+                                              .toString(),
+                                          style: CustomWidget(
+                                              context: context)
+                                              .CustomSizedTextStyle(
+                                              12.0,
+                                              Theme
+                                                  .of(context)
+                                                  .focusColor,
+                                              FontWeight.w400,
+                                              'FontRegular'),
+                                        ),
+                                      ],
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.end,
+                                    )
                                   ],
                                 ),
-                                const SizedBox(
-                                  width: 10.0,
-                                ),
-                                Icon(
-                                  Icons.keyboard_arrow_down_outlined,
-                                  color: Theme.of(context).focusColor,
-                                  size: 18.0,
-                                )
-                              ],
-                            ),
-                            children: [
+                              ),
+                              const SizedBox(
+                                height: 10.0,
+                              ),
                               Padding(
-                                padding: const EdgeInsets.only(
-                                    left: 10.0, right: 10.0),
-                                child: Column(
+                                padding: EdgeInsets.only(
+                                    left: 5.0, right: 5.0),
+                                child: Row(
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.center,
                                   children: [
-                                    Padding(
-                                      padding: EdgeInsets.only(
-                                          left: 5.0, right: 5.0),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          Column(
-                                            children: [
-                                              Text(
-                                                "Date",
-                                                style: CustomWidget(
-                                                        context: context)
-                                                    .CustomSizedTextStyle(
-                                                        12.0,
-                                                        Theme.of(context)
-                                                            .focusColor
-                                                            .withOpacity(0.5),
-                                                        FontWeight.w400,
-                                                        'FontRegular'),
-                                              ),
-                                              Text(
-                                                // spiritRoverOnMars
-                                                //     .format(
-                                                //     "YYYY MMMM Do - hh:mm:ssa")
-                                                //     .toString(),
-                                                "20.20.2023",
-                                                style: CustomWidget(
-                                                        context: context)
-                                                    .CustomSizedTextStyle(
-                                                        12.0,
-                                                        Theme.of(context)
-                                                            .focusColor,
-                                                        FontWeight.w400,
-                                                        'FontRegular'),
-                                              ),
-                                            ],
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                          ),
-                                          Column(
-                                            children: [
-                                              Text(
-                                                "Type",
-                                                style: CustomWidget(
-                                                        context: context)
-                                                    .CustomSizedTextStyle(
-                                                        12.0,
-                                                        Theme.of(context)
-                                                            .focusColor
-                                                            .withOpacity(0.5),
-                                                        FontWeight.w400,
-                                                        'FontRegular'),
-                                              ),
-                                              Text(
-                                                openOrders[index]
-                                                    .tradeType
-                                                    .toString(),
-                                                style: CustomWidget(
-                                                        context: context)
-                                                    .CustomSizedTextStyle(
-                                                        14.0,
-                                                        openOrders[index]
-                                                                    .tradeType
-                                                                    .toString()
-                                                                    .toLowerCase() ==
-                                                                "buy"
-                                                            ? CustomTheme.of(
-                                                                    context)
-                                                                .indicatorColor
-                                                            : CustomTheme.of(
-                                                                    context)
-                                                                .hoverColor,
-                                                        FontWeight.w500,
-                                                        'FontRegular'),
-                                              ),
-                                            ],
-                                          ),
-                                          Column(
-                                            children: [
-                                              Text(
-                                                "Order Type",
-                                                style: CustomWidget(
-                                                        context: context)
-                                                    .CustomSizedTextStyle(
-                                                        12.0,
-                                                        Theme.of(context)
-                                                            .focusColor
-                                                            .withOpacity(0.5),
-                                                        FontWeight.w400,
-                                                        'FontRegular'),
-                                              ),
-                                              Text(
-                                                openOrders[index]
-                                                    .orderType
-                                                    .toString(),
-                                                style: CustomWidget(
-                                                        context: context)
-                                                    .CustomSizedTextStyle(
-                                                        12.0,
-                                                        Theme.of(context)
-                                                            .focusColor,
-                                                        FontWeight.w400,
-                                                        'FontRegular'),
-                                              ),
-                                            ],
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.end,
-                                          )
-                                        ],
-                                      ),
+                                    Column(
+                                      children: [
+                                        Text(
+                                          "Price",
+                                          style: CustomWidget(
+                                              context: context)
+                                              .CustomSizedTextStyle(
+                                              12.0,
+                                              Theme
+                                                  .of(context)
+                                                  .focusColor
+                                                  .withOpacity(0.5),
+                                              FontWeight.w400,
+                                              'FontRegular'),
+                                        ),
+                                        Text(
+                                          openOrders[index]
+                                              .price
+                                              .toString()==null || openOrders[index]
+                                              .price
+                                              .toString()=="null" ?  openOrders[index]
+                                              .entryPrice
+                                              .toString(): openOrders[index]
+                                              .price
+                                              .toString(),
+                                          style: CustomWidget(
+                                              context: context)
+                                              .CustomSizedTextStyle(
+                                              12.0,
+                                              Theme
+                                                  .of(context)
+                                                  .focusColor,
+                                              FontWeight.w400,
+                                              'FontRegular'),
+                                        ),
+                                      ],
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
                                     ),
-                                    const SizedBox(
-                                      height: 10.0,
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.only(
-                                          left: 5.0, right: 5.0),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          Column(
-                                            children: [
-                                              Text(
-                                                "Price",
-                                                style: CustomWidget(
-                                                        context: context)
-                                                    .CustomSizedTextStyle(
-                                                        12.0,
-                                                        Theme.of(context)
-                                                            .focusColor
-                                                            .withOpacity(0.5),
-                                                        FontWeight.w400,
-                                                        'FontRegular'),
-                                              ),
-                                              Text(
-                                                openOrders[index]
-                                                    .price
-                                                    .toString(),
-                                                style: CustomWidget(
-                                                        context: context)
-                                                    .CustomSizedTextStyle(
-                                                        12.0,
-                                                        Theme.of(context)
-                                                            .focusColor,
-                                                        FontWeight.w400,
-                                                        'FontRegular'),
-                                              ),
-                                            ],
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                          ),
-                                          Column(
-                                            children: [
-                                              Text(
-                                                "Quantity",
-                                                style: CustomWidget(
-                                                        context: context)
-                                                    .CustomSizedTextStyle(
-                                                        12.0,
-                                                        Theme.of(context)
-                                                            .focusColor
-                                                            .withOpacity(0.5),
-                                                        FontWeight.w400,
-                                                        'FontRegular'),
-                                              ),
-                                              Text(
-                                                openOrders[index]
-                                                    .volume
-                                                    .toString(),
-                                                style: CustomWidget(
-                                                        context: context)
-                                                    .CustomSizedTextStyle(
-                                                        12.0,
-                                                        Theme.of(context)
-                                                            .focusColor,
-                                                        FontWeight.w400,
-                                                        'FontRegular'),
-                                              ),
-                                            ],
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.end,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(
-                                      height: 10.0,
-                                    ),
-                                    Padding(
-                                      padding: EdgeInsets.only(
-                                          left: 5.0, right: 5.0),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                        children: [
-                                          Column(
-                                            children: [
-                                              Text(
-                                                "Total",
-                                                style: CustomWidget(
-                                                        context: context)
-                                                    .CustomSizedTextStyle(
-                                                        12.0,
-                                                        Theme.of(context)
-                                                            .focusColor
-                                                            .withOpacity(0.5),
-                                                        FontWeight.w400,
-                                                        'FontRegular'),
-                                              ),
-                                              Text(
-                                                openOrders[index]
-                                                    .value
-                                                    .toString(),
-                                                style: CustomWidget(
-                                                        context: context)
-                                                    .CustomSizedTextStyle(
-                                                        12.0,
-                                                        Theme.of(context)
-                                                            .focusColor,
-                                                        FontWeight.w400,
-                                                        'FontRegular'),
-                                              ),
-                                            ],
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.start,
-                                          ),
-                                          InkWell(
-                                            child: Container(
-                                              width: 80,
-                                              padding: const EdgeInsets.only(
-                                                  top: 3.0, bottom: 3.0),
-                                              decoration: BoxDecoration(
-                                                color: Colors.red,
-                                                borderRadius:
-                                                    BorderRadius.circular(5),
-                                              ),
-                                              child: Align(
-                                                alignment: Alignment.center,
-                                                child: Text(
-                                                  "Cancel",
-                                                  style: CustomWidget(
-                                                          context: context)
-                                                      .CustomSizedTextStyle(
-                                                          12.0,
-                                                          Theme.of(context)
-                                                              .focusColor,
-                                                          FontWeight.w400,
-                                                          'FontRegular'),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                              ),
-                                            ),
-                                            onTap: () {
-                                              setState(() {
-                                                loading = true;
-                                                // updatecancelOrder(
-                                                //     openOrders[index]
-                                                //         .id
-                                                //         .toString());
-                                              });
-                                            },
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(
-                                      height: 10.0,
+                                    Column(
+                                      children: [
+                                        Text(
+                                          "Quantity",
+                                          style: CustomWidget(
+                                              context: context)
+                                              .CustomSizedTextStyle(
+                                              12.0,
+                                              Theme
+                                                  .of(context)
+                                                  .focusColor
+                                                  .withOpacity(0.5),
+                                              FontWeight.w400,
+                                              'FontRegular'),
+                                        ),
+                                        Text(
+                                          openOrders[index]
+                                              .volume
+                                              .toString(),
+                                          style: CustomWidget(
+                                              context: context)
+                                              .CustomSizedTextStyle(
+                                              12.0,
+                                              Theme
+                                                  .of(context)
+                                                  .focusColor,
+                                              FontWeight.w400,
+                                              'FontRegular'),
+                                        ),
+                                      ],
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.end,
                                     ),
                                   ],
                                 ),
-                              )
+                              ),
+                              const SizedBox(
+                                height: 10.0,
+                              ),
+                              Padding(
+                                padding: EdgeInsets.only(
+                                    left: 5.0, right: 5.0),
+                                child: Row(
+                                  mainAxisAlignment:
+                                  MainAxisAlignment.spaceBetween,
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.center,
+                                  children: [
+                                    Column(
+                                      children: [
+                                        Text(
+                                          "Remain",
+                                          style: CustomWidget(
+                                              context: context)
+                                              .CustomSizedTextStyle(
+                                              12.0,
+                                              Theme
+                                                  .of(context)
+                                                  .focusColor
+                                                  .withOpacity(0.5),
+                                              FontWeight.w400,
+                                              'FontRegular'),
+                                        ),
+                                        Text(
+                                          openOrders[index]
+                                              .remaining
+                                              .toString(),
+                                          style: CustomWidget(
+                                              context: context)
+                                              .CustomSizedTextStyle(
+                                              12.0,
+                                              Theme
+                                                  .of(context)
+                                                  .focusColor,
+                                              FontWeight.w400,
+                                              'FontRegular'),
+                                        ),
+                                      ],
+                                      crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                    ),
+                                    InkWell(
+                                      child: Container(
+                                        width: 80,
+                                        padding: const EdgeInsets.only(
+                                            top: 3.0, bottom: 3.0),
+                                        decoration: BoxDecoration(
+                                          color: Colors.red,
+                                          borderRadius:
+                                          BorderRadius.circular(5),
+                                        ),
+                                        child: Align(
+                                          alignment: Alignment.center,
+                                          child: Text(
+                                            "Cancel",
+                                            style: CustomWidget(
+                                                context: context)
+                                                .CustomSizedTextStyle(
+                                                12.0,
+                                                Theme
+                                                    .of(context)
+                                                    .focusColor,
+                                                FontWeight.w400,
+                                                'FontRegular'),
+                                            textAlign: TextAlign.center,
+                                          ),
+                                        ),
+                                      ),
+                                      onTap: () {
+                                        setState(() {
+                                          loading = true;
+                                          updatecancelOrder(
+                                              marginOption||spotOption?"":"Linear",
+                                              openOrders[index]
+                                                  .orderId
+                                                  .toString(),openOrders[index].pair.toString());
+                                        });
+                                      },
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 10.0,
+                              ),
                             ],
-                            trailing: Container(
-                              width: 1.0,
-                              height: 10.0,
-                            ),
                           ),
-                        ),
-                        const SizedBox(
-                          height: 5.0,
-                        ),
-                        Container(
-                          height: 1.0,
-                          width: MediaQuery.of(context).size.width,
-                          color: Theme.of(context).focusColor,
-                        ),
+                        )
                       ],
-                    );
-                  },
-                ),
-              )
-            : Container(
-                height: MediaQuery.of(context).size.height * 0.3,
-                color: Theme.of(context).primaryColorLight,
-                child: Center(
-                  child: Text(
-                    "No Records Found..!",
-                    style: CustomWidget(context: context).CustomSizedTextStyle(
-                        12.0,
-                        Theme.of(context).focusColor,
-                        FontWeight.w400,
-                        'FontRegular'),
+                      trailing: Container(
+                        width: 1.0,
+                        height: 10.0,
+                      ),
+                    ),
                   ),
-                ),
-              ),
+                  const SizedBox(
+                    height: 5.0,
+                  ),
+                  Container(
+                    height: 1.0,
+                    width: MediaQuery
+                        .of(context)
+                        .size
+                        .width,
+                    color: Theme
+                        .of(context)
+                        .focusColor,
+                  ),
+                ],
+              );
+            },
+          ),
+        )
+            : Container(
+          height: MediaQuery
+              .of(context)
+              .size
+              .height * 0.3,
+          color: Theme
+              .of(context)
+              .primaryColorLight,
+          child: Center(
+            child: Text(
+              "No Records Found..!",
+              style: CustomWidget(context: context).CustomSizedTextStyle(
+                  12.0,
+                  Theme
+                      .of(context)
+                      .focusColor,
+                  FontWeight.w400,
+                  'FontRegular'),
+            ),
+          ),
+        ),
         const SizedBox(
           height: 30.0,
         )
@@ -2081,7 +2326,9 @@ class _SellTradeScreenState extends State<TradeScreen>
           return Align(
             alignment: const Alignment(0, 1),
             child: Material(
-              color: CustomTheme.of(context).primaryColorLight,
+              color: CustomTheme
+                  .of(context)
+                  .primaryColorLight,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(5.0)),
               child: Padding(
@@ -2100,7 +2347,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                       child: Text(
                         AppLocalizations.instance.text("loc_all").toUpperCase(),
                         style: CustomWidget(context: context).CustomTextStyle(
-                            Theme.of(context).focusColor,
+                            Theme
+                                .of(context)
+                                .focusColor,
                             FontWeight.w500,
                             'FontRegular'),
                         textAlign: TextAlign.center,
@@ -2120,7 +2369,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                       child: Text(
                         AppLocalizations.instance.text("loc_buy").toUpperCase(),
                         style: CustomWidget(context: context).CustomTextStyle(
-                            Theme.of(context).focusColor,
+                            Theme
+                                .of(context)
+                                .focusColor,
                             FontWeight.w500,
                             'FontRegular'),
                         textAlign: TextAlign.center,
@@ -2142,7 +2393,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                             .text("loc_sell")
                             .toUpperCase(),
                         style: CustomWidget(context: context).CustomTextStyle(
-                            Theme.of(context).focusColor,
+                            Theme
+                                .of(context)
+                                .focusColor,
                             FontWeight.w500,
                             'FontRegular'),
                         textAlign: TextAlign.center,
@@ -2182,7 +2435,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                       });
                       setState(() {
                         amountController.clear();
-                        priceController.clear();
+                        priceController.text=livePrice;
                         stopPriceController.clear();
                         totalAmount = "0.0";
                         _currentSliderValue = 0;
@@ -2202,10 +2455,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                           child: SvgPicture.asset(
                             'assets/icons/buy.svg',
                             color: buySell
-                                ? CustomTheme.of(context).indicatorColor
-                                : CustomTheme.of(context)
-                                    .focusColor
-                                    .withOpacity(0.2),
+                                ? CustomTheme
+                                .of(context)
+                                .indicatorColor
+                                : CustomTheme
+                                .of(context)
+                                .focusColor
+                                .withOpacity(0.2),
                             fit: BoxFit.fill,
                           ),
                           height: 34.0,
@@ -2213,22 +2469,26 @@ class _SellTradeScreenState extends State<TradeScreen>
                         Container(
                             child: Center(
                                 child: Padding(
-                          padding: EdgeInsets.only(top: 7.0, bottom: 0.0),
-                          child: Text(
-                            AppLocalizations.instance
-                                .text("loc_sell_trade_txt5"),
-                            style: CustomWidget(context: context)
-                                .CustomSizedTextStyle(
-                                    13.0,
-                                    buySell
-                                        ? CustomTheme.of(context).focusColor
-                                        : CustomTheme.of(context)
+                                  padding: EdgeInsets.only(
+                                      top: 7.0, bottom: 0.0),
+                                  child: Text(
+                                    AppLocalizations.instance
+                                        .text("loc_sell_trade_txt5"),
+                                    style: CustomWidget(context: context)
+                                        .CustomSizedTextStyle(
+                                        13.0,
+                                        buySell
+                                            ? CustomTheme
+                                            .of(context)
+                                            .focusColor
+                                            : CustomTheme
+                                            .of(context)
                                             .focusColor
                                             .withOpacity(0.5),
-                                    FontWeight.w500,
-                                    'FontRegular'),
-                          ),
-                        ))),
+                                        FontWeight.w500,
+                                        'FontRegular'),
+                                  ),
+                                ))),
                       ],
                     )),
               ),
@@ -2243,7 +2503,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                         setState(() {
                           buySell = false;
                           amountController.clear();
-                          priceController.clear();
+                          priceController.text=livePrice;
                           stopPriceController.clear();
                           totalAmount = "0.0";
                           _currentSliderValue = 0;
@@ -2260,10 +2520,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                             child: SvgPicture.asset(
                               'assets/icons/sell.svg',
                               color: !buySell
-                                  ? CustomTheme.of(context).hoverColor
-                                  : CustomTheme.of(context)
-                                      .focusColor
-                                      .withOpacity(0.2),
+                                  ? CustomTheme
+                                  .of(context)
+                                  .hoverColor
+                                  : CustomTheme
+                                  .of(context)
+                                  .focusColor
+                                  .withOpacity(0.2),
                               fit: BoxFit.fill,
                             ),
                             height: 34.0,
@@ -2271,22 +2534,26 @@ class _SellTradeScreenState extends State<TradeScreen>
                           Container(
                               child: Center(
                                   child: Padding(
-                            padding: EdgeInsets.only(top: 7.0, bottom: 0.0),
-                            child: Text(
-                              AppLocalizations.instance
-                                  .text("loc_sell_trade_txt6"),
-                              style: CustomWidget(context: context)
-                                  .CustomSizedTextStyle(
-                                      13.0,
-                                      !buySell
-                                          ? CustomTheme.of(context).focusColor
-                                          : CustomTheme.of(context)
+                                    padding: EdgeInsets.only(
+                                        top: 7.0, bottom: 0.0),
+                                    child: Text(
+                                      AppLocalizations.instance
+                                          .text("loc_sell_trade_txt6"),
+                                      style: CustomWidget(context: context)
+                                          .CustomSizedTextStyle(
+                                          13.0,
+                                          !buySell
+                                              ? CustomTheme
+                                              .of(context)
+                                              .focusColor
+                                              : CustomTheme
+                                              .of(context)
                                               .focusColor
                                               .withOpacity(0.5),
-                                      FontWeight.w500,
-                                      'FontRegular'),
-                            ),
-                          ))),
+                                          FontWeight.w500,
+                                          'FontRegular'),
+                                    ),
+                                  ))),
                         ],
                       )))
             ],
@@ -2296,50 +2563,64 @@ class _SellTradeScreenState extends State<TradeScreen>
           height: 15.0,
         ),
         Container(
-          width: MediaQuery.of(context).size.width,
+          width: MediaQuery
+              .of(context)
+              .size
+              .width,
           height: 35.0,
           padding: EdgeInsets.fromLTRB(5, 0.0, 5, 0.0),
           decoration: BoxDecoration(
             border: Border.all(
-                color: CustomTheme.of(context).focusColor.withOpacity(0.5),
+                color: CustomTheme
+                    .of(context)
+                    .focusColor
+                    .withOpacity(0.5),
                 width: 1.0),
             borderRadius: BorderRadius.circular(5.0),
             color: Colors.transparent,
           ),
           child: Theme(
             data: Theme.of(context).copyWith(
-              canvasColor: CustomTheme.of(context).primaryColorLight,
+              canvasColor: CustomTheme
+                  .of(context)
+                  .primaryColorLight,
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton(
-                menuMaxHeight: MediaQuery.of(context).size.height * 0.7,
+                menuMaxHeight: MediaQuery
+                    .of(context)
+                    .size
+                    .height * 0.7,
                 items: chartTime
-                        .map((value) => DropdownMenuItem(
-                              child: Text(
-                                value.toString(),
-                                style: CustomWidget(context: context)
-                                    .CustomSizedTextStyle(
-                                        10.0,
-                                        Theme.of(context).focusColor,
-                                        FontWeight.w500,
-                                        'FontRegular'),
-                              ),
-                              value: value,
-                            ))
-                        .toList(),
+                    .map((value) =>
+                    DropdownMenuItem(
+                      child: Text(
+                        value.toString(),
+                        style: CustomWidget(context: context)
+                            .CustomSizedTextStyle(
+                            10.0,
+                            Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular'),
+                      ),
+                      value: value,
+                    ))
+                    .toList(),
                 onChanged: (value) async {
                   setState(() {
                     selectedTime = value.toString();
-                    if (selectedTime == "Limit Order") {
+                    if (selectedTime == "Limit") {
                       enableTrade = false;
                       _currentSliderValue = 0;
                       tleverageVal = "1";
                       enableStopLimit = false;
-                      priceController.clear();
+                      priceController.text=livePrice;
                       amountController.clear();
                       totalAmount = "0.00";
-                    } else if (selectedTime == "Market Order") {
-                      priceController.clear();
+                    } else if (selectedTime == "Market") {
+                      priceController.text=livePrice;
                       _currentSliderValue = 0;
                       tleverageVal = "1";
                       amountController.clear();
@@ -2362,7 +2643,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                   "Select Category",
                   style: CustomWidget(context: context).CustomSizedTextStyle(
                       12.0,
-                      Theme.of(context).focusColor,
+                      Theme
+                          .of(context)
+                          .focusColor,
                       FontWeight.w500,
                       'FontRegular'),
                 ),
@@ -2370,7 +2653,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                 value: selectedTime,
                 icon: Icon(
                   Icons.arrow_drop_down,
-                  color: Theme.of(context).focusColor,
+                  color: Theme
+                      .of(context)
+                      .focusColor,
                 ),
               ),
             ),
@@ -2382,89 +2667,116 @@ class _SellTradeScreenState extends State<TradeScreen>
         spotOption
             ? Container()
             : Container(
-                width: MediaQuery.of(context).size.width,
-                height: 35.0,
-                padding: EdgeInsets.fromLTRB(5, 0.0, 5, 0.0),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                      color:
-                          CustomTheme.of(context).focusColor.withOpacity(0.5),
-                      width: 1.0),
-                  borderRadius: BorderRadius.circular(5.0),
-                  color: Colors.transparent,
-                ),
-                child: Theme(
-                  data: Theme.of(context).copyWith(
-                    canvasColor: CustomTheme.of(context).primaryColorLight,
-                  ),
-                  child: DropdownButtonHideUnderline(
-                    child: DropdownButton(
-                      menuMaxHeight: MediaQuery.of(context).size.height * 0.7,
-                      items: !futureOption
-                          ? tradeType
-                              .map((value) => DropdownMenuItem(
-                                    child: Text(
-                                      value.toString(),
-                                      style: CustomWidget(context: context)
-                                          .CustomSizedTextStyle(
-                                              10.0,
-                                              Theme.of(context).focusColor,
-                                              FontWeight.w500,
-                                              'FontRegular'),
-                                    ),
-                                    value: value,
-                                  ))
-                              .toList()
-                          : tradeType
-                              .map((value) => DropdownMenuItem(
-                                    child: Text(
-                                      value.toString(),
-                                      style: CustomWidget(context: context)
-                                          .CustomSizedTextStyle(
-                                              10.0,
-                                              Theme.of(context).focusColor,
-                                              FontWeight.w500,
-                                              'FontRegular'),
-                                    ),
-                                    value: value,
-                                  ))
-                              .toList(),
-                      onChanged: (value) async {
-                        setState(() {
-                          selectedHistoryTradeType = value.toString();
-                        });
-                      },
-                      hint: Text(
-                        "Select Category",
+          width: MediaQuery
+              .of(context)
+              .size
+              .width,
+          height: 35.0,
+          padding: EdgeInsets.fromLTRB(5, 0.0, 5, 0.0),
+          decoration: BoxDecoration(
+            border: Border.all(
+                color:
+                CustomTheme
+                    .of(context)
+                    .focusColor
+                    .withOpacity(0.5),
+                width: 1.0),
+            borderRadius: BorderRadius.circular(5.0),
+            color: Colors.transparent,
+          ),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              canvasColor: CustomTheme
+                  .of(context)
+                  .primaryColorLight,
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton(
+                menuMaxHeight: MediaQuery
+                    .of(context)
+                    .size
+                    .height * 0.7,
+                items: !futureOption
+                    ? tradeType
+                    .map((value) =>
+                    DropdownMenuItem(
+                      child: Text(
+                        value.toString(),
                         style: CustomWidget(context: context)
                             .CustomSizedTextStyle(
-                                12.0,
-                                Theme.of(context).focusColor,
-                                FontWeight.w500,
-                                'FontRegular'),
+                            10.0,
+                            Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular'),
                       ),
-                      isExpanded: true,
-                      value: selectedHistoryTradeType,
-                      icon: Icon(
-                        Icons.arrow_drop_down,
-                        color: Theme.of(context).focusColor,
+                      value: value,
+                    ))
+                    .toList()
+                    : tradeType
+                    .map((value) =>
+                    DropdownMenuItem(
+                      child: Text(
+                        value.toString(),
+                        style: CustomWidget(context: context)
+                            .CustomSizedTextStyle(
+                            10.0,
+                            Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular'),
                       ),
-                    ),
-                  ),
+                      value: value,
+                    ))
+                    .toList(),
+                onChanged: (value) async {
+                  setState(() {
+                    selectedHistoryTradeType = value.toString();
+                  });
+                },
+                hint: Text(
+                  "Select Category",
+                  style: CustomWidget(context: context)
+                      .CustomSizedTextStyle(
+                      12.0,
+                      Theme
+                          .of(context)
+                          .focusColor,
+                      FontWeight.w500,
+                      'FontRegular'),
+                ),
+                isExpanded: true,
+                value: selectedHistoryTradeType,
+                icon: Icon(
+                  Icons.arrow_drop_down,
+                  color: Theme
+                      .of(context)
+                      .focusColor,
                 ),
               ),
+            ),
+          ),
+        ),
         spotOption
             ? const SizedBox()
             : const SizedBox(
-                height: 10.0,
-              ),
+          height: 10.0,
+        ),
         Container(
           padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
           decoration: BoxDecoration(
             border: Border.all(
                 color: enableTrade
-                    ? Theme.of(context).focusColor.withOpacity(0.1)
-                    : CustomTheme.of(context).focusColor.withOpacity(0.5),
+                    ? Theme
+                    .of(context)
+                    .focusColor
+                    .withOpacity(0.1)
+                    : CustomTheme
+                    .of(context)
+                    .focusColor
+                    .withOpacity(0.5),
                 width: 1.0),
             borderRadius: BorderRadius.circular(5.0),
             color: Colors.transparent,
@@ -2475,111 +2787,115 @@ class _SellTradeScreenState extends State<TradeScreen>
             children: [
               Flexible(
                   child: Container(
-                height: 40.0,
-                child: TextField(
-                  enabled: !enableTrade,
-                  controller: priceController,
-                  keyboardType:
+                    height: 40.0,
+                    child: TextField(
+                      enabled: !enableTrade,
+                      controller: priceController,
+                      keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  style: CustomWidget(context: context).CustomSizedTextStyle(
-                      13.0,
-                      Theme.of(context).focusColor,
-                      FontWeight.w500,
-                      'FontRegular'),
-                  onChanged: (value) {
-                    setState(() {
-                      price = "0.0";
-                      // price = value.toString();
-                      tradeAmount = "0.00";
+                      style: CustomWidget(context: context)
+                          .CustomSizedTextStyle(
+                          13.0,
+                          Theme
+                              .of(context)
+                              .focusColor,
+                          FontWeight.w500,
+                          'FontRegular'),
+                      onChanged: (value) {
+                        setState(() {
+                          price = "0.0";
+                          // price = value.toString();
+                          tradeAmount = "0.00";
 
-                      if (priceController.text.isNotEmpty) {
-                        double amount = double.parse(priceController.text);
-                        price = priceController.text;
-                        if (enableStopLimit) {
-                          if (priceController.text.isNotEmpty &&
-                              stopPriceController.text.isNotEmpty) {
-                            if ((double.parse(priceController.text.toString()) >
-                                double.parse(
-                                    stopPriceController.text.toString()))) {
-                              takerFee = ((double.parse(
-                                              priceController.text.toString()) *
-                                          double.parse(amountController.text
-                                              .toString()) *
-                                          double.parse(
-                                              takerFeeValue.toString())) /
+                          if (priceController.text.isNotEmpty) {
+                            double amount = double.parse(priceController.text);
+                            price = priceController.text;
+                            if (enableStopLimit) {
+                              if (priceController.text.isNotEmpty &&
+                                  stopPriceController.text.isNotEmpty) {
+                                if ((double.parse(
+                                    priceController.text.toString()) >
+                                    double.parse(
+                                        stopPriceController.text.toString()))) {
+                                  takerFee = ((double.parse(
+                                      priceController.text.toString()) *
+                                      double.parse(amountController.text
+                                          .toString()) *
+                                      double.parse(
+                                          takerFeeValue.toString())) /
                                       100)
-                                  .toStringAsFixed(4);
+                                      .toStringAsFixed(decimal_val);
 
-                              totalAmount = (double.parse(
-                                          amountController.text.toString()) *
+                                  totalAmount = (double.parse(
+                                      amountController.text.toString()) *
                                       double.parse(
                                           priceController.text.toString()))
-                                  .toStringAsFixed(4);
-
-                            } else {
-                              takerFee = ((double.parse(stopPriceController.text
-                                              .toString()) *
+                                      .toStringAsFixed(decimal_val);
+                                } else {
+                                  takerFee =
+                                      ((double.parse(stopPriceController.text
+                                          .toString()) *
                                           double.parse(amountController.text
                                               .toString()) *
                                           double.parse(
                                               takerFeeValue.toString())) /
-                                      100)
-                                  .toStringAsFixed(4);
+                                          100)
+                                          .toStringAsFixed(decimal_val);
 
-                              totalAmount = (double.parse(
-                                          amountController.text.toString()) *
+                                  totalAmount = (double.parse(
+                                      amountController.text.toString()) *
                                       double.parse(
                                           stopPriceController.text.toString()))
-                                  .toStringAsFixed(4);
-
-
-                            }
-                          }
-                        } else {
-                          if (priceController.text.isNotEmpty) {
-                            if (!buySell) {
-                              takerFee = ((amount *
-                                          double.parse(
-                                              priceController.text.toString()) *
-                                          double.parse(
-                                              takerFeeValue.toString())) /
-                                      100)
-                                  .toStringAsFixed(4);
-
-                              totalAmount = (double.parse(
-                                          amountController.text.toString()) *
-                                      double.parse(
-                                          priceController.text.toString()))
-                                  .toStringAsFixed(4);
+                                      .toStringAsFixed(decimal_val);
+                                }
+                              }
                             } else {
-                              totalAmount = (double.parse(
-                                          amountController.text.toString()) *
+                              if (priceController.text.isNotEmpty) {
+                                if (!buySell) {
+                                  takerFee = ((amount *
+                                      double.parse(
+                                          priceController.text.toString()) *
+                                      double.parse(
+                                          takerFeeValue.toString())) /
+                                      100)
+                                      .toStringAsFixed(decimal_val);
+
+                                  totalAmount = (double.parse(
+                                      amountController.text.toString()) *
                                       double.parse(
                                           priceController.text.toString()))
-                                  .toStringAsFixed(4);
+                                      .toStringAsFixed(decimal_val);
+                                } else {
+                                  totalAmount = (double.parse(
+                                      amountController.text.toString()) *
+                                      double.parse(
+                                          priceController.text.toString()))
+                                      .toStringAsFixed(decimal_val);
+                                }
+                              }
                             }
+                          } else {
+                            tradeAmount = "0.00";
+                            totalAmount = "0.00";
                           }
-                        }
-
-                      } else {
-                        tradeAmount = "0.00";
-                        totalAmount = "0.00";
-                      }
-                    });
-                  },
-                  decoration: InputDecoration(
-                      contentPadding: EdgeInsets.only(bottom: 8.0),
-                      hintText: "Price",
-                      hintStyle: CustomWidget(context: context)
-                          .CustomSizedTextStyle(
+                        });
+                      },
+                      decoration: InputDecoration(
+                          contentPadding: EdgeInsets.only(bottom: 8.0),
+                          hintText: "Price",
+                          hintStyle: CustomWidget(context: context)
+                              .CustomSizedTextStyle(
                               12.0,
-                              Theme.of(context).focusColor.withOpacity(0.5),
+                              Theme
+                                  .of(context)
+                                  .focusColor
+                                  .withOpacity(0.5),
                               FontWeight.w500,
                               'FontRegular'),
-                      border: InputBorder.none),
-                  textAlign: TextAlign.start,
-                ),
-              )),
+                          border: InputBorder.none),
+                      textAlign: TextAlign.start,
+                    ),
+                  )),
               // InkWell(
               //   onTap: () {
               //     if (enableTrade) {
@@ -2607,13 +2923,13 @@ class _SellTradeScreenState extends State<TradeScreen>
               //                                   double.parse(
               //                                       takerFeeValue.toString())) /
               //                               100)
-              //                           .toStringAsFixed(4);
+              //                           .toStringAsFixed(decimal_val);
               //
               //                   totalAmount = (double.parse(
               //                               amountController.text.toString()) *
               //                           double.parse(
               //                               priceController.text.toString()))
-              //                       .toStringAsFixed(4);
+              //                       .toStringAsFixed(decimal_val);
               //                   /*  totalAmount = ((double.parse(
               //                       priceController.text
               //                           .toString()) *
@@ -2621,7 +2937,7 @@ class _SellTradeScreenState extends State<TradeScreen>
               //                           .text
               //                           .toString())) -
               //                       double.parse(takerFee))
-              //                       .toStringAsFixed(4);*/
+              //                       .toStringAsFixed(decimal_val);*/
               //                 } else {
               //                   takerFee = ((double.parse(stopPriceController
               //                                   .text
@@ -2631,12 +2947,12 @@ class _SellTradeScreenState extends State<TradeScreen>
               //                               double.parse(
               //                                   takerFeeValue.toString())) /
               //                           100)
-              //                       .toStringAsFixed(4);
+              //                       .toStringAsFixed(decimal_val);
               //
               //                   totalAmount = (double.parse(
               //                               amountController.text.toString()) *
               //                           double.parse(livePrice))
-              //                       .toStringAsFixed(4);
+              //                       .toStringAsFixed(decimal_val);
               //
               //                   /*totalAmount = ((double.parse(
               //                       stopPriceController.text
@@ -2645,7 +2961,7 @@ class _SellTradeScreenState extends State<TradeScreen>
               //                           .text
               //                           .toString())) -
               //                       double.parse(takerFee))
-              //                       .toStringAsFixed(4);*/
+              //                       .toStringAsFixed(decimal_val);*/
               //                 }
               //               }
               //             } else {
@@ -2657,19 +2973,19 @@ class _SellTradeScreenState extends State<TradeScreen>
               //                               double.parse(
               //                                   takerFeeValue.toString())) /
               //                           100)
-              //                       .toStringAsFixed(4);
+              //                       .toStringAsFixed(decimal_val);
               //
               //                   totalAmount = (double.parse(
               //                               amountController.text.toString()) *
               //                           double.parse(
               //                               priceController.text.toString()))
-              //                       .toStringAsFixed(4);
+              //                       .toStringAsFixed(decimal_val);
               //                 } else {
               //                   totalAmount = (double.parse(
               //                               amountController.text.toString()) *
               //                           double.parse(
               //                               priceController.text.toString()))
-              //                       .toStringAsFixed(4);
+              //                       .toStringAsFixed(decimal_val);
               //                 }
               //               }
               //             }
@@ -2741,13 +3057,13 @@ class _SellTradeScreenState extends State<TradeScreen>
               //                                   double.parse(
               //                                       takerFeeValue.toString())) /
               //                               100)
-              //                           .toStringAsFixed(4);
+              //                           .toStringAsFixed(decimal_val);
               //
               //                   totalAmount = (double.parse(
               //                               amountController.text.toString()) *
               //                           double.parse(
               //                               priceController.text.toString()))
-              //                       .toStringAsFixed(4);
+              //                       .toStringAsFixed(decimal_val);
               //                   /*  totalAmount = ((double.parse(
               //                       priceController.text
               //                           .toString()) *
@@ -2755,7 +3071,7 @@ class _SellTradeScreenState extends State<TradeScreen>
               //                           .text
               //                           .toString())) -
               //                       double.parse(takerFee))
-              //                       .toStringAsFixed(4);*/
+              //                       .toStringAsFixed(decimal_val);*/
               //                 } else {
               //                   takerFee = ((double.parse(stopPriceController
               //                                   .text
@@ -2765,12 +3081,12 @@ class _SellTradeScreenState extends State<TradeScreen>
               //                               double.parse(
               //                                   takerFeeValue.toString())) /
               //                           100)
-              //                       .toStringAsFixed(4);
+              //                       .toStringAsFixed(decimal_val);
               //
               //                   totalAmount = (double.parse(
               //                               amountController.text.toString()) *
               //                           double.parse(livePrice))
-              //                       .toStringAsFixed(4);
+              //                       .toStringAsFixed(decimal_val);
               //
               //                   /*totalAmount = ((double.parse(
               //                       stopPriceController.text
@@ -2779,7 +3095,7 @@ class _SellTradeScreenState extends State<TradeScreen>
               //                           .text
               //                           .toString())) -
               //                       double.parse(takerFee))
-              //                       .toStringAsFixed(4);*/
+              //                       .toStringAsFixed(decimal_val);*/
               //                 }
               //               }
               //             } else {
@@ -2791,19 +3107,19 @@ class _SellTradeScreenState extends State<TradeScreen>
               //                               double.parse(
               //                                   takerFeeValue.toString())) /
               //                           100)
-              //                       .toStringAsFixed(4);
+              //                       .toStringAsFixed(decimal_val);
               //
               //                   totalAmount = (double.parse(
               //                               amountController.text.toString()) *
               //                           double.parse(
               //                               priceController.text.toString()))
-              //                       .toStringAsFixed(4);
+              //                       .toStringAsFixed(decimal_val);
               //                 } else {
               //                   totalAmount = (double.parse(
               //                               amountController.text.toString()) *
               //                           double.parse(
               //                               priceController.text.toString()))
-              //                       .toStringAsFixed(4);
+              //                       .toStringAsFixed(decimal_val);
               //                 }
               //               }
               //             }
@@ -2851,8 +3167,8 @@ class _SellTradeScreenState extends State<TradeScreen>
         enableTrade
             ? Container()
             : const SizedBox(
-                height: 5.0,
-              ),
+          height: 5.0,
+        ),
         SizedBox(
           height: 10.0,
         ),
@@ -2860,7 +3176,10 @@ class _SellTradeScreenState extends State<TradeScreen>
           padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
           decoration: BoxDecoration(
             border: Border.all(
-                color: CustomTheme.of(context).focusColor.withOpacity(0.5),
+                color: CustomTheme
+                    .of(context)
+                    .focusColor
+                    .withOpacity(0.5),
                 width: 1.0),
             borderRadius: BorderRadius.circular(5.0),
             color: Colors.transparent,
@@ -2871,141 +3190,158 @@ class _SellTradeScreenState extends State<TradeScreen>
             children: [
               Flexible(
                   child: Container(
-                height: 40.0,
-                child: TextField(
-                  controller: amountController,
-                  keyboardType:
+                    height: 40.0,
+                    child: TextField(
+                      controller: amountController,
+                      keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  style: CustomWidget(context: context).CustomSizedTextStyle(
-                      13.0,
-                      Theme.of(context).focusColor,
-                      FontWeight.w500,
-                      'FontRegular'),
-                  onChanged: (value) {
-                    setState(() {
-                      price = "0.0";
-                      // price = value.toString();
-                      totalAmount = "0.00";
+                      style: CustomWidget(context: context)
+                          .CustomSizedTextStyle(
+                          13.0,
+                          Theme
+                              .of(context)
+                              .focusColor,
+                          FontWeight.w500,
+                          'FontRegular'),
+                      onChanged: (value) {
+                        setState(() {
+                          price = "0.0";
+                          // price = value.toString();
+                          totalAmount = "0.00";
 
-                      if (enableTrade) {
-                        if (amountController.text.isNotEmpty) {
-                          totalAmount =
-                              (double.parse(amountController.text.toString()) *
+                          if (enableTrade) {
+                            if (amountController.text.isNotEmpty) {
+                              totalAmount =
+                                  (double.parse(
+                                      amountController.text.toString()) *
                                       double.parse(livePrice))
-                                  .toStringAsFixed(4);
-                        }
-                      } else {
-                        if (amountController.text.isNotEmpty) {
-                          double amount = double.parse(amountController.text);
-                          if (amount >= 0) {
-                            tradeAmount = amountController.text;
-                            if (enableStopLimit) {
-                              if (stopPriceController.text.isNotEmpty &&
-                                  priceController.text.isNotEmpty) {
-                                if ((double.parse(
+                                      .toStringAsFixed(decimal_val);
+                            }
+                          } else {
+                            if (amountController.text.isNotEmpty) {
+                              double amount = double.parse(
+                                  amountController.text);
+                              if (amount >= 0) {
+                                tradeAmount = amountController.text;
+                                if (enableStopLimit) {
+                                  if (stopPriceController.text.isNotEmpty &&
+                                      priceController.text.isNotEmpty) {
+                                    if ((double.parse(
                                         priceController.text.toString()) >
-                                    double.parse(
-                                        stopPriceController.text.toString()))) {
-                                  takerFee =
-                                      ((double.parse(priceController.text
-                                                      .toString()) *
-                                                  double.parse(amountController
-                                                      .text
-                                                      .toString()) *
-                                                  double.parse(takerFeeValue
-                                                      .toString())) /
+                                        double.parse(
+                                            stopPriceController.text
+                                                .toString()))) {
+                                      takerFee =
+                                          ((double.parse(priceController.text
+                                              .toString()) *
+                                              double.parse(amountController
+                                                  .text
+                                                  .toString()) *
+                                              double.parse(takerFeeValue
+                                                  .toString())) /
                                               100)
-                                          .toStringAsFixed(4);
+                                              .toStringAsFixed(decimal_val);
 
-                                  totalAmount = (double.parse(amountController
+                                      totalAmount =
+                                          (double.parse(amountController
                                               .text
                                               .toString()) *
-                                          double.parse(
-                                              priceController.text.toString()))
-                                      .toStringAsFixed(4);
-                                  /*  totalAmount = ((double.parse(
+                                              double.parse(
+                                                  priceController.text
+                                                      .toString()))
+                                              .toStringAsFixed(decimal_val);
+                                      /*  totalAmount = ((double.parse(
                                     priceController.text
                                         .toString()) *
                                     double.parse(amountController
                                         .text
                                         .toString())) -
                                     double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
-                                } else {
-                                  takerFee = ((double.parse(stopPriceController
-                                                  .text
-                                                  .toString()) *
+                                    .toStringAsFixed(decimal_val);*/
+                                    } else {
+                                      takerFee =
+                                          ((double.parse(stopPriceController
+                                              .text
+                                              .toString()) *
                                               double.parse(amountController.text
                                                   .toString()) *
                                               double.parse(
                                                   takerFeeValue.toString())) /
-                                          100)
-                                      .toStringAsFixed(4);
+                                              100)
+                                              .toStringAsFixed(decimal_val);
 
-                                  totalAmount = (double.parse(amountController
+                                      totalAmount =
+                                          (double.parse(amountController
                                               .text
                                               .toString()) *
-                                          double.parse(livePrice))
-                                      .toStringAsFixed(4);
+                                              double.parse(livePrice))
+                                              .toStringAsFixed(decimal_val);
 
-                                  /*totalAmount = ((double.parse(
+                                      /*totalAmount = ((double.parse(
                                     stopPriceController.text
                                         .toString()) *
                                     double.parse(amountController
                                         .text
                                         .toString())) -
                                     double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
+                                    .toStringAsFixed(decimal_val);*/
+                                    }
+                                  }
+                                } else {
+                                  if (priceController.text.isNotEmpty) {
+                                    if (!buySell) {
+                                      takerFee = ((amount *
+                                          double.parse(priceController.text
+                                              .toString()) *
+                                          double.parse(
+                                              takerFeeValue.toString())) /
+                                          100)
+                                          .toStringAsFixed(decimal_val);
+
+                                      totalAmount =
+                                          (double.parse(amountController
+                                              .text
+                                              .toString()) *
+                                              double.parse(
+                                                  priceController.text
+                                                      .toString()))
+                                              .toStringAsFixed(decimal_val);
+                                    } else {
+                                      totalAmount =
+                                          (double.parse(amountController
+                                              .text
+                                              .toString()) *
+                                              double.parse(
+                                                  priceController.text
+                                                      .toString()))
+                                              .toStringAsFixed(decimal_val);
+                                    }
+                                  }
                                 }
                               }
                             } else {
-                              if (priceController.text.isNotEmpty) {
-                                if (!buySell) {
-                                  takerFee = ((amount *
-                                              double.parse(priceController.text
-                                                  .toString()) *
-                                              double.parse(
-                                                  takerFeeValue.toString())) /
-                                          100)
-                                      .toStringAsFixed(4);
-
-                                  totalAmount = (double.parse(amountController
-                                              .text
-                                              .toString()) *
-                                          double.parse(
-                                              priceController.text.toString()))
-                                      .toStringAsFixed(4);
-                                } else {
-                                  totalAmount = (double.parse(amountController
-                                              .text
-                                              .toString()) *
-                                          double.parse(
-                                              priceController.text.toString()))
-                                      .toStringAsFixed(4);
-                                }
-                              }
+                              tradeAmount = amountController.text;
+                              totalAmount = "0.000";
                             }
                           }
-                        } else {
-                          tradeAmount = amountController.text;
-                          totalAmount = "0.000";
-                        }
-                      }
-                    });
-                  },
-                  decoration: InputDecoration(
-                      contentPadding: EdgeInsets.only(bottom: 8.0),
-                      hintText: "Quantity",
-                      hintStyle: CustomWidget(context: context)
-                          .CustomSizedTextStyle(
+                        });
+                      },
+                      decoration: InputDecoration(
+                          contentPadding: EdgeInsets.only(bottom: 8.0),
+                          hintText: "Quantity",
+                          hintStyle: CustomWidget(context: context)
+                              .CustomSizedTextStyle(
                               12.0,
-                              Theme.of(context).focusColor.withOpacity(0.5),
+                              Theme
+                                  .of(context)
+                                  .focusColor
+                                  .withOpacity(0.5),
                               FontWeight.w500,
                               'FontRegular'),
-                      border: InputBorder.none),
-                  textAlign: TextAlign.start,
-                ),
-              )),
+                          border: InputBorder.none),
+                      textAlign: TextAlign.start,
+                    ),
+                  )),
 
               const SizedBox(
                 width: 2.0,
@@ -3074,14 +3410,14 @@ class _SellTradeScreenState extends State<TradeScreen>
         //                                             double.parse(takerFeeValue
         //                                                 .toString())) /
         //                                         100)
-        //                                     .toStringAsFixed(4);
+        //                                     .toStringAsFixed(decimal_val);
         //
         //                             totalAmount = (double.parse(priceController
         //                                         .text
         //                                         .toString()) *
         //                                     double.parse(amountController.text
         //                                         .toString()))
-        //                                 .toStringAsFixed(4);
+        //                                 .toStringAsFixed(decimal_val);
         //                           } else {
         //                             takerFee = ((double.parse(
         //                                             stopPriceController.text
@@ -3092,14 +3428,14 @@ class _SellTradeScreenState extends State<TradeScreen>
         //                                         double.parse(
         //                                             takerFeeValue.toString())) /
         //                                     100)
-        //                                 .toStringAsFixed(4);
+        //                                 .toStringAsFixed(decimal_val);
         //
         //                             totalAmount = (double.parse(
         //                                         stopPriceController.text
         //                                             .toString()) *
         //                                     double.parse(amountController.text
         //                                         .toString()))
-        //                                 .toStringAsFixed(4);
+        //                                 .toStringAsFixed(decimal_val);
         //                           }
         //                         } else {
         //                           if ((double.parse(
@@ -3115,14 +3451,14 @@ class _SellTradeScreenState extends State<TradeScreen>
         //                                             double.parse(takerFeeValue
         //                                                 .toString())) /
         //                                         100)
-        //                                     .toStringAsFixed(4);
+        //                                     .toStringAsFixed(decimal_val);
         //
         //                             totalAmount = (double.parse(priceController
         //                                         .text
         //                                         .toString()) *
         //                                     double.parse(amountController.text
         //                                         .toString()))
-        //                                 .toStringAsFixed(4);
+        //                                 .toStringAsFixed(decimal_val);
         //                             ;
         //                           } else {
         //                             takerFee = ((double.parse(amountController
@@ -3134,14 +3470,14 @@ class _SellTradeScreenState extends State<TradeScreen>
         //                                         double.parse(
         //                                             takerFeeValue.toString())) /
         //                                     100)
-        //                                 .toStringAsFixed(4);
+        //                                 .toStringAsFixed(decimal_val);
         //
         //                             totalAmount = (double.parse(
         //                                         stopPriceController.text
         //                                             .toString()) *
         //                                     double.parse(amountController.text
         //                                         .toString()))
-        //                                 .toStringAsFixed(4);
+        //                                 .toStringAsFixed(decimal_val);
         //                           }
         //                         }
         //                       }
@@ -3191,14 +3527,14 @@ class _SellTradeScreenState extends State<TradeScreen>
         //                                       double.parse(
         //                                           takerFeeValue.toString())) /
         //                                   100)
-        //                               .toStringAsFixed(4);
+        //                               .toStringAsFixed(decimal_val);
         //
         //                           totalAmount = (double.parse(
         //                                       stopPriceController.text
         //                                           .toString()) *
         //                                   double.parse(
         //                                       amountController.text.toString()))
-        //                               .toStringAsFixed(4);
+        //                               .toStringAsFixed(decimal_val);
         //                         } else {
         //                           totalAmount = "0.00";
         //                         }
@@ -3265,14 +3601,14 @@ class _SellTradeScreenState extends State<TradeScreen>
         //                                       double.parse(
         //                                           takerFeeValue.toString())) /
         //                                   100)
-        //                               .toStringAsFixed(4);
+        //                               .toStringAsFixed(decimal_val);
         //
         //                           totalAmount = (double.parse(
         //                                       stopPriceController.text
         //                                           .toString()) *
         //                                   double.parse(
         //                                       amountController.text.toString()))
-        //                               .toStringAsFixed(4);
+        //                               .toStringAsFixed(decimal_val);
         //                         } else {
         //                           // priceController.text = "0.01";
         //                           tradeAmount = "0.00";
@@ -3321,11 +3657,18 @@ class _SellTradeScreenState extends State<TradeScreen>
         Container(
           child: SliderTheme(
             data: SliderThemeData(
-              valueIndicatorColor: CustomTheme.of(context).indicatorColor,
+              valueIndicatorColor: CustomTheme
+                  .of(context)
+                  .indicatorColor,
               trackHeight: 10.0,
-              activeTickMarkColor: CustomTheme.of(context).focusColor,
+              activeTickMarkColor: CustomTheme
+                  .of(context)
+                  .focusColor,
               inactiveTickMarkColor:
-                  CustomTheme.of(context).focusColor.withOpacity(0.5),
+              CustomTheme
+                  .of(context)
+                  .focusColor
+                  .withOpacity(0.5),
               tickMarkShape: RoundSliderTickMarkShape(tickMarkRadius: 5.0),
               trackShape: CustomTrackShape(),
               thumbShape: RoundSliderThumbShape(enabledThumbRadius: 5),
@@ -3336,10 +3679,16 @@ class _SellTradeScreenState extends State<TradeScreen>
               max: 100,
               divisions: 4,
               label: tleverageVal,
-              inactiveColor: CustomTheme.of(context).focusColor,
+              inactiveColor: CustomTheme
+                  .of(context)
+                  .focusColor,
               activeColor: buySell
-                  ? CustomTheme.of(context).indicatorColor
-                  : CustomTheme.of(context).hoverColor,
+                  ? CustomTheme
+                  .of(context)
+                  .indicatorColor
+                  : CustomTheme
+                  .of(context)
+                  .hoverColor,
               onChanged: (double value) {
                 setState(() {
                   _currentSliderValue = value;
@@ -3347,52 +3696,55 @@ class _SellTradeScreenState extends State<TradeScreen>
                     _tLevSliderValue = _currentSliderValue.toInt();
                     print(_tLevSliderValue);
                     setState(() {
-                      if (_tLevSliderValue == 25) {
-                        tleverageVal = "25";
-                      } else if (_tLevSliderValue == 50) {
-                        tleverageVal = "50";
-                      } else if (_tLevSliderValue == 75) {
-                        tleverageVal = "75";
-                      } else {
-                        tleverageVal = "100";
+                      if(marginOption==false) {
+                        if (_tLevSliderValue == 25) {
+                          tleverageVal = "25";
+                        } else if (_tLevSliderValue == 50) {
+                          tleverageVal = "50";
+                        } else if (_tLevSliderValue == 75) {
+                          tleverageVal = "75";
+                        } else {
+                          tleverageVal = "100";
+                        }
                       }
                     });
                     int val = _currentSliderValue.toInt();
                     setState(() {
                       priceController.clear();
                       amountController.clear();
-                      if (spotOption) {
-                        if (!enableTrade) {
+                      // if (spotOption || marginOption) {
+                        //if (!enableTrade) {
                           priceController.text = livePrice;
-                        }
+                        //}
                         if (double.parse(livePrice) > 0) {
                           if (buySell) {
                             double perce = ((double.parse(balance) * val) /
-                                    double.parse(priceController.text)) /
+                                double.parse(priceController.text)) /
                                 100;
 
                             amountController.text =
                                 double.parse(perce.toString())
-                                    .toStringAsFixed(4);
+                                    .toStringAsFixed(decimal_val);
                             double a = double.parse(perce
                                 .toString()); // this is the value in my first text field (This is the percentage rate i intend to use)
                             double b = double.parse(livePrice);
                             totalAmount = double.parse((a * b).toString())
-                                .toStringAsFixed(4);
+                                .toStringAsFixed(decimal_val);
                           } else {
-                            double perce = (double.parse(balance) * val) / 100;
+                            double perce = ((double.parse(balance) * val)/
+                                double.parse(priceController.text)) / 100;
 
                             amountController.text =
                                 double.parse(perce.toString())
-                                    .toStringAsFixed(4);
+                                    .toStringAsFixed(decimal_val);
                             double a = double.parse(perce
                                 .toString()); // this is the value in my first text field (This is the percentage rate i intend to use)
                             double b = double.parse(livePrice);
                             totalAmount = double.parse((a * b).toString())
-                                .toStringAsFixed(4);
+                                .toStringAsFixed(decimal_val);
                           }
                         }
-                      }
+                      //}
                     });
                   } else {
                     amountController.text = "0.00";
@@ -3406,6 +3758,61 @@ class _SellTradeScreenState extends State<TradeScreen>
             ),
           ),
         ),
+        marginOption?Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,children: [
+          Flexible(child:GestureDetector(onTap: () {
+            setState(() {
+              tleverageVal="2";
+            });
+          },child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
+              color: tleverageVal=="2"?Theme.of(context).indicatorColor:Theme.of(context).dividerColor),padding: EdgeInsets.all(10),child: Text("2%",style:CustomWidget(context: context)
+              .CustomSizedTextStyle(
+              10.0,
+              Theme
+                  .of(context)
+                  .focusColor,
+              FontWeight.w400,
+              'FontRegular'),),),),),
+          Flexible(child:GestureDetector(onTap: () {
+            setState(() {
+              tleverageVal="5";
+            });
+          },child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
+              color: tleverageVal=="5"?Theme.of(context).indicatorColor:Theme.of(context).dividerColor),padding: EdgeInsets.all(10),child: Text("5%",style:CustomWidget(context: context)
+              .CustomSizedTextStyle(
+              10.0,
+              Theme
+                  .of(context)
+                  .focusColor,
+              FontWeight.w400,
+              'FontRegular'),),),),),
+          Flexible(child:GestureDetector(onTap: () {
+            setState(() {
+              tleverageVal="8";
+            });
+          },child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
+              color: tleverageVal=="8"?Theme.of(context).indicatorColor:Theme.of(context).dividerColor),padding: EdgeInsets.all(10),child: Text("8%",style:CustomWidget(context: context)
+              .CustomSizedTextStyle(
+              10.0,
+              Theme
+                  .of(context)
+                  .focusColor,
+              FontWeight.w400,
+              'FontRegular'),),),),),
+          Flexible(child: GestureDetector(onTap: () {
+            setState(() {
+              tleverageVal="10";
+            });
+          },child:Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
+              color: tleverageVal=="10"?Theme.of(context).indicatorColor:Theme.of(context).dividerColor),padding: EdgeInsets.all(10),child: Text("10%",style:CustomWidget(context: context)
+              .CustomSizedTextStyle(
+              10.0,
+              Theme
+                  .of(context)
+                  .focusColor,
+              FontWeight.w400,
+              'FontRegular'),),),),),
+        ],):Container(),
+        marginOption?const SizedBox(height: 15,):SizedBox(),
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.start,
@@ -3413,13 +3820,17 @@ class _SellTradeScreenState extends State<TradeScreen>
             SizedBox(
               child: Transform.scale(
                 scale: 0.8,
-                child:  Checkbox(
+                child: Checkbox(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(5.0),
                   ),
                   value: tpslCheck,
-                  activeColor: Theme.of(context).focusColor,
-                  checkColor: Theme.of(context).primaryColorDark,
+                  activeColor: Theme
+                      .of(context)
+                      .focusColor,
+                  checkColor: Theme
+                      .of(context)
+                      .primaryColorDark,
                   onChanged: (bool? value) {
                     setState(() {
                       tpslCheck = value!;
@@ -3440,7 +3851,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                 style: CustomWidget(context: context)
                     .CustomSizedTextStyle(
                     12.0,
-                    Theme.of(context).disabledColor,
+                    Theme
+                        .of(context)
+                        .disabledColor,
                     FontWeight.w400,
                     'FontRegular'),
               ),
@@ -3451,7 +3864,7 @@ class _SellTradeScreenState extends State<TradeScreen>
         const SizedBox(
           height: 5.0,
         ),
-        tpslCheck? Container(
+        tpslCheck ? Container(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.start,
@@ -3461,8 +3874,14 @@ class _SellTradeScreenState extends State<TradeScreen>
                 decoration: BoxDecoration(
                   border: Border.all(
                       color: enableTrade
-                          ? Theme.of(context).focusColor.withOpacity(0.1)
-                          : CustomTheme.of(context).focusColor.withOpacity(0.5),
+                          ? Theme
+                          .of(context)
+                          .focusColor
+                          .withOpacity(0.1)
+                          : CustomTheme
+                          .of(context)
+                          .focusColor
+                          .withOpacity(0.5),
                       width: 1.0),
                   borderRadius: BorderRadius.circular(5.0),
                   color: Colors.transparent,
@@ -3478,10 +3897,14 @@ class _SellTradeScreenState extends State<TradeScreen>
                             enabled: !enableTrade,
                             controller: tppriceController,
                             keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
-                            style: CustomWidget(context: context).CustomSizedTextStyle(
+                            const TextInputType.numberWithOptions(
+                                decimal: true),
+                            style: CustomWidget(context: context)
+                                .CustomSizedTextStyle(
                                 13.0,
-                                Theme.of(context).focusColor,
+                                Theme
+                                    .of(context)
+                                    .focusColor,
                                 FontWeight.w500,
                                 'FontRegular'),
                             onChanged: (value) {
@@ -3506,13 +3929,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 //             double.parse(
                                 //                 takerFeeValue.toString())) /
                                 //             100)
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 priceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //       } else {
                                 //         takerFee = ((double.parse(stopPriceController.text
@@ -3522,13 +3945,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 //             double.parse(
                                 //                 takerFeeValue.toString())) /
                                 //             100)
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 stopPriceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //
                                 //       }
@@ -3542,19 +3965,19 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 //             double.parse(
                                 //                 takerFeeValue.toString())) /
                                 //             100)
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 priceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //       } else {
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 priceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //       }
                                 //     }
                                 //   }
@@ -3571,7 +3994,10 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 hintStyle: CustomWidget(context: context)
                                     .CustomSizedTextStyle(
                                     12.0,
-                                    Theme.of(context).focusColor.withOpacity(0.5),
+                                    Theme
+                                        .of(context)
+                                        .focusColor
+                                        .withOpacity(0.5),
                                     FontWeight.w500,
                                     'FontRegular'),
                                 border: InputBorder.none),
@@ -3605,13 +4031,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                                   double.parse(
                     //                                       takerFeeValue.toString())) /
                     //                               100)
-                    //                           .toStringAsFixed(4);
+                    //                           .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                   /*  totalAmount = ((double.parse(
                     //                       priceController.text
                     //                           .toString()) *
@@ -3619,7 +4045,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 } else {
                     //                   takerFee = ((double.parse(stopPriceController
                     //                                   .text
@@ -3629,12 +4055,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(livePrice))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   /*totalAmount = ((double.parse(
                     //                       stopPriceController.text
@@ -3643,7 +4069,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 }
                     //               }
                     //             } else {
@@ -3655,19 +4081,19 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 } else {
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 }
                     //               }
                     //             }
@@ -3739,13 +4165,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                                   double.parse(
                     //                                       takerFeeValue.toString())) /
                     //                               100)
-                    //                           .toStringAsFixed(4);
+                    //                           .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                   /*  totalAmount = ((double.parse(
                     //                       priceController.text
                     //                           .toString()) *
@@ -3753,7 +4179,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 } else {
                     //                   takerFee = ((double.parse(stopPriceController
                     //                                   .text
@@ -3763,12 +4189,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(livePrice))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   /*totalAmount = ((double.parse(
                     //                       stopPriceController.text
@@ -3777,7 +4203,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 }
                     //               }
                     //             } else {
@@ -3789,19 +4215,19 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 } else {
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 }
                     //               }
                     //             }
@@ -3854,8 +4280,14 @@ class _SellTradeScreenState extends State<TradeScreen>
                 decoration: BoxDecoration(
                   border: Border.all(
                       color: enableTrade
-                          ? Theme.of(context).focusColor.withOpacity(0.1)
-                          : CustomTheme.of(context).focusColor.withOpacity(0.5),
+                          ? Theme
+                          .of(context)
+                          .focusColor
+                          .withOpacity(0.1)
+                          : CustomTheme
+                          .of(context)
+                          .focusColor
+                          .withOpacity(0.5),
                       width: 1.0),
                   borderRadius: BorderRadius.circular(5.0),
                   color: Colors.transparent,
@@ -3871,10 +4303,14 @@ class _SellTradeScreenState extends State<TradeScreen>
                             enabled: !enableTrade,
                             controller: slpriceController,
                             keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
-                            style: CustomWidget(context: context).CustomSizedTextStyle(
+                            const TextInputType.numberWithOptions(
+                                decimal: true),
+                            style: CustomWidget(context: context)
+                                .CustomSizedTextStyle(
                                 13.0,
-                                Theme.of(context).focusColor,
+                                Theme
+                                    .of(context)
+                                    .focusColor,
                                 FontWeight.w500,
                                 'FontRegular'),
                             onChanged: (value) {
@@ -3899,13 +4335,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 //             double.parse(
                                 //                 takerFeeValue.toString())) /
                                 //             100)
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 priceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //       } else {
                                 //         takerFee = ((double.parse(stopPriceController.text
@@ -3915,13 +4351,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 //             double.parse(
                                 //                 takerFeeValue.toString())) /
                                 //             100)
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 stopPriceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //
                                 //       }
@@ -3935,19 +4371,19 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 //             double.parse(
                                 //                 takerFeeValue.toString())) /
                                 //             100)
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 priceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //       } else {
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 priceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //       }
                                 //     }
                                 //   }
@@ -3964,7 +4400,10 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 hintStyle: CustomWidget(context: context)
                                     .CustomSizedTextStyle(
                                     12.0,
-                                    Theme.of(context).focusColor.withOpacity(0.5),
+                                    Theme
+                                        .of(context)
+                                        .focusColor
+                                        .withOpacity(0.5),
                                     FontWeight.w500,
                                     'FontRegular'),
                                 border: InputBorder.none),
@@ -3998,13 +4437,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                                   double.parse(
                     //                                       takerFeeValue.toString())) /
                     //                               100)
-                    //                           .toStringAsFixed(4);
+                    //                           .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                   /*  totalAmount = ((double.parse(
                     //                       priceController.text
                     //                           .toString()) *
@@ -4012,7 +4451,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 } else {
                     //                   takerFee = ((double.parse(stopPriceController
                     //                                   .text
@@ -4022,12 +4461,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(livePrice))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   /*totalAmount = ((double.parse(
                     //                       stopPriceController.text
@@ -4036,7 +4475,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 }
                     //               }
                     //             } else {
@@ -4048,19 +4487,19 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 } else {
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 }
                     //               }
                     //             }
@@ -4132,13 +4571,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                                   double.parse(
                     //                                       takerFeeValue.toString())) /
                     //                               100)
-                    //                           .toStringAsFixed(4);
+                    //                           .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                   /*  totalAmount = ((double.parse(
                     //                       priceController.text
                     //                           .toString()) *
@@ -4146,7 +4585,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 } else {
                     //                   takerFee = ((double.parse(stopPriceController
                     //                                   .text
@@ -4156,12 +4595,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(livePrice))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   /*totalAmount = ((double.parse(
                     //                       stopPriceController.text
@@ -4170,7 +4609,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 }
                     //               }
                     //             } else {
@@ -4182,19 +4621,19 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 } else {
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 }
                     //               }
                     //             }
@@ -4253,14 +4692,19 @@ class _SellTradeScreenState extends State<TradeScreen>
               "Available",
               style: CustomWidget(context: context).CustomSizedTextStyle(
                   12.0,
-                  Theme.of(context).focusColor.withOpacity(0.5),
+                  Theme
+                      .of(context)
+                      .focusColor
+                      .withOpacity(0.5),
                   FontWeight.w500,
                   'FontRegular'),
             ),
             Text(
-              double.parse(balance).toStringAsFixed(4),
+              double.parse(balance).toStringAsFixed(decimal_val),
               style: CustomWidget(context: context).CustomSizedTextStyle(11.5,
-                  Theme.of(context).focusColor, FontWeight.w500, 'FontRegular'),
+                  Theme
+                      .of(context)
+                      .focusColor, FontWeight.w500, 'FontRegular'),
             ),
           ],
         ),
@@ -4274,12 +4718,16 @@ class _SellTradeScreenState extends State<TradeScreen>
             Text(
               "Live Price",
               style: CustomWidget(context: context).CustomSizedTextStyle(12.0,
-                  Theme.of(context).focusColor, FontWeight.bold, 'FontRegular'),
+                  Theme
+                      .of(context)
+                      .focusColor, FontWeight.bold, 'FontRegular'),
             ),
             Text(
-              livePrice ,
+              livePrice,
               style: CustomWidget(context: context).CustomSizedTextStyle(11.5,
-                  Theme.of(context).focusColor, FontWeight.w500, 'FontRegular'),
+                  Theme
+                      .of(context)
+                      .focusColor, FontWeight.w500, 'FontRegular'),
             ),
           ],
         ),
@@ -4290,7 +4738,10 @@ class _SellTradeScreenState extends State<TradeScreen>
           padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
           decoration: BoxDecoration(
             border: Border.all(
-                color: CustomTheme.of(context).focusColor.withOpacity(0.5),
+                color: CustomTheme
+                    .of(context)
+                    .focusColor
+                    .withOpacity(0.5),
                 width: 1.0),
             borderRadius: BorderRadius.circular(5.0),
             color: Colors.transparent,
@@ -4299,10 +4750,12 @@ class _SellTradeScreenState extends State<TradeScreen>
             child: Padding(
               padding: EdgeInsets.fromLTRB(0.0, 10.0, 0.0, 10.0),
               child: Text(
-                totalAmount ,
+                totalAmount,
                 style: CustomWidget(context: context).CustomSizedTextStyle(
                     13.0,
-                    Theme.of(context).focusColor,
+                    Theme
+                        .of(context)
+                        .focusColor,
                     FontWeight.w500,
                     'FontRegular'),
               ),
@@ -4317,14 +4770,15 @@ class _SellTradeScreenState extends State<TradeScreen>
             setState(() {
               if (enableTrade) {
                 if (amountController.text.isNotEmpty) {
-                  if(tpslCheck){
-                    if(tppriceController.text.isNotEmpty){
-                      if(slpriceController.text.isNotEmpty){
-                        if (double.parse(balance) >= double.parse(totalAmount)) {
-                          if(traderType=="user"){
+                  if (tpslCheck) {
+                    if (tppriceController.text.isNotEmpty) {
+                      if (slpriceController.text.isNotEmpty) {
+                        if (double.parse(balance) >=
+                            double.parse(totalAmount)) {
+                          if (traderType == "user") {
                             loading = true;
                             tradeDetails();
-                          }else{
+                          } else {
                             loading = true;
                             massTradeDetails();
                           }
@@ -4333,7 +4787,6 @@ class _SellTradeScreenState extends State<TradeScreen>
                           CustomWidget(context: context).showSuccessAlertDialog(
                               "Trade", "Insufficient Balance", "error");
                         }
-
                       } else {
                         CustomWidget(context: context).showSuccessAlertDialog(
                             "Trade", "Enter Stop Loss Price", "error");
@@ -4344,13 +4797,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                     }
                   }
                   else if (double.parse(balance) >= double.parse(totalAmount)) {
-                   if(traderType=="user"){
-                     loading = true;
-                     tradeDetails();
-                   }else{
-                     loading = true;
-                     massTradeDetails();
-                   }
+                    if (traderType == "user") {
+                      loading = true;
+                      tradeDetails();
+                    } else {
+                      loading = true;
+                      massTradeDetails();
+                    }
                   }
                   else {
                     CustomWidget(context: context).showSuccessAlertDialog(
@@ -4363,23 +4816,25 @@ class _SellTradeScreenState extends State<TradeScreen>
               } else {
                 if (priceController.text.isNotEmpty) {
                   if (amountController.text.isNotEmpty) {
-                    if(tpslCheck){
-                      if(tppriceController.text.isNotEmpty){
-                        if(slpriceController.text.isNotEmpty){
-                          if (double.parse(balance) >= double.parse(totalAmount)) {
-                            if(traderType=="user"){
+                    if (tpslCheck) {
+                      if (tppriceController.text.isNotEmpty) {
+                        if (slpriceController.text.isNotEmpty) {
+                          if (double.parse(balance) >= double.parse(
+                              totalAmount)) {
+                            if (traderType == "user") {
+                              print("trade type$tradeType");
                               loading = true;
                               tradeDetails();
-                            }else{
+                            } else {
                               loading = true;
                               massTradeDetails();
                             }
                           }
                           else {
-                            CustomWidget(context: context).showSuccessAlertDialog(
+                            CustomWidget(context: context)
+                                .showSuccessAlertDialog(
                                 "Trade", "Insufficient Balance", "error");
                           }
-
                         } else {
                           CustomWidget(context: context).showSuccessAlertDialog(
                               "Trade", "Enter Stop Loss Price", "error");
@@ -4389,11 +4844,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                             "Trade", "Enter Take Profit Price", "error");
                       }
                     }
-                    else if (double.parse(balance) >= double.parse(totalAmount)) {
-                      if(traderType=="user"){
+                    else
+                    if (double.parse(balance) >= double.parse(totalAmount)) {
+                      if (traderType == "user") {
+                        print("trade type1${tradeType}");
                         loading = true;
                         tradeDetails();
-                      }else{
+                      } else {
                         loading = true;
                         massTradeDetails();
                       }
@@ -4411,16 +4868,24 @@ class _SellTradeScreenState extends State<TradeScreen>
                       "Trade", "Enter Trade Price", "error");
                 }
               }
+              buySell?getBalance(firstCoin):getBalance(secondCoin);
             });
           },
           child: Container(
-              width: MediaQuery.of(context).size.width,
+              width: MediaQuery
+                  .of(context)
+                  .size
+                  .width,
               padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(35.0),
                 color: buySell
-                    ? CustomTheme.of(context).indicatorColor
-                    : CustomTheme.of(context).hoverColor,
+                    ? CustomTheme
+                    .of(context)
+                    .indicatorColor
+                    : CustomTheme
+                    .of(context)
+                    .hoverColor,
               ),
               child: Center(
                 child: Text(
@@ -4429,7 +4894,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                       : AppLocalizations.instance.text("loc_sell_trade_txt6"),
                   style: CustomWidget(context: context).CustomSizedTextStyle(
                       14.0,
-                      Theme.of(context).focusColor,
+                      Theme
+                          .of(context)
+                          .focusColor,
                       FontWeight.w500,
                       'FontRegular'),
                 ),
@@ -4490,79 +4957,89 @@ class _SellTradeScreenState extends State<TradeScreen>
                             bottomRight: Radius.circular(5),
                           ),
                           color: buySell
-                              ? CustomTheme.of(context).indicatorColor
+                              ? CustomTheme
+                              .of(context)
+                              .indicatorColor
                               : Colors.transparent),
                       child: Center(
                           child: Padding(
-                        padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
-                        child: Text(
-                          "Open",
-                          style: CustomWidget(context: context)
-                              .CustomSizedTextStyle(
+                            padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
+                            child: Text(
+                              "Open",
+                              style: CustomWidget(context: context)
+                                  .CustomSizedTextStyle(
                                   13.0,
                                   buySell
-                                      ? CustomTheme.of(context).focusColor
-                                      : CustomTheme.of(context)
-                                          .focusColor
-                                          .withOpacity(0.5),
+                                      ? CustomTheme
+                                      .of(context)
+                                      .focusColor
+                                      : CustomTheme
+                                      .of(context)
+                                      .focusColor
+                                      .withOpacity(0.5),
                                   FontWeight.w500,
                                   'FontRegular'),
-                        ),
-                      ))),
+                            ),
+                          ))),
                 ),
               ),
               Flexible(
                   child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    buySell = false;
-                  });
-                  // print("Test");
-                  setState(() {
-                    buySell = false;
-                    amountController.clear();
-                    priceController.clear();
-                    stopPriceController.clear();
-                    totalAmount = "0.0";
-                    _currentSliderValue = 0;
-                    tleverageVal = "1";
-                    FuturefirstCoin =
-                        futureselectPair!.symbol.toString();
-                    FuturesecondCoin =
-                        futureselectPair!.symbol.toString();
+                    onTap: () {
+                      setState(() {
+                        buySell = false;
+                      });
+                      // print("Test");
+                      setState(() {
+                        buySell = false;
+                        amountController.clear();
+                        priceController.clear();
+                        stopPriceController.clear();
+                        totalAmount = "0.0";
+                        _currentSliderValue = 0;
+                        tleverageVal = "1";
+                        FuturefirstCoin =
+                            futureselectPair!.symbol.toString();
+                        FuturesecondCoin =
+                            futureselectPair!.symbol.toString();
 
-                    getBalance(FuturefirstCoin);
-                  });
-                },
-                child: Container(
-                    decoration: BoxDecoration(
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(5),
-                          topRight: Radius.circular(5),
-                          bottomLeft: Radius.circular(5),
-                          bottomRight: Radius.circular(5),
-                        ),
-                        color: !buySell
-                            ? CustomTheme.of(context).hoverColor
-                            : Colors.transparent),
-                    child: Center(
-                        child: Padding(
-                      padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
-                      child: Text(
-                        "Close",
-                        style: CustomWidget(context: context)
-                            .CustomSizedTextStyle(
-                                13.0,
-                                !buySell
-                                    ? CustomTheme.of(context).focusColor
-                                    : CustomTheme.of(context)
+                        getBalance(FuturefirstCoin);
+                      });
+                    },
+                    child: Container(
+                        decoration: BoxDecoration(
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(5),
+                              topRight: Radius.circular(5),
+                              bottomLeft: Radius.circular(5),
+                              bottomRight: Radius.circular(5),
+                            ),
+                            color: !buySell
+                                ? CustomTheme
+                                .of(context)
+                                .hoverColor
+                                : Colors.transparent),
+                        child: Center(
+                            child: Padding(
+                              padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
+                              child: Text(
+                                "Close",
+                                style: CustomWidget(context: context)
+                                    .CustomSizedTextStyle(
+                                    13.0,
+                                    !buySell
+                                        ? CustomTheme
+                                        .of(context)
+                                        .focusColor
+                                        : CustomTheme
+                                        .of(context)
                                         .focusColor
                                         .withOpacity(0.5),
-                                FontWeight.w500,
-                                'FontRegular'),
-                      ),
-                    ))),
-              ))
+                                    FontWeight.w500,
+                                    'FontRegular'),
+                              ),
+                            ))),
+                  ))
             ],
           ),
         ),
@@ -4603,77 +5080,85 @@ class _SellTradeScreenState extends State<TradeScreen>
                             bottomRight: Radius.circular(5),
                           ),
                           color: futurelong
-                              ? CustomTheme.of(context).indicatorColor
+                              ? CustomTheme
+                              .of(context)
+                              .indicatorColor
                               : Colors.transparent),
                       child: Center(
                           child: Padding(
-                        padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
-                        child: Text(
-                          "Long",
-                          style: CustomWidget(context: context)
-                              .CustomSizedTextStyle(
+                            padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
+                            child: Text(
+                              "Long",
+                              style: CustomWidget(context: context)
+                                  .CustomSizedTextStyle(
                                   13.0,
                                   futurelong
-                                      ? CustomTheme.of(context).focusColor
-                                      : CustomTheme.of(context)
-                                          .focusColor
-                                          .withOpacity(0.5),
+                                      ? CustomTheme
+                                      .of(context)
+                                      .focusColor
+                                      : CustomTheme
+                                      .of(context)
+                                      .focusColor
+                                      .withOpacity(0.5),
                                   FontWeight.w500,
                                   'FontRegular'),
-                        ),
-                      ))),
+                            ),
+                          ))),
                 ),
               ),
               Flexible(
                   child: GestureDetector(
-                onTap: () {
-                  setState(() {
-                    futurelong = false;
+                    onTap: () {
+                      setState(() {
+                        futurelong = false;
 
-                    amountController.clear();
-                    priceController.clear();
-                    stopPriceController.clear();
-                    totalAmount = "0.0";
-                    _currentSliderValue = 0;
-                    tleverageVal = "1";
-                    // getCoinDetailsList(selectPair!.id.toString());
-                    FuturefirstCoin =
-                        futureselectPair!.symbol.toString();
-                    FuturefirstCoin =
-                        futureselectPair!.symbol.toString();
-
-
-                  });
-                },
-                child: Container(
-                    decoration: BoxDecoration(
-                        borderRadius: BorderRadius.only(
-                          topLeft: Radius.circular(5),
-                          topRight: Radius.circular(5),
-                          bottomLeft: Radius.circular(5),
-                          bottomRight: Radius.circular(5),
-                        ),
-                        color: !futurelong
-                            ? CustomTheme.of(context).hoverColor
-                            : Colors.transparent),
-                    child: Center(
-                        child: Padding(
-                      padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
-                      child: Text(
-                        "Short",
-                        style: CustomWidget(context: context)
-                            .CustomSizedTextStyle(
-                                13.0,
-                                !futurelong
-                                    ? CustomTheme.of(context).focusColor
-                                    : CustomTheme.of(context)
+                        amountController.clear();
+                        priceController.clear();
+                        stopPriceController.clear();
+                        totalAmount = "0.0";
+                        _currentSliderValue = 0;
+                        tleverageVal = "1";
+                        // getCoinDetailsList(selectPair!.id.toString());
+                        FuturefirstCoin =
+                            futureselectPair!.symbol.toString();
+                        FuturefirstCoin =
+                            futureselectPair!.symbol.toString();
+                      });
+                    },
+                    child: Container(
+                        decoration: BoxDecoration(
+                            borderRadius: BorderRadius.only(
+                              topLeft: Radius.circular(5),
+                              topRight: Radius.circular(5),
+                              bottomLeft: Radius.circular(5),
+                              bottomRight: Radius.circular(5),
+                            ),
+                            color: !futurelong
+                                ? CustomTheme
+                                .of(context)
+                                .hoverColor
+                                : Colors.transparent),
+                        child: Center(
+                            child: Padding(
+                              padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
+                              child: Text(
+                                "Short",
+                                style: CustomWidget(context: context)
+                                    .CustomSizedTextStyle(
+                                    13.0,
+                                    !futurelong
+                                        ? CustomTheme
+                                        .of(context)
+                                        .focusColor
+                                        : CustomTheme
+                                        .of(context)
                                         .focusColor
                                         .withOpacity(0.5),
-                                FontWeight.w500,
-                                'FontRegular'),
-                      ),
-                    ))),
-              ))
+                                    FontWeight.w500,
+                                    'FontRegular'),
+                              ),
+                            ))),
+                  ))
             ],
           ),
         ),
@@ -4681,37 +5166,51 @@ class _SellTradeScreenState extends State<TradeScreen>
           height: 15.0,
         ),
         Container(
-          width: MediaQuery.of(context).size.width,
+          width: MediaQuery
+              .of(context)
+              .size
+              .width,
           height: 35.0,
           padding: EdgeInsets.fromLTRB(5, 0.0, 5, 0.0),
           decoration: BoxDecoration(
             border: Border.all(
-                color: CustomTheme.of(context).focusColor.withOpacity(0.5),
+                color: CustomTheme
+                    .of(context)
+                    .focusColor
+                    .withOpacity(0.5),
                 width: 1.0),
             borderRadius: BorderRadius.circular(5.0),
             color: Colors.transparent,
           ),
           child: Theme(
             data: Theme.of(context).copyWith(
-              canvasColor: CustomTheme.of(context).primaryColorLight,
+              canvasColor: CustomTheme
+                  .of(context)
+                  .primaryColorLight,
             ),
             child: DropdownButtonHideUnderline(
               child: DropdownButton(
-                menuMaxHeight: MediaQuery.of(context).size.height * 0.7,
+                menuMaxHeight: MediaQuery
+                    .of(context)
+                    .size
+                    .height * 0.7,
                 items: chartFutureTime
-                        .map((value) => DropdownMenuItem(
-                              child: Text(
-                                value.toString(),
-                                style: CustomWidget(context: context)
-                                    .CustomSizedTextStyle(
-                                        10.0,
-                                        Theme.of(context).focusColor,
-                                        FontWeight.w500,
-                                        'FontRegular'),
-                              ),
-                              value: value,
-                            ))
-                        .toList(),
+                    .map((value) =>
+                    DropdownMenuItem(
+                      child: Text(
+                        value.toString(),
+                        style: CustomWidget(context: context)
+                            .CustomSizedTextStyle(
+                            10.0,
+                            Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular'),
+                      ),
+                      value: value,
+                    ))
+                    .toList(),
                 onChanged: (value) async {
                   setState(() {
                     selectedFutureTime = value.toString();
@@ -4747,7 +5246,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                   "Select Category",
                   style: CustomWidget(context: context).CustomSizedTextStyle(
                       12.0,
-                      Theme.of(context).focusColor,
+                      Theme
+                          .of(context)
+                          .focusColor,
                       FontWeight.w500,
                       'FontRegular'),
                 ),
@@ -4755,7 +5256,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                 value: selectedTime,
                 icon: Icon(
                   Icons.arrow_drop_down,
-                  color: Theme.of(context).focusColor,
+                  color: Theme
+                      .of(context)
+                      .focusColor,
                 ),
               ),
             ),
@@ -4769,8 +5272,14 @@ class _SellTradeScreenState extends State<TradeScreen>
           decoration: BoxDecoration(
             border: Border.all(
                 color: enableTrade
-                    ? Theme.of(context).focusColor.withOpacity(0.1)
-                    : CustomTheme.of(context).focusColor.withOpacity(0.5),
+                    ? Theme
+                    .of(context)
+                    .focusColor
+                    .withOpacity(0.1)
+                    : CustomTheme
+                    .of(context)
+                    .focusColor
+                    .withOpacity(0.5),
                 width: 1.0),
             borderRadius: BorderRadius.circular(5.0),
             color: Colors.transparent,
@@ -4781,122 +5290,127 @@ class _SellTradeScreenState extends State<TradeScreen>
             children: [
               Flexible(
                   child: Container(
-                height: 40.0,
-                child: TextField(
-                  enabled: !enableTrade,
-                  controller: priceController,
-                  keyboardType:
+                    height: 40.0,
+                    child: TextField(
+                      enabled: !enableTrade,
+                      controller: priceController,
+                      keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  style: CustomWidget(context: context).CustomSizedTextStyle(
-                      13.0,
-                      Theme.of(context).focusColor,
-                      FontWeight.w500,
-                      'FontRegular'),
-                  onChanged: (value) {
-                    setState(() {
-                      price = "0.0";
-                      // price = value.toString();
-                      tradeAmount = "0.00";
+                      style: CustomWidget(context: context)
+                          .CustomSizedTextStyle(
+                          13.0,
+                          Theme
+                              .of(context)
+                              .focusColor,
+                          FontWeight.w500,
+                          'FontRegular'),
+                      onChanged: (value) {
+                        setState(() {
+                          price = "0.0";
+                          // price = value.toString();
+                          tradeAmount = "0.00";
 
-                      if (priceController.text.isNotEmpty) {
-                        double amount = double.parse(priceController.text);
-                        price = priceController.text;
-                        if (enableStopLimit) {
-                          if (priceController.text.isNotEmpty &&
-                              stopPriceController.text.isNotEmpty) {
-                            if ((double.parse(priceController.text.toString()) >
-                                double.parse(
-                                    stopPriceController.text.toString()))) {
-                              takerFee = ((double.parse(
-                                              priceController.text.toString()) *
-                                          double.parse(amountController.text
-                                              .toString()) *
-                                          double.parse(
-                                              takerFeeValue.toString())) /
+                          if (priceController.text.isNotEmpty) {
+                            double amount = double.parse(priceController.text);
+                            price = priceController.text;
+                            if (enableStopLimit) {
+                              if (priceController.text.isNotEmpty &&
+                                  stopPriceController.text.isNotEmpty) {
+                                if ((double.parse(
+                                    priceController.text.toString()) >
+                                    double.parse(
+                                        stopPriceController.text.toString()))) {
+                                  takerFee = ((double.parse(
+                                      priceController.text.toString()) *
+                                      double.parse(amountController.text
+                                          .toString()) *
+                                      double.parse(
+                                          takerFeeValue.toString())) /
                                       100)
-                                  .toStringAsFixed(4);
+                                      .toStringAsFixed(decimal_val);
 
-                              totalAmount = (double.parse(
-                                          amountController.text.toString()) *
+                                  totalAmount = (double.parse(
+                                      amountController.text.toString()) *
                                       double.parse(
                                           priceController.text.toString()))
-                                  .toStringAsFixed(4);
-
-                            } else {
-                              takerFee = ((double.parse(stopPriceController.text
-                                              .toString()) *
+                                      .toStringAsFixed(decimal_val);
+                                } else {
+                                  takerFee =
+                                      ((double.parse(stopPriceController.text
+                                          .toString()) *
                                           double.parse(amountController.text
                                               .toString()) *
                                           double.parse(
                                               takerFeeValue.toString())) /
-                                      100)
-                                  .toStringAsFixed(4);
+                                          100)
+                                          .toStringAsFixed(decimal_val);
 
-                              totalAmount = (double.parse(
-                                          amountController.text.toString()) *
+                                  totalAmount = (double.parse(
+                                      amountController.text.toString()) *
                                       double.parse(
                                           stopPriceController.text.toString()))
-                                  .toStringAsFixed(4);
+                                      .toStringAsFixed(decimal_val);
 
-                              /*totalAmount = ((double.parse(
+                                  /*totalAmount = ((double.parse(
                                     stopPriceController.text
                                         .toString()) *
                                     double.parse(amountController
                                         .text
                                         .toString())) -
                                     double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
-                            }
-                          }
-                        } else {
-                          if (priceController.text.isNotEmpty) {
-                            if (!buySell) {
-                              takerFee = ((amount *
-                                          double.parse(
-                                              priceController.text.toString()) *
-                                          double.parse(
-                                              takerFeeValue.toString())) /
-                                      100)
-                                  .toStringAsFixed(4);
-
-                              totalAmount = (double.parse(
-                                          amountController.text.toString()) *
-                                      double.parse(
-                                          priceController.text.toString()))
-                                  .toStringAsFixed(4);
+                                    .toStringAsFixed(decimal_val);*/
+                                }
+                              }
                             } else {
-                              totalAmount = (double.parse(
-                                          amountController.text.toString()) *
+                              if (priceController.text.isNotEmpty) {
+                                if (!buySell) {
+                                  takerFee = ((amount *
+                                      double.parse(
+                                          priceController.text.toString()) *
+                                      double.parse(
+                                          takerFeeValue.toString())) /
+                                      100)
+                                      .toStringAsFixed(decimal_val);
+
+                                  totalAmount = (double.parse(
+                                      amountController.text.toString()) *
                                       double.parse(
                                           priceController.text.toString()))
-                                  .toStringAsFixed(4);
+                                      .toStringAsFixed(decimal_val);
+                                } else {
+                                  totalAmount = (double.parse(
+                                      amountController.text.toString()) *
+                                      double.parse(
+                                          priceController.text.toString()))
+                                      .toStringAsFixed(decimal_val);
+                                }
+                              }
                             }
+                          } else {
+                            tradeAmount = "0.00";
+                            totalAmount = "0.00";
                           }
-                        }
-
-                      } else {
-                        tradeAmount = "0.00";
-                        totalAmount = "0.00";
-                      }
-                    });
-                  },
-                  decoration: InputDecoration(
-                      contentPadding: EdgeInsets.only(bottom: 8.0),
-                      hintText: "Price",
-                      hintStyle: CustomWidget(context: context)
-                          .CustomSizedTextStyle(
+                        });
+                      },
+                      decoration: InputDecoration(
+                          contentPadding: EdgeInsets.only(bottom: 8.0),
+                          hintText: "Price",
+                          hintStyle: CustomWidget(context: context)
+                              .CustomSizedTextStyle(
                               12.0,
-                              Theme.of(context).focusColor.withOpacity(0.5),
+                              Theme
+                                  .of(context)
+                                  .focusColor
+                                  .withOpacity(0.5),
                               FontWeight.w500,
                               'FontRegular'),
-                      border: InputBorder.none),
-                  textAlign: TextAlign.start,
-                ),
-              )),
+                          border: InputBorder.none),
+                      textAlign: TextAlign.start,
+                    ),
+                  )),
               InkWell(
                 onTap: () {
-                  if (enableTrade) {
-                  } else {
+                  if (enableTrade) {} else {
                     setState(() {
                       if (priceController.text.isNotEmpty) {
                         double amount = double.parse(priceController.text);
@@ -4908,25 +5422,25 @@ class _SellTradeScreenState extends State<TradeScreen>
                             if (stopPriceController.text.isNotEmpty &&
                                 priceController.text.isNotEmpty) {
                               if ((double.parse(
-                                      priceController.text.toString()) >
+                                  priceController.text.toString()) >
                                   double.parse(
                                       stopPriceController.text.toString()))) {
                                 takerFee =
                                     ((double.parse(priceController.text
-                                                    .toString()) *
-                                                double.parse(amountController
-                                                    .text
-                                                    .toString()) *
-                                                double.parse(
-                                                    takerFeeValue.toString())) /
-                                            100)
-                                        .toStringAsFixed(4);
+                                        .toString()) *
+                                        double.parse(amountController
+                                            .text
+                                            .toString()) *
+                                        double.parse(
+                                            takerFeeValue.toString())) /
+                                        100)
+                                        .toStringAsFixed(decimal_val);
 
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(
-                                            priceController.text.toString()))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(
+                                        priceController.text.toString()))
+                                    .toStringAsFixed(decimal_val);
                                 /*  totalAmount = ((double.parse(
                                     priceController.text
                                         .toString()) *
@@ -4934,22 +5448,22 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         .text
                                         .toString())) -
                                     double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
+                                    .toStringAsFixed(decimal_val);*/
                               } else {
                                 takerFee = ((double.parse(stopPriceController
-                                                .text
-                                                .toString()) *
-                                            double.parse(amountController.text
-                                                .toString()) *
-                                            double.parse(
-                                                takerFeeValue.toString())) /
-                                        100)
-                                    .toStringAsFixed(4);
+                                    .text
+                                    .toString()) *
+                                    double.parse(amountController.text
+                                        .toString()) *
+                                    double.parse(
+                                        takerFeeValue.toString())) /
+                                    100)
+                                    .toStringAsFixed(decimal_val);
 
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(livePrice))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(livePrice))
+                                    .toStringAsFixed(decimal_val);
 
                                 /*totalAmount = ((double.parse(
                                     stopPriceController.text
@@ -4958,31 +5472,31 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         .text
                                         .toString())) -
                                     double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
+                                    .toStringAsFixed(decimal_val);*/
                               }
                             }
                           } else {
                             if (priceController.text.isNotEmpty) {
                               if (!buySell) {
                                 takerFee = ((amount *
-                                            double.parse(priceController.text
-                                                .toString()) *
-                                            double.parse(
-                                                takerFeeValue.toString())) /
-                                        100)
-                                    .toStringAsFixed(4);
+                                    double.parse(priceController.text
+                                        .toString()) *
+                                    double.parse(
+                                        takerFeeValue.toString())) /
+                                    100)
+                                    .toStringAsFixed(decimal_val);
 
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(
-                                            priceController.text.toString()))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(
+                                        priceController.text.toString()))
+                                    .toStringAsFixed(decimal_val);
                               } else {
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(
-                                            priceController.text.toString()))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(
+                                        priceController.text.toString()))
+                                    .toStringAsFixed(decimal_val);
                               }
                             }
                           }
@@ -5004,8 +5518,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                     ),
                     decoration: BoxDecoration(
                       color: enableTrade
-                          ? Theme.of(context).cardColor.withOpacity(0.2)
-                          : CustomTheme.of(context).cardColor,
+                          ? Theme
+                          .of(context)
+                          .cardColor
+                          .withOpacity(0.2)
+                          : CustomTheme
+                          .of(context)
+                          .cardColor,
                       borderRadius: BorderRadius.circular(2),
                     ),
                     child: Center(
@@ -5013,14 +5532,17 @@ class _SellTradeScreenState extends State<TradeScreen>
                         "-",
                         style: CustomWidget(context: context)
                             .CustomSizedTextStyle(
-                                20.0,
-                                enableTrade
-                                    ? Theme.of(context)
-                                        .cardColor
-                                        .withOpacity(0.5)
-                                    : Theme.of(context).focusColor,
-                                FontWeight.w500,
-                                'FontRegular'),
+                            20.0,
+                            enableTrade
+                                ? Theme
+                                .of(context)
+                                .cardColor
+                                .withOpacity(0.5)
+                                : Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular'),
                       ),
                     )),
               ),
@@ -5029,8 +5551,7 @@ class _SellTradeScreenState extends State<TradeScreen>
               ),
               InkWell(
                 onTap: () {
-                  if (enableTrade) {
-                  } else {
+                  if (enableTrade) {} else {
                     setState(() {
                       if (priceController.text.isNotEmpty) {
                         double amount = double.parse(priceController.text);
@@ -5042,25 +5563,25 @@ class _SellTradeScreenState extends State<TradeScreen>
                             if (stopPriceController.text.isNotEmpty &&
                                 priceController.text.isNotEmpty) {
                               if ((double.parse(
-                                      priceController.text.toString()) >
+                                  priceController.text.toString()) >
                                   double.parse(
                                       stopPriceController.text.toString()))) {
                                 takerFee =
                                     ((double.parse(priceController.text
-                                                    .toString()) *
-                                                double.parse(amountController
-                                                    .text
-                                                    .toString()) *
-                                                double.parse(
-                                                    takerFeeValue.toString())) /
-                                            100)
-                                        .toStringAsFixed(4);
+                                        .toString()) *
+                                        double.parse(amountController
+                                            .text
+                                            .toString()) *
+                                        double.parse(
+                                            takerFeeValue.toString())) /
+                                        100)
+                                        .toStringAsFixed(decimal_val);
 
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(
-                                            priceController.text.toString()))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(
+                                        priceController.text.toString()))
+                                    .toStringAsFixed(decimal_val);
                                 /*  totalAmount = ((double.parse(
                                     priceController.text
                                         .toString()) *
@@ -5068,22 +5589,22 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         .text
                                         .toString())) -
                                     double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
+                                    .toStringAsFixed(decimal_val);*/
                               } else {
                                 takerFee = ((double.parse(stopPriceController
-                                                .text
-                                                .toString()) *
-                                            double.parse(amountController.text
-                                                .toString()) *
-                                            double.parse(
-                                                takerFeeValue.toString())) /
-                                        100)
-                                    .toStringAsFixed(4);
+                                    .text
+                                    .toString()) *
+                                    double.parse(amountController.text
+                                        .toString()) *
+                                    double.parse(
+                                        takerFeeValue.toString())) /
+                                    100)
+                                    .toStringAsFixed(decimal_val);
 
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(livePrice))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(livePrice))
+                                    .toStringAsFixed(decimal_val);
 
                                 /*totalAmount = ((double.parse(
                                     stopPriceController.text
@@ -5092,31 +5613,31 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         .text
                                         .toString())) -
                                     double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
+                                    .toStringAsFixed(decimal_val);*/
                               }
                             }
                           } else {
                             if (priceController.text.isNotEmpty) {
                               if (!buySell) {
                                 takerFee = ((amount *
-                                            double.parse(priceController.text
-                                                .toString()) *
-                                            double.parse(
-                                                takerFeeValue.toString())) /
-                                        100)
-                                    .toStringAsFixed(4);
+                                    double.parse(priceController.text
+                                        .toString()) *
+                                    double.parse(
+                                        takerFeeValue.toString())) /
+                                    100)
+                                    .toStringAsFixed(decimal_val);
 
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(
-                                            priceController.text.toString()))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(
+                                        priceController.text.toString()))
+                                    .toStringAsFixed(decimal_val);
                               } else {
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(
-                                            priceController.text.toString()))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(
+                                        priceController.text.toString()))
+                                    .toStringAsFixed(decimal_val);
                               }
                             }
                           }
@@ -5138,8 +5659,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                     ),
                     decoration: BoxDecoration(
                       color: enableTrade
-                          ? Theme.of(context).cardColor.withOpacity(0.2)
-                          : CustomTheme.of(context).cardColor,
+                          ? Theme
+                          .of(context)
+                          .cardColor
+                          .withOpacity(0.2)
+                          : CustomTheme
+                          .of(context)
+                          .cardColor,
                       borderRadius: BorderRadius.circular(2),
                     ),
                     child: Center(
@@ -5147,14 +5673,17 @@ class _SellTradeScreenState extends State<TradeScreen>
                         "+",
                         style: CustomWidget(context: context)
                             .CustomSizedTextStyle(
-                                20.0,
-                                enableTrade
-                                    ? Theme.of(context)
-                                        .cardColor
-                                        .withOpacity(0.2)
-                                    : Theme.of(context).focusColor,
-                                FontWeight.w500,
-                                'FontRegular'),
+                            20.0,
+                            enableTrade
+                                ? Theme
+                                .of(context)
+                                .cardColor
+                                .withOpacity(0.2)
+                                : Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular'),
                       ),
                     )),
               ),
@@ -5164,8 +5693,8 @@ class _SellTradeScreenState extends State<TradeScreen>
         enableTrade
             ? Container()
             : const SizedBox(
-                height: 5.0,
-              ),
+          height: 5.0,
+        ),
         SizedBox(
           height: 15.0,
         ),
@@ -5173,7 +5702,10 @@ class _SellTradeScreenState extends State<TradeScreen>
           padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
           decoration: BoxDecoration(
             border: Border.all(
-                color: CustomTheme.of(context).focusColor.withOpacity(0.5),
+                color: CustomTheme
+                    .of(context)
+                    .focusColor
+                    .withOpacity(0.5),
                 width: 1.0),
             borderRadius: BorderRadius.circular(5.0),
             color: Colors.transparent,
@@ -5184,141 +5716,158 @@ class _SellTradeScreenState extends State<TradeScreen>
             children: [
               Flexible(
                   child: Container(
-                height: 40.0,
-                child: TextField(
-                  controller: amountController,
-                  keyboardType:
+                    height: 40.0,
+                    child: TextField(
+                      controller: amountController,
+                      keyboardType:
                       const TextInputType.numberWithOptions(decimal: true),
-                  style: CustomWidget(context: context).CustomSizedTextStyle(
-                      13.0,
-                      Theme.of(context).focusColor,
-                      FontWeight.w500,
-                      'FontRegular'),
-                  onChanged: (value) {
-                    setState(() {
-                      price = "0.0";
-                      // price = value.toString();
-                      totalAmount = "0.00";
+                      style: CustomWidget(context: context)
+                          .CustomSizedTextStyle(
+                          13.0,
+                          Theme
+                              .of(context)
+                              .focusColor,
+                          FontWeight.w500,
+                          'FontRegular'),
+                      onChanged: (value) {
+                        setState(() {
+                          price = "0.0";
+                          // price = value.toString();
+                          totalAmount = "0.00";
 
-                      if (enableTrade) {
-                        if (amountController.text.isNotEmpty) {
-                          totalAmount =
-                              (double.parse(amountController.text.toString()) *
+                          if (enableTrade) {
+                            if (amountController.text.isNotEmpty) {
+                              totalAmount =
+                                  (double.parse(
+                                      amountController.text.toString()) *
                                       double.parse(livePrice))
-                                  .toStringAsFixed(4);
-                        }
-                      } else {
-                        if (amountController.text.isNotEmpty) {
-                          double amount = double.parse(amountController.text);
-                          if (amount >= 0) {
-                            tradeAmount = amountController.text;
-                            if (enableStopLimit) {
-                              if (stopPriceController.text.isNotEmpty &&
-                                  priceController.text.isNotEmpty) {
-                                if ((double.parse(
+                                      .toStringAsFixed(decimal_val);
+                            }
+                          } else {
+                            if (amountController.text.isNotEmpty) {
+                              double amount = double.parse(
+                                  amountController.text);
+                              if (amount >= 0) {
+                                tradeAmount = amountController.text;
+                                if (enableStopLimit) {
+                                  if (stopPriceController.text.isNotEmpty &&
+                                      priceController.text.isNotEmpty) {
+                                    if ((double.parse(
                                         priceController.text.toString()) >
-                                    double.parse(
-                                        stopPriceController.text.toString()))) {
-                                  takerFee =
-                                      ((double.parse(priceController.text
-                                                      .toString()) *
-                                                  double.parse(amountController
-                                                      .text
-                                                      .toString()) *
-                                                  double.parse(takerFeeValue
-                                                      .toString())) /
+                                        double.parse(
+                                            stopPriceController.text
+                                                .toString()))) {
+                                      takerFee =
+                                          ((double.parse(priceController.text
+                                              .toString()) *
+                                              double.parse(amountController
+                                                  .text
+                                                  .toString()) *
+                                              double.parse(takerFeeValue
+                                                  .toString())) /
                                               100)
-                                          .toStringAsFixed(4);
+                                              .toStringAsFixed(decimal_val);
 
-                                  totalAmount = (double.parse(amountController
+                                      totalAmount =
+                                          (double.parse(amountController
                                               .text
                                               .toString()) *
-                                          double.parse(
-                                              priceController.text.toString()))
-                                      .toStringAsFixed(4);
-                                  /*  totalAmount = ((double.parse(
+                                              double.parse(
+                                                  priceController.text
+                                                      .toString()))
+                                              .toStringAsFixed(decimal_val);
+                                      /*  totalAmount = ((double.parse(
                                     priceController.text
                                         .toString()) *
                                     double.parse(amountController
                                         .text
                                         .toString())) -
                                     double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
-                                } else {
-                                  takerFee = ((double.parse(stopPriceController
-                                                  .text
-                                                  .toString()) *
+                                    .toStringAsFixed(decimal_val);*/
+                                    } else {
+                                      takerFee =
+                                          ((double.parse(stopPriceController
+                                              .text
+                                              .toString()) *
                                               double.parse(amountController.text
                                                   .toString()) *
                                               double.parse(
                                                   takerFeeValue.toString())) /
-                                          100)
-                                      .toStringAsFixed(4);
+                                              100)
+                                              .toStringAsFixed(decimal_val);
 
-                                  totalAmount = (double.parse(amountController
+                                      totalAmount =
+                                          (double.parse(amountController
                                               .text
                                               .toString()) *
-                                          double.parse(livePrice))
-                                      .toStringAsFixed(4);
+                                              double.parse(livePrice))
+                                              .toStringAsFixed(decimal_val);
 
-                                  /*totalAmount = ((double.parse(
+                                      /*totalAmount = ((double.parse(
                                     stopPriceController.text
                                         .toString()) *
                                     double.parse(amountController
                                         .text
                                         .toString())) -
                                     double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
+                                    .toStringAsFixed(decimal_val);*/
+                                    }
+                                  }
+                                } else {
+                                  if (priceController.text.isNotEmpty) {
+                                    if (!buySell) {
+                                      takerFee = ((amount *
+                                          double.parse(priceController.text
+                                              .toString()) *
+                                          double.parse(
+                                              takerFeeValue.toString())) /
+                                          100)
+                                          .toStringAsFixed(decimal_val);
+
+                                      totalAmount =
+                                          (double.parse(amountController
+                                              .text
+                                              .toString()) *
+                                              double.parse(
+                                                  priceController.text
+                                                      .toString()))
+                                              .toStringAsFixed(decimal_val);
+                                    } else {
+                                      totalAmount =
+                                          (double.parse(amountController
+                                              .text
+                                              .toString()) *
+                                              double.parse(
+                                                  priceController.text
+                                                      .toString()))
+                                              .toStringAsFixed(decimal_val);
+                                    }
+                                  }
                                 }
                               }
                             } else {
-                              if (priceController.text.isNotEmpty) {
-                                if (!buySell) {
-                                  takerFee = ((amount *
-                                              double.parse(priceController.text
-                                                  .toString()) *
-                                              double.parse(
-                                                  takerFeeValue.toString())) /
-                                          100)
-                                      .toStringAsFixed(4);
-
-                                  totalAmount = (double.parse(amountController
-                                              .text
-                                              .toString()) *
-                                          double.parse(
-                                              priceController.text.toString()))
-                                      .toStringAsFixed(4);
-                                } else {
-                                  totalAmount = (double.parse(amountController
-                                              .text
-                                              .toString()) *
-                                          double.parse(
-                                              priceController.text.toString()))
-                                      .toStringAsFixed(4);
-                                }
-                              }
+                              tradeAmount = amountController.text;
+                              totalAmount = "0.000";
                             }
                           }
-                        } else {
-                          tradeAmount = amountController.text;
-                          totalAmount = "0.000";
-                        }
-                      }
-                    });
-                  },
-                  decoration: InputDecoration(
-                      contentPadding: EdgeInsets.only(bottom: 8.0),
-                      hintText: "Quantity",
-                      hintStyle: CustomWidget(context: context)
-                          .CustomSizedTextStyle(
+                        });
+                      },
+                      decoration: InputDecoration(
+                          contentPadding: EdgeInsets.only(bottom: 8.0),
+                          hintText: "Quantity",
+                          hintStyle: CustomWidget(context: context)
+                              .CustomSizedTextStyle(
                               12.0,
-                              Theme.of(context).focusColor.withOpacity(0.5),
+                              Theme
+                                  .of(context)
+                                  .focusColor
+                                  .withOpacity(0.5),
                               FontWeight.w500,
                               'FontRegular'),
-                      border: InputBorder.none),
-                  textAlign: TextAlign.start,
-                ),
-              )),
+                          border: InputBorder.none),
+                      textAlign: TextAlign.start,
+                    ),
+                  )),
               InkWell(
                 onTap: () {
                   setState(() {
@@ -5333,8 +5882,8 @@ class _SellTradeScreenState extends State<TradeScreen>
                           tradeAmount = amountController.text;
                           totalAmount =
                               (double.parse(amountController.text.toString()) *
-                                      double.parse(livePrice))
-                                  .toStringAsFixed(4);
+                                  double.parse(livePrice))
+                                  .toStringAsFixed(decimal_val);
                         }
                       } else {
                         totalAmount = "0.00";
@@ -5350,25 +5899,25 @@ class _SellTradeScreenState extends State<TradeScreen>
                             if (stopPriceController.text.isNotEmpty &&
                                 priceController.text.isNotEmpty) {
                               if ((double.parse(
-                                      priceController.text.toString()) >
+                                  priceController.text.toString()) >
                                   double.parse(
                                       stopPriceController.text.toString()))) {
                                 takerFee =
                                     ((double.parse(priceController.text
-                                                    .toString()) *
-                                                double.parse(amountController
-                                                    .text
-                                                    .toString()) *
-                                                double.parse(
-                                                    takerFeeValue.toString())) /
-                                            100)
-                                        .toStringAsFixed(4);
+                                        .toString()) *
+                                        double.parse(amountController
+                                            .text
+                                            .toString()) *
+                                        double.parse(
+                                            takerFeeValue.toString())) /
+                                        100)
+                                        .toStringAsFixed(decimal_val);
 
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(
-                                            priceController.text.toString()))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(
+                                        priceController.text.toString()))
+                                    .toStringAsFixed(decimal_val);
                                 /*  totalAmount = ((double.parse(
                                     priceController.text
                                         .toString()) *
@@ -5376,22 +5925,22 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         .text
                                         .toString())) -
                                     double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
+                                    .toStringAsFixed(decimal_val);*/
                               } else {
                                 takerFee = ((double.parse(stopPriceController
-                                                .text
-                                                .toString()) *
-                                            double.parse(amountController.text
-                                                .toString()) *
-                                            double.parse(
-                                                takerFeeValue.toString())) /
-                                        100)
-                                    .toStringAsFixed(4);
+                                    .text
+                                    .toString()) *
+                                    double.parse(amountController.text
+                                        .toString()) *
+                                    double.parse(
+                                        takerFeeValue.toString())) /
+                                    100)
+                                    .toStringAsFixed(decimal_val);
 
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(livePrice))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(livePrice))
+                                    .toStringAsFixed(decimal_val);
 
                                 /*totalAmount = ((double.parse(
                                     stopPriceController.text
@@ -5400,31 +5949,31 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         .text
                                         .toString())) -
                                     double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
+                                    .toStringAsFixed(decimal_val);*/
                               }
                             }
                           } else {
                             if (priceController.text.isNotEmpty) {
                               if (!buySell) {
                                 takerFee = ((amount *
-                                            double.parse(priceController.text
-                                                .toString()) *
-                                            double.parse(
-                                                takerFeeValue.toString())) /
-                                        100)
-                                    .toStringAsFixed(4);
+                                    double.parse(priceController.text
+                                        .toString()) *
+                                    double.parse(
+                                        takerFeeValue.toString())) /
+                                    100)
+                                    .toStringAsFixed(decimal_val);
 
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(
-                                            priceController.text.toString()))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(
+                                        priceController.text.toString()))
+                                    .toStringAsFixed(decimal_val);
                               } else {
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(
-                                            priceController.text.toString()))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(
+                                        priceController.text.toString()))
+                                    .toStringAsFixed(decimal_val);
                               }
                             }
                           }
@@ -5445,7 +5994,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                       right: 10.0,
                     ),
                     decoration: BoxDecoration(
-                      color: CustomTheme.of(context).cardColor,
+                      color: CustomTheme
+                          .of(context)
+                          .cardColor,
                       borderRadius: BorderRadius.circular(2),
                     ),
                     child: Center(
@@ -5453,10 +6004,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                         "-",
                         style: CustomWidget(context: context)
                             .CustomSizedTextStyle(
-                                20.0,
-                                Theme.of(context).focusColor,
-                                FontWeight.w500,
-                                'FontRegular'),
+                            20.0,
+                            Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular'),
                       ),
                     )),
               ),
@@ -5476,8 +6029,8 @@ class _SellTradeScreenState extends State<TradeScreen>
                           tradeAmount = amountController.text;
                           totalAmount =
                               (double.parse(amountController.text.toString()) *
-                                      double.parse(livePrice))
-                                  .toStringAsFixed(4);
+                                  double.parse(livePrice))
+                                  .toStringAsFixed(decimal_val);
                         }
                       } else {
                         totalAmount = "0.00";
@@ -5493,25 +6046,25 @@ class _SellTradeScreenState extends State<TradeScreen>
                             if (stopPriceController.text.isNotEmpty &&
                                 priceController.text.isNotEmpty) {
                               if ((double.parse(
-                                      priceController.text.toString()) >
+                                  priceController.text.toString()) >
                                   double.parse(
                                       stopPriceController.text.toString()))) {
                                 takerFee =
                                     ((double.parse(priceController.text
-                                                    .toString()) *
-                                                double.parse(amountController
-                                                    .text
-                                                    .toString()) *
-                                                double.parse(
-                                                    takerFeeValue.toString())) /
-                                            100)
-                                        .toStringAsFixed(4);
+                                        .toString()) *
+                                        double.parse(amountController
+                                            .text
+                                            .toString()) *
+                                        double.parse(
+                                            takerFeeValue.toString())) /
+                                        100)
+                                        .toStringAsFixed(decimal_val);
 
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(
-                                            priceController.text.toString()))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(
+                                        priceController.text.toString()))
+                                    .toStringAsFixed(decimal_val);
                                 /*  totalAmount = ((double.parse(
                                     priceController.text
                                         .toString()) *
@@ -5519,22 +6072,22 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         .text
                                         .toString())) -
                                     double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
+                                    .toStringAsFixed(decimal_val);*/
                               } else {
                                 takerFee = ((double.parse(stopPriceController
-                                                .text
-                                                .toString()) *
-                                            double.parse(amountController.text
-                                                .toString()) *
-                                            double.parse(
-                                                takerFeeValue.toString())) /
-                                        100)
-                                    .toStringAsFixed(4);
+                                    .text
+                                    .toString()) *
+                                    double.parse(amountController.text
+                                        .toString()) *
+                                    double.parse(
+                                        takerFeeValue.toString())) /
+                                    100)
+                                    .toStringAsFixed(decimal_val);
 
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(livePrice))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(livePrice))
+                                    .toStringAsFixed(decimal_val);
 
                                 /*totalAmount = ((double.parse(
                                     stopPriceController.text
@@ -5543,31 +6096,31 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         .text
                                         .toString())) -
                                     double.parse(takerFee))
-                                    .toStringAsFixed(4);*/
+                                    .toStringAsFixed(decimal_val);*/
                               }
                             }
                           } else {
                             if (priceController.text.isNotEmpty) {
                               if (!buySell) {
                                 takerFee = ((amount *
-                                            double.parse(priceController.text
-                                                .toString()) *
-                                            double.parse(
-                                                takerFeeValue.toString())) /
-                                        100)
-                                    .toStringAsFixed(4);
+                                    double.parse(priceController.text
+                                        .toString()) *
+                                    double.parse(
+                                        takerFeeValue.toString())) /
+                                    100)
+                                    .toStringAsFixed(decimal_val);
 
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(
-                                            priceController.text.toString()))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(
+                                        priceController.text.toString()))
+                                    .toStringAsFixed(decimal_val);
                               } else {
                                 totalAmount = (double.parse(
-                                            amountController.text.toString()) *
-                                        double.parse(
-                                            priceController.text.toString()))
-                                    .toStringAsFixed(4);
+                                    amountController.text.toString()) *
+                                    double.parse(
+                                        priceController.text.toString()))
+                                    .toStringAsFixed(decimal_val);
                               }
                             }
                           }
@@ -5588,7 +6141,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                       right: 10.0,
                     ),
                     decoration: BoxDecoration(
-                      color: CustomTheme.of(context).cardColor,
+                      color: CustomTheme
+                          .of(context)
+                          .cardColor,
                       borderRadius: BorderRadius.circular(2),
                     ),
                     child: Center(
@@ -5596,10 +6151,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                         "+",
                         style: CustomWidget(context: context)
                             .CustomSizedTextStyle(
-                                20.0,
-                                Theme.of(context).focusColor,
-                                FontWeight.w500,
-                                'FontRegular'),
+                            20.0,
+                            Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular'),
                       ),
                     )),
               ),
@@ -5608,316 +6165,346 @@ class _SellTradeScreenState extends State<TradeScreen>
         ),
         enableStopLimit
             ? SizedBox(
-                height: 15.0,
-              )
+          height: 15.0,
+        )
             : Container(),
         enableStopLimit
             ? Container(
-                padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
-                decoration: BoxDecoration(
-                  border: Border.all(
-                      color: enableTrade
-                          ? Theme.of(context).focusColor.withOpacity(0.1)
-                          : CustomTheme.of(context).focusColor.withOpacity(0.5),
-                      width: 1.0),
-                  borderRadius: BorderRadius.circular(5.0),
-                  color: Colors.transparent,
-                ),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Flexible(
-                        child: Container(
-                      height: 40.0,
-                      child: TextField(
-                        enabled: !enableTrade,
-                        controller: stopPriceController,
-                        keyboardType: const TextInputType.numberWithOptions(
-                            decimal: true),
-                        style: CustomWidget(context: context)
-                            .CustomSizedTextStyle(
-                                13.0,
-                                Theme.of(context).focusColor,
-                                FontWeight.w500,
-                                'FontRegular'),
-                        onChanged: (value) {
-                          setState(() {
-                            stopPrice = "0.0";
-                            // price = value.toString();
-                            tradeAmount = "0.00";
+          padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
+          decoration: BoxDecoration(
+            border: Border.all(
+                color: enableTrade
+                    ? Theme
+                    .of(context)
+                    .focusColor
+                    .withOpacity(0.1)
+                    : CustomTheme
+                    .of(context)
+                    .focusColor
+                    .withOpacity(0.5),
+                width: 1.0),
+            borderRadius: BorderRadius.circular(5.0),
+            color: Colors.transparent,
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Flexible(
+                  child: Container(
+                    height: 40.0,
+                    child: TextField(
+                      enabled: !enableTrade,
+                      controller: stopPriceController,
+                      keyboardType: const TextInputType.numberWithOptions(
+                          decimal: true),
+                      style: CustomWidget(context: context)
+                          .CustomSizedTextStyle(
+                          13.0,
+                          Theme
+                              .of(context)
+                              .focusColor,
+                          FontWeight.w500,
+                          'FontRegular'),
+                      onChanged: (value) {
+                        setState(() {
+                          stopPrice = "0.0";
+                          // price = value.toString();
+                          tradeAmount = "0.00";
 
-                            if (stopPriceController.text.isNotEmpty) {
-                              stopPrice = stopPriceController.text;
-                              tradeAmount = stopPriceController.text.toString();
-                              if (amountController.text.isNotEmpty &&
-                                  priceController.text.isNotEmpty) {
-                                if (!buySell) {
-                                  if ((double.parse(
-                                          priceController.text.toString()) >
-                                      double.parse(stopPriceController.text
-                                          .toString()))) {
-                                    takerFee =
-                                        ((double.parse(priceController.text
-                                                        .toString()) *
-                                                    double.parse(
-                                                        amountController.text
-                                                            .toString()) *
-                                                    double.parse(takerFeeValue
-                                                        .toString())) /
-                                                100)
-                                            .toStringAsFixed(4);
-
-                                    totalAmount = (double.parse(priceController
-                                                .text
-                                                .toString()) *
-                                            double.parse(amountController.text
-                                                .toString()))
-                                        .toStringAsFixed(4);
-                                  } else {
-                                    takerFee = ((double.parse(
-                                                    stopPriceController.text
-                                                        .toString()) *
-                                                double.parse(amountController
-                                                    .text
-                                                    .toString()) *
-                                                double.parse(
-                                                    takerFeeValue.toString())) /
-                                            100)
-                                        .toStringAsFixed(4);
-
-                                    totalAmount = (double.parse(
-                                                stopPriceController.text
-                                                    .toString()) *
-                                            double.parse(amountController.text
-                                                .toString()))
-                                        .toStringAsFixed(4);
-                                  }
-                                } else {
-                                  if ((double.parse(
-                                          priceController.text.toString()) >
-                                      double.parse(stopPriceController.text
-                                          .toString()))) {
-                                    takerFee =
-                                        ((double.parse(priceController.text
-                                                        .toString()) *
-                                                    double.parse(
-                                                        amountController.text
-                                                            .toString()) *
-                                                    double.parse(takerFeeValue
-                                                        .toString())) /
-                                                100)
-                                            .toStringAsFixed(4);
-
-                                    totalAmount = (double.parse(priceController
-                                                .text
-                                                .toString()) *
-                                            double.parse(amountController.text
-                                                .toString()))
-                                        .toStringAsFixed(4);
-                                    ;
-                                  } else {
-                                    takerFee = ((double.parse(amountController
-                                                    .text
-                                                    .toString()) *
-                                                double.parse(stopPriceController
-                                                    .text
-                                                    .toString()) *
-                                                double.parse(
-                                                    takerFeeValue.toString())) /
-                                            100)
-                                        .toStringAsFixed(4);
-
-                                    totalAmount = (double.parse(
-                                                stopPriceController.text
-                                                    .toString()) *
-                                            double.parse(amountController.text
-                                                .toString()))
-                                        .toStringAsFixed(4);
-                                  }
-                                }
-                              }
-                            } else {
-                              tradeAmount = "0.00";
-                              totalAmount = "0.00";
-                            }
-                          });
-                        },
-                        decoration: InputDecoration(
-                            contentPadding: EdgeInsets.only(bottom: 8.0),
-                            hintText: "Stop-Price",
-                            hintStyle: CustomWidget(context: context)
-                                .CustomSizedTextStyle(
-                                    12.0,
-                                    Theme.of(context)
-                                        .focusColor
-                                        .withOpacity(0.5),
-                                    FontWeight.w500,
-                                    'FontRegular'),
-                            border: InputBorder.none),
-                        textAlign: TextAlign.start,
-                      ),
-                    )),
-                    InkWell(
-                      onTap: () {
-                        if (enableTrade) {
-                        } else {
-                          setState(() {
-                            tradeAmount = "0.00";
-                            if (stopPriceController.text.isNotEmpty) {
-                              double amount =
-                                  double.parse(stopPriceController.text);
-
-                              if (amount > 0) {
-                                amount = amount - 0.01;
-                                stopPriceController.text =
-                                    amount.toStringAsFixed(2);
-                                stopPrice = stopPriceController.text;
-
-                                if (amountController.text.isNotEmpty) {
-                                  tradeAmount =
-                                      amountController.text.toString();
-                                  takerFee = ((amount *
-                                              double.parse(amountController.text
+                          if (stopPriceController.text.isNotEmpty) {
+                            stopPrice = stopPriceController.text;
+                            tradeAmount = stopPriceController.text.toString();
+                            if (amountController.text.isNotEmpty &&
+                                priceController.text.isNotEmpty) {
+                              if (!buySell) {
+                                if ((double.parse(
+                                    priceController.text.toString()) >
+                                    double.parse(stopPriceController.text
+                                        .toString()))) {
+                                  takerFee =
+                                      ((double.parse(priceController.text
+                                          .toString()) *
+                                          double.parse(
+                                              amountController.text
                                                   .toString()) *
-                                              double.parse(
-                                                  takerFeeValue.toString())) /
+                                          double.parse(takerFeeValue
+                                              .toString())) /
                                           100)
-                                      .toStringAsFixed(4);
+                                          .toStringAsFixed(decimal_val);
+
+                                  totalAmount = (double.parse(priceController
+                                      .text
+                                      .toString()) *
+                                      double.parse(amountController.text
+                                          .toString()))
+                                      .toStringAsFixed(decimal_val);
+                                } else {
+                                  takerFee = ((double.parse(
+                                      stopPriceController.text
+                                          .toString()) *
+                                      double.parse(amountController
+                                          .text
+                                          .toString()) *
+                                      double.parse(
+                                          takerFeeValue.toString())) /
+                                      100)
+                                      .toStringAsFixed(decimal_val);
 
                                   totalAmount = (double.parse(
-                                              stopPriceController.text
-                                                  .toString()) *
-                                          double.parse(
-                                              amountController.text.toString()))
-                                      .toStringAsFixed(4);
-                                } else {
-                                  totalAmount = "0.00";
+                                      stopPriceController.text
+                                          .toString()) *
+                                      double.parse(amountController.text
+                                          .toString()))
+                                      .toStringAsFixed(decimal_val);
                                 }
                               } else {
-                                stopPriceController.text = "0.01";
-                                totalAmount = "0.00";
-                              }
-                            }
-                          });
-                        }
-                      },
-                      child: Container(
-                          height: 40.0,
-                          width: 35.0,
-                          padding: const EdgeInsets.only(
-                            left: 10.0,
-                            right: 10.0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: enableTrade
-                                ? Theme.of(context).cardColor.withOpacity(0.2)
-                                : CustomTheme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                          child: Center(
-                            child: Text(
-                              "-",
-                              style: CustomWidget(context: context)
-                                  .CustomSizedTextStyle(
-                                      20.0,
-                                      enableTrade
-                                          ? Theme.of(context)
-                                              .cardColor
-                                              .withOpacity(0.5)
-                                          : Theme.of(context).focusColor,
-                                      FontWeight.w500,
-                                      'FontRegular'),
-                            ),
-                          )),
-                    ),
-                    const SizedBox(
-                      width: 2.0,
-                    ),
-                    InkWell(
-                      onTap: () {
-                        if (enableTrade) {
-                        } else {
-                          setState(() {
-                            if (stopPriceController.text.isNotEmpty) {
-                              double amount =
-                                  double.parse(stopPriceController.text);
-                              if (amount >= 0) {
-                                amount = amount + 0.01;
-                                stopPriceController.text =
-                                    amount.toStringAsFixed(2);
-                                stopPrice = stopPriceController.text;
-                                if (amountController.text.isNotEmpty) {
-                                  takerFee = ((double.parse(amountController
-                                                  .text
+                                if ((double.parse(
+                                    priceController.text.toString()) >
+                                    double.parse(stopPriceController.text
+                                        .toString()))) {
+                                  takerFee =
+                                      ((double.parse(priceController.text
+                                          .toString()) *
+                                          double.parse(
+                                              amountController.text
                                                   .toString()) *
-                                              double.parse(stopPriceController
-                                                  .text
-                                                  .toString()) *
-                                              double.parse(
-                                                  takerFeeValue.toString())) /
+                                          double.parse(takerFeeValue
+                                              .toString())) /
                                           100)
-                                      .toStringAsFixed(4);
+                                          .toStringAsFixed(decimal_val);
+
+                                  totalAmount = (double.parse(priceController
+                                      .text
+                                      .toString()) *
+                                      double.parse(amountController.text
+                                          .toString()))
+                                      .toStringAsFixed(decimal_val);
+                                  ;
+                                } else {
+                                  takerFee = ((double.parse(amountController
+                                      .text
+                                      .toString()) *
+                                      double.parse(stopPriceController
+                                          .text
+                                          .toString()) *
+                                      double.parse(
+                                          takerFeeValue.toString())) /
+                                      100)
+                                      .toStringAsFixed(decimal_val);
 
                                   totalAmount = (double.parse(
-                                              stopPriceController.text
-                                                  .toString()) *
-                                          double.parse(
-                                              amountController.text.toString()))
-                                      .toStringAsFixed(4);
-                                } else {
-                                  // priceController.text = "0.01";
-                                  tradeAmount = "0.00";
+                                      stopPriceController.text
+                                          .toString()) *
+                                      double.parse(amountController.text
+                                          .toString()))
+                                      .toStringAsFixed(decimal_val);
                                 }
                               }
-                            } else {
-                              stopPriceController.text = "0.01";
-                               tradeAmount = "0.00";
                             }
-                          });
-                        }
+                          } else {
+                            tradeAmount = "0.00";
+                            totalAmount = "0.00";
+                          }
+                        });
                       },
-                      child: Container(
-                          height: 40.0,
-                          width: 35.0,
-                          padding: const EdgeInsets.only(
-                            left: 10.0,
-                            right: 10.0,
-                          ),
-                          decoration: BoxDecoration(
-                            color: enableTrade
-                                ? Theme.of(context).cardColor.withOpacity(0.2)
-                                : CustomTheme.of(context).cardColor,
-                            borderRadius: BorderRadius.circular(2),
-                          ),
-                          child: Center(
-                            child: Text(
-                              "+",
-                              style: CustomWidget(context: context)
-                                  .CustomSizedTextStyle(
-                                      20.0,
-                                      enableTrade
-                                          ? Theme.of(context)
-                                              .cardColor
-                                              .withOpacity(0.2)
-                                          : Theme.of(context).focusColor,
-                                      FontWeight.w500,
-                                      'FontRegular'),
-                            ),
-                          )),
+                      decoration: InputDecoration(
+                          contentPadding: EdgeInsets.only(bottom: 8.0),
+                          hintText: "Stop-Price",
+                          hintStyle: CustomWidget(context: context)
+                              .CustomSizedTextStyle(
+                              12.0,
+                              Theme
+                                  .of(context)
+                                  .focusColor
+                                  .withOpacity(0.5),
+                              FontWeight.w500,
+                              'FontRegular'),
+                          border: InputBorder.none),
+                      textAlign: TextAlign.start,
                     ),
-                  ],
-                ),
-              )
+                  )),
+              InkWell(
+                onTap: () {
+                  if (enableTrade) {} else {
+                    setState(() {
+                      tradeAmount = "0.00";
+                      if (stopPriceController.text.isNotEmpty) {
+                        double amount =
+                        double.parse(stopPriceController.text);
+
+                        if (amount > 0) {
+                          amount = amount - 0.01;
+                          stopPriceController.text =
+                              amount.toStringAsFixed(2);
+                          stopPrice = stopPriceController.text;
+
+                          if (amountController.text.isNotEmpty) {
+                            tradeAmount =
+                                amountController.text.toString();
+                            takerFee = ((amount *
+                                double.parse(amountController.text
+                                    .toString()) *
+                                double.parse(
+                                    takerFeeValue.toString())) /
+                                100)
+                                .toStringAsFixed(decimal_val);
+
+                            totalAmount = (double.parse(
+                                stopPriceController.text
+                                    .toString()) *
+                                double.parse(
+                                    amountController.text.toString()))
+                                .toStringAsFixed(decimal_val);
+                          } else {
+                            totalAmount = "0.00";
+                          }
+                        } else {
+                          stopPriceController.text = "0.01";
+                          totalAmount = "0.00";
+                        }
+                      }
+                    });
+                  }
+                },
+                child: Container(
+                    height: 40.0,
+                    width: 35.0,
+                    padding: const EdgeInsets.only(
+                      left: 10.0,
+                      right: 10.0,
+                    ),
+                    decoration: BoxDecoration(
+                      color: enableTrade
+                          ? Theme
+                          .of(context)
+                          .cardColor
+                          .withOpacity(0.2)
+                          : CustomTheme
+                          .of(context)
+                          .cardColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                    child: Center(
+                      child: Text(
+                        "-",
+                        style: CustomWidget(context: context)
+                            .CustomSizedTextStyle(
+                            20.0,
+                            enableTrade
+                                ? Theme
+                                .of(context)
+                                .cardColor
+                                .withOpacity(0.5)
+                                : Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular'),
+                      ),
+                    )),
+              ),
+              const SizedBox(
+                width: 2.0,
+              ),
+              InkWell(
+                onTap: () {
+                  if (enableTrade) {} else {
+                    setState(() {
+                      if (stopPriceController.text.isNotEmpty) {
+                        double amount =
+                        double.parse(stopPriceController.text);
+                        if (amount >= 0) {
+                          amount = amount + 0.01;
+                          stopPriceController.text =
+                              amount.toStringAsFixed(2);
+                          stopPrice = stopPriceController.text;
+                          if (amountController.text.isNotEmpty) {
+                            takerFee = ((double.parse(amountController
+                                .text
+                                .toString()) *
+                                double.parse(stopPriceController
+                                    .text
+                                    .toString()) *
+                                double.parse(
+                                    takerFeeValue.toString())) /
+                                100)
+                                .toStringAsFixed(decimal_val);
+
+                            totalAmount = (double.parse(
+                                stopPriceController.text
+                                    .toString()) *
+                                double.parse(
+                                    amountController.text.toString()))
+                                .toStringAsFixed(decimal_val);
+                          } else {
+                            // priceController.text = "0.01";
+                            tradeAmount = "0.00";
+                          }
+                        }
+                      } else {
+                        stopPriceController.text = "0.01";
+                        tradeAmount = "0.00";
+                      }
+                    });
+                  }
+                },
+                child: Container(
+                    height: 40.0,
+                    width: 35.0,
+                    padding: const EdgeInsets.only(
+                      left: 10.0,
+                      right: 10.0,
+                    ),
+                    decoration: BoxDecoration(
+                      color: enableTrade
+                          ? Theme
+                          .of(context)
+                          .cardColor
+                          .withOpacity(0.2)
+                          : CustomTheme
+                          .of(context)
+                          .cardColor,
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                    child: Center(
+                      child: Text(
+                        "+",
+                        style: CustomWidget(context: context)
+                            .CustomSizedTextStyle(
+                            20.0,
+                            enableTrade
+                                ? Theme
+                                .of(context)
+                                .cardColor
+                                .withOpacity(0.2)
+                                : Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular'),
+                      ),
+                    )),
+              ),
+            ],
+          ),
+        )
             : SizedBox(),
         Container(
           child: SliderTheme(
             data: SliderThemeData(
-              valueIndicatorColor: CustomTheme.of(context).indicatorColor,
+              valueIndicatorColor: CustomTheme
+                  .of(context)
+                  .indicatorColor,
               trackHeight: 10.0,
-              activeTickMarkColor: CustomTheme.of(context).focusColor,
+              activeTickMarkColor: CustomTheme
+                  .of(context)
+                  .focusColor,
               inactiveTickMarkColor:
-                  CustomTheme.of(context).focusColor.withOpacity(0.5),
+              CustomTheme
+                  .of(context)
+                  .focusColor
+                  .withOpacity(0.5),
               tickMarkShape: RoundSliderTickMarkShape(tickMarkRadius: 5.0),
               trackShape: CustomTrackShape(),
               thumbShape: RoundSliderThumbShape(enabledThumbRadius: 5),
@@ -5929,10 +6516,17 @@ class _SellTradeScreenState extends State<TradeScreen>
               divisions: 4,
               label: tleverageVal,
               inactiveColor:
-                  CustomTheme.of(context).focusColor.withOpacity(0.5),
+              CustomTheme
+                  .of(context)
+                  .focusColor
+                  .withOpacity(0.5),
               activeColor: buySell
-                  ? CustomTheme.of(context).indicatorColor
-                  : CustomTheme.of(context).hoverColor,
+                  ? CustomTheme
+                  .of(context)
+                  .indicatorColor
+                  : CustomTheme
+                  .of(context)
+                  .hoverColor,
               onChanged: (double value) {
                 setState(() {
                   _currentSliderValue = value;
@@ -5954,38 +6548,39 @@ class _SellTradeScreenState extends State<TradeScreen>
                     setState(() {
                       priceController.clear();
                       amountController.clear();
-                      if (spotOption) {
+                      //if (spotOption) {
                         if (!enableTrade) {
                           priceController.text = livePrice;
                         }
                         if (double.parse(livePrice) > 0) {
+                          print("urs");
                           if (buySell) {
                             double perce = ((double.parse(balance) * val) /
-                                    double.parse(priceController.text)) /
+                                double.parse(priceController.text)) /
                                 100;
-
+print("hi$perce");
                             amountController.text =
                                 double.parse(perce.toString())
-                                    .toStringAsFixed(4);
+                                    .toStringAsFixed(decimal_val);
                             double a = double.parse(perce
                                 .toString()); // this is the value in my first text field (This is the percentage rate i intend to use)
                             double b = double.parse(livePrice);
                             totalAmount = double.parse((a * b).toString())
-                                .toStringAsFixed(4);
+                                .toStringAsFixed(decimal_val);
                           } else {
-                            double perce = (double.parse(balance) * val) / 100;
+                            double perce = ((double.parse(balance) * val) /double.parse(priceController.text)) / 100;
 
                             amountController.text =
                                 double.parse(perce.toString())
-                                    .toStringAsFixed(4);
+                                    .toStringAsFixed(decimal_val);
                             double a = double.parse(perce
                                 .toString()); // this is the value in my first text field (This is the percentage rate i intend to use)
                             double b = double.parse(livePrice);
                             totalAmount = double.parse((a * b).toString())
-                                .toStringAsFixed(4);
+                                .toStringAsFixed(decimal_val);
                           }
                         }
-                      }
+                    //  }
                     });
                   } else {
                     amountController.text = "0.00";
@@ -6006,13 +6601,17 @@ class _SellTradeScreenState extends State<TradeScreen>
             SizedBox(
               child: Transform.scale(
                 scale: 0.8,
-                child:  Checkbox(
+                child: Checkbox(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(5.0),
                   ),
                   value: tpslCheck,
-                  activeColor: Theme.of(context).focusColor,
-                  checkColor: Theme.of(context).primaryColorDark,
+                  activeColor: Theme
+                      .of(context)
+                      .focusColor,
+                  checkColor: Theme
+                      .of(context)
+                      .primaryColorDark,
                   onChanged: (bool? value) {
                     setState(() {
                       tpslCheck = value!;
@@ -6033,7 +6632,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                 style: CustomWidget(context: context)
                     .CustomSizedTextStyle(
                     12.0,
-                    Theme.of(context).disabledColor,
+                    Theme
+                        .of(context)
+                        .disabledColor,
                     FontWeight.w400,
                     'FontRegular'),
               ),
@@ -6044,7 +6645,7 @@ class _SellTradeScreenState extends State<TradeScreen>
         const SizedBox(
           height: 5.0,
         ),
-        tpslCheck? Container(
+        tpslCheck ? Container(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.start,
@@ -6054,8 +6655,14 @@ class _SellTradeScreenState extends State<TradeScreen>
                 decoration: BoxDecoration(
                   border: Border.all(
                       color: enableTrade
-                          ? Theme.of(context).focusColor.withOpacity(0.1)
-                          : CustomTheme.of(context).focusColor.withOpacity(0.5),
+                          ? Theme
+                          .of(context)
+                          .focusColor
+                          .withOpacity(0.1)
+                          : CustomTheme
+                          .of(context)
+                          .focusColor
+                          .withOpacity(0.5),
                       width: 1.0),
                   borderRadius: BorderRadius.circular(5.0),
                   color: Colors.transparent,
@@ -6071,10 +6678,14 @@ class _SellTradeScreenState extends State<TradeScreen>
                             enabled: !enableTrade,
                             controller: tppriceController,
                             keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
-                            style: CustomWidget(context: context).CustomSizedTextStyle(
+                            const TextInputType.numberWithOptions(
+                                decimal: true),
+                            style: CustomWidget(context: context)
+                                .CustomSizedTextStyle(
                                 13.0,
-                                Theme.of(context).focusColor,
+                                Theme
+                                    .of(context)
+                                    .focusColor,
                                 FontWeight.w500,
                                 'FontRegular'),
                             onChanged: (value) {
@@ -6099,13 +6710,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 //             double.parse(
                                 //                 takerFeeValue.toString())) /
                                 //             100)
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 priceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //       } else {
                                 //         takerFee = ((double.parse(stopPriceController.text
@@ -6115,13 +6726,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 //             double.parse(
                                 //                 takerFeeValue.toString())) /
                                 //             100)
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 stopPriceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //
                                 //       }
@@ -6135,19 +6746,19 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 //             double.parse(
                                 //                 takerFeeValue.toString())) /
                                 //             100)
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 priceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //       } else {
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 priceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //       }
                                 //     }
                                 //   }
@@ -6164,7 +6775,10 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 hintStyle: CustomWidget(context: context)
                                     .CustomSizedTextStyle(
                                     12.0,
-                                    Theme.of(context).focusColor.withOpacity(0.5),
+                                    Theme
+                                        .of(context)
+                                        .focusColor
+                                        .withOpacity(0.5),
                                     FontWeight.w500,
                                     'FontRegular'),
                                 border: InputBorder.none),
@@ -6198,13 +6812,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                                   double.parse(
                     //                                       takerFeeValue.toString())) /
                     //                               100)
-                    //                           .toStringAsFixed(4);
+                    //                           .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                   /*  totalAmount = ((double.parse(
                     //                       priceController.text
                     //                           .toString()) *
@@ -6212,7 +6826,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 } else {
                     //                   takerFee = ((double.parse(stopPriceController
                     //                                   .text
@@ -6222,12 +6836,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(livePrice))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   /*totalAmount = ((double.parse(
                     //                       stopPriceController.text
@@ -6236,7 +6850,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 }
                     //               }
                     //             } else {
@@ -6248,19 +6862,19 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 } else {
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 }
                     //               }
                     //             }
@@ -6332,13 +6946,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                                   double.parse(
                     //                                       takerFeeValue.toString())) /
                     //                               100)
-                    //                           .toStringAsFixed(4);
+                    //                           .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                   /*  totalAmount = ((double.parse(
                     //                       priceController.text
                     //                           .toString()) *
@@ -6346,7 +6960,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 } else {
                     //                   takerFee = ((double.parse(stopPriceController
                     //                                   .text
@@ -6356,12 +6970,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(livePrice))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   /*totalAmount = ((double.parse(
                     //                       stopPriceController.text
@@ -6370,7 +6984,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 }
                     //               }
                     //             } else {
@@ -6382,19 +6996,19 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 } else {
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 }
                     //               }
                     //             }
@@ -6447,8 +7061,14 @@ class _SellTradeScreenState extends State<TradeScreen>
                 decoration: BoxDecoration(
                   border: Border.all(
                       color: enableTrade
-                          ? Theme.of(context).focusColor.withOpacity(0.1)
-                          : CustomTheme.of(context).focusColor.withOpacity(0.5),
+                          ? Theme
+                          .of(context)
+                          .focusColor
+                          .withOpacity(0.1)
+                          : CustomTheme
+                          .of(context)
+                          .focusColor
+                          .withOpacity(0.5),
                       width: 1.0),
                   borderRadius: BorderRadius.circular(5.0),
                   color: Colors.transparent,
@@ -6464,10 +7084,14 @@ class _SellTradeScreenState extends State<TradeScreen>
                             enabled: !enableTrade,
                             controller: slpriceController,
                             keyboardType:
-                            const TextInputType.numberWithOptions(decimal: true),
-                            style: CustomWidget(context: context).CustomSizedTextStyle(
+                            const TextInputType.numberWithOptions(
+                                decimal: true),
+                            style: CustomWidget(context: context)
+                                .CustomSizedTextStyle(
                                 13.0,
-                                Theme.of(context).focusColor,
+                                Theme
+                                    .of(context)
+                                    .focusColor,
                                 FontWeight.w500,
                                 'FontRegular'),
                             onChanged: (value) {
@@ -6492,13 +7116,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 //             double.parse(
                                 //                 takerFeeValue.toString())) /
                                 //             100)
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 priceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //       } else {
                                 //         takerFee = ((double.parse(stopPriceController.text
@@ -6508,13 +7132,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 //             double.parse(
                                 //                 takerFeeValue.toString())) /
                                 //             100)
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 stopPriceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //
                                 //       }
@@ -6528,19 +7152,19 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 //             double.parse(
                                 //                 takerFeeValue.toString())) /
                                 //             100)
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 priceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //       } else {
                                 //         totalAmount = (double.parse(
                                 //             amountController.text.toString()) *
                                 //             double.parse(
                                 //                 priceController.text.toString()))
-                                //             .toStringAsFixed(4);
+                                //             .toStringAsFixed(decimal_val);
                                 //       }
                                 //     }
                                 //   }
@@ -6557,7 +7181,10 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 hintStyle: CustomWidget(context: context)
                                     .CustomSizedTextStyle(
                                     12.0,
-                                    Theme.of(context).focusColor.withOpacity(0.5),
+                                    Theme
+                                        .of(context)
+                                        .focusColor
+                                        .withOpacity(0.5),
                                     FontWeight.w500,
                                     'FontRegular'),
                                 border: InputBorder.none),
@@ -6591,13 +7218,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                                   double.parse(
                     //                                       takerFeeValue.toString())) /
                     //                               100)
-                    //                           .toStringAsFixed(4);
+                    //                           .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                   /*  totalAmount = ((double.parse(
                     //                       priceController.text
                     //                           .toString()) *
@@ -6605,7 +7232,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 } else {
                     //                   takerFee = ((double.parse(stopPriceController
                     //                                   .text
@@ -6615,12 +7242,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(livePrice))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   /*totalAmount = ((double.parse(
                     //                       stopPriceController.text
@@ -6629,7 +7256,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 }
                     //               }
                     //             } else {
@@ -6641,19 +7268,19 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 } else {
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 }
                     //               }
                     //             }
@@ -6725,13 +7352,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                                   double.parse(
                     //                                       takerFeeValue.toString())) /
                     //                               100)
-                    //                           .toStringAsFixed(4);
+                    //                           .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                   /*  totalAmount = ((double.parse(
                     //                       priceController.text
                     //                           .toString()) *
@@ -6739,7 +7366,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 } else {
                     //                   takerFee = ((double.parse(stopPriceController
                     //                                   .text
@@ -6749,12 +7376,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(livePrice))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   /*totalAmount = ((double.parse(
                     //                       stopPriceController.text
@@ -6763,7 +7390,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                           .text
                     //                           .toString())) -
                     //                       double.parse(takerFee))
-                    //                       .toStringAsFixed(4);*/
+                    //                       .toStringAsFixed(decimal_val);*/
                     //                 }
                     //               }
                     //             } else {
@@ -6775,19 +7402,19 @@ class _SellTradeScreenState extends State<TradeScreen>
                     //                               double.parse(
                     //                                   takerFeeValue.toString())) /
                     //                           100)
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 } else {
                     //                   totalAmount = (double.parse(
                     //                               amountController.text.toString()) *
                     //                           double.parse(
                     //                               priceController.text.toString()))
-                    //                       .toStringAsFixed(4);
+                    //                       .toStringAsFixed(decimal_val);
                     //                 }
                     //               }
                     //             }
@@ -6842,7 +7469,10 @@ class _SellTradeScreenState extends State<TradeScreen>
           padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
           decoration: BoxDecoration(
             border: Border.all(
-                color: CustomTheme.of(context).focusColor.withOpacity(0.5),
+                color: CustomTheme
+                    .of(context)
+                    .focusColor
+                    .withOpacity(0.5),
                 width: 1.0),
             borderRadius: BorderRadius.circular(5.0),
             color: Colors.transparent,
@@ -6851,10 +7481,12 @@ class _SellTradeScreenState extends State<TradeScreen>
             child: Padding(
               padding: EdgeInsets.fromLTRB(0.0, 10.0, 0.0, 10.0),
               child: Text(
-                totalAmount ,
+                totalAmount,
                 style: CustomWidget(context: context).CustomSizedTextStyle(
                     13.0,
-                    Theme.of(context).focusColor,
+                    Theme
+                        .of(context)
+                        .focusColor,
                     FontWeight.w500,
                     'FontRegular'),
               ),
@@ -6870,10 +7502,10 @@ class _SellTradeScreenState extends State<TradeScreen>
               if (enableTrade) {
                 if (amountController.text.isNotEmpty) {
                   if (double.parse(balance) >= double.parse(totalAmount)) {
-                    if(traderType=="user"){
+                    if (traderType == "user") {
                       loading = true;
                       tradeDetails();
-                    }else{
+                    } else {
                       loading = true;
                       massTradeDetails();
                     }
@@ -6889,10 +7521,10 @@ class _SellTradeScreenState extends State<TradeScreen>
                 if (priceController.text.isNotEmpty) {
                   if (amountController.text.isNotEmpty) {
                     if (double.parse(balance) >= double.parse(totalAmount)) {
-                      if(traderType=="user"){
+                      if (traderType == "user") {
                         loading = true;
                         tradeDetails();
-                      }else{
+                      } else {
                         loading = true;
                         massTradeDetails();
                       }
@@ -7022,20 +7654,29 @@ class _SellTradeScreenState extends State<TradeScreen>
             });*/
           },
           child: Container(
-              width: MediaQuery.of(context).size.width,
+              width: MediaQuery
+                  .of(context)
+                  .size
+                  .width,
               padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(5.0),
                 color: buySell
-                    ? CustomTheme.of(context).indicatorColor
-                    : CustomTheme.of(context).hoverColor,
+                    ? CustomTheme
+                    .of(context)
+                    .indicatorColor
+                    : CustomTheme
+                    .of(context)
+                    .hoverColor,
               ),
               child: Center(
                 child: Text(
                   futurelong ? "Long" : "Short",
                   style: CustomWidget(context: context).CustomSizedTextStyle(
                       14.0,
-                      Theme.of(context).focusColor,
+                      Theme
+                          .of(context)
+                          .focusColor,
                       FontWeight.w500,
                       'FontRegular'),
                 ),
@@ -7052,72 +7693,100 @@ class _SellTradeScreenState extends State<TradeScreen>
     showBarModalBottomSheet(
         expand: true,
         context: context,
-        backgroundColor: CustomTheme.of(context).primaryColorLight,
+        backgroundColor: CustomTheme
+            .of(context)
+            .primaryColorLight,
         builder: (context) {
           return StatefulBuilder(
               builder: (BuildContext context, StateSetter ssetState) {
-            return Container(
-              color: CustomTheme.of(context).primaryColorLight,
-              width: MediaQuery.of(context).size.width,
-              height: MediaQuery.of(context).size.height,
-              child:
+                return Container(
+                  margin:EdgeInsets.only(top:MediaQuery
+                      .of(context)
+                      .size
+                      .height*0.04) ,
+                  color: CustomTheme
+                      .of(context)
+                      .primaryColorLight,
+                  width: MediaQuery
+                      .of(context)
+                      .size
+                      .width,
+                  height: MediaQuery
+                      .of(context)
+                      .size
+                      .height,
+                  child:
                   // cancelOrder
                   //     ? CustomWidget(context: context).loadingIndicator(
                   //   CustomTheme.of(context).focusColor,
                   // )
                   //     :
                   NestedScrollView(
-                controller: controller,
-                headerSliverBuilder:
-                    (BuildContext context, bool innerBoxIsScrolled) {
-                  //<-- headerSliverBuilder
-                  return <Widget>[
-                    SliverAppBar(
-                      backgroundColor: CustomTheme.of(context).primaryColorLight,
-                      pinned: true,
-                      //<-- pinned to true
-                      floating: true,
-                      //<-- floating to true
-                      expandedHeight: 40.0,
-                      forceElevated: innerBoxIsScrolled,
-                      //<-- forceElevated to innerBoxIsScrolled
-                      bottom: TabBar(
-                        isScrollable: false,
-                        labelColor: CustomTheme.of(context).focusColor,
-                        //<-- selected text color
-                        unselectedLabelColor:
-                            CustomTheme.of(context).focusColor.withOpacity(0.5),
-                        // isScrollable: true,
-                        indicatorPadding:
+                    controller: controller,
+                    headerSliverBuilder:
+                        (BuildContext context, bool innerBoxIsScrolled) {
+                      //<-- headerSliverBuilder
+                      return <Widget>[
+                        SliverAppBar(
+                          backgroundColor: CustomTheme
+                              .of(context)
+                              .primaryColorLight,
+                          pinned: true,
+                          //<-- pinned to true
+                          floating: true,
+                          //<-- floating to true
+                          expandedHeight: 40.0,
+                          forceElevated: innerBoxIsScrolled,
+                          //<-- forceElevated to innerBoxIsScrolled
+                          bottom: TabBar(
+                            isScrollable: false,
+                            labelColor: CustomTheme
+                                .of(context)
+                                .focusColor,
+                            //<-- selected text color
+                            unselectedLabelColor:
+                            CustomTheme
+                                .of(context)
+                                .focusColor
+                                .withOpacity(0.5),
+                            // isScrollable: true,
+                            indicatorPadding:
                             EdgeInsets.only(left: 10.0, right: 10.0),
-                        indicatorColor: CustomTheme.of(context).cardColor,
-                        tabs: <Tab>[
-                          Tab(
-                            text: "Open Orders",
+                            indicatorColor: CustomTheme
+                                .of(context)
+                                .cardColor,
+                            tabs: <Tab>[
+                              Tab(
+                                text: "Open Orders",
+                              ),
+                              Tab(
+                                text: "Order History",
+                              ),
+                            ],
+                            controller: _tabController,
                           ),
-                          Tab(
-                            text: "Order History",
-                          ),
+                        ),
+                      ];
+                    },
+                    body: Container(
+                      color: CustomTheme
+                          .of(context)
+                          .primaryColorLight,
+                      height: MediaQuery
+                          .of(context)
+                          .size
+                          .height * 0.9,
+                      child: TabBarView(
+                        children: <Widget>[
+                          openOrdersUI(),
+                          HistoryOrdersUI(ssetState)
                         ],
                         controller: _tabController,
                       ),
                     ),
-                  ];
-                },
-                body: Container(
-                  color: CustomTheme.of(context).primaryColorLight,
-                  height: MediaQuery.of(context).size.height * 0.9,
-                  child: TabBarView(
-                    children: <Widget>[
-                      openOrdersUI(),
-                      HistoryOrdersUI(ssetState)
-                    ],
-                    controller: _tabController,
                   ),
-                ),
-              ),
-            );
-          });
+                );
+              });
         });
   }
 
@@ -7130,466 +7799,509 @@ class _SellTradeScreenState extends State<TradeScreen>
           ),
           completedOrders.length > 0
               ? Container(
-                  color: Theme.of(context).primaryColorLight,
-                  width: MediaQuery.of(context).size.width,
-                  height: MediaQuery.of(context).size.height * 0.82,
-                  child: SingleChildScrollView(
-                    controller: controller,
-                    child: ListView.builder(
-                      itemCount: completedOrders.length,
-                      shrinkWrap: true,
-                      controller: controller,
-                      itemBuilder: (BuildContext context, int index) {
-                        // Moment spiritRoverOnMars =
-                        // Moment(completedOrders[index].createdAt!).toLocal();
-                        return Column(
-                          children: [
-                            Theme(
-                              data: Theme.of(context)
-                                  .copyWith(dividerColor: Colors.transparent),
-                              child: ExpansionTile(
-                                key: PageStorageKey(index.toString()),
-                                title: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
+              color: Theme
+                  .of(context)
+                  .primaryColorLight,
+              width: MediaQuery
+                  .of(context)
+                  .size
+                  .width,
+              height: MediaQuery
+                  .of(context)
+                  .size
+                  .height * 0.82,
+              child: SingleChildScrollView(
+                controller: controller,
+                child: ListView.builder(
+                  itemCount: completedOrders.length,
+                  shrinkWrap: true,
+                  controller: controller,
+                  itemBuilder: (BuildContext context, int index) {
+                    // Moment spiritRoverOnMars =
+                    // Moment(completedOrders[index].createdAt!).toLocal();
+                    return Column(
+                      children: [
+                        Theme(
+                          data: Theme.of(context)
+                              .copyWith(dividerColor: Colors.transparent),
+                          child: ExpansionTile(
+                            key: PageStorageKey(index.toString()),
+                            title: Row(
+                              mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Column(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
                                   children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          "Pair",
-                                          style: CustomWidget(context: context)
-                                              .CustomSizedTextStyle(
-                                                  12.0,
-                                                  Theme.of(context)
-                                                      .focusColor
-                                                      .withOpacity(0.5),
-                                                  FontWeight.w400,
-                                                  'FontRegular'),
-                                        ),
-                                        Text(
-                                          completedOrders[index]
-                                              .symbol
-                                              .toString(),
-                                          style: CustomWidget(context: context)
-                                              .CustomSizedTextStyle(
-                                                  14.0,
-                                                  Theme.of(context).focusColor,
-                                                  FontWeight.w400,
-                                                  'FontRegular'),
-                                        ),
-                                      ],
+                                    Text(
+                                      "Pair",
+                                      style: CustomWidget(context: context)
+                                          .CustomSizedTextStyle(
+                                          12.0,
+                                          Theme
+                                              .of(context)
+                                              .focusColor
+                                              .withOpacity(0.5),
+                                          FontWeight.w400,
+                                          'FontRegular'),
                                     ),
-                                    const SizedBox(
-                                      width: 10.0,
+                                    Text(
+                                      completedOrders[index]
+                                          .pair
+                                          .toString(),
+                                      style: CustomWidget(context: context)
+                                          .CustomSizedTextStyle(
+                                          14.0,
+                                          Theme
+                                              .of(context)
+                                              .focusColor,
+                                          FontWeight.w400,
+                                          'FontRegular'),
                                     ),
-                                    Icon(
-                                      Icons.keyboard_arrow_down_outlined,
-                                      color: Theme.of(context).focusColor,
-                                      size: 18.0,
-                                    )
                                   ],
                                 ),
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(
-                                        left: 10.0, right: 10.0),
-                                    child: Column(
-                                      children: [
-                                        Padding(
-                                          padding: EdgeInsets.only(
-                                              left: 5.0, right: 5.0),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.center,
+                                const SizedBox(
+                                  width: 10.0,
+                                ),
+                                Icon(
+                                  Icons.keyboard_arrow_down_outlined,
+                                  color: Theme
+                                      .of(context)
+                                      .focusColor,
+                                  size: 18.0,
+                                )
+                              ],
+                            ),
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                    left: 10.0, right: 10.0),
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                          left: 5.0, right: 5.0),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                        children: [
+                                          Column(
                                             children: [
-                                              Column(
-                                                children: [
-                                                  Text(
-                                                    "Date",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor
-                                                                .withOpacity(
-                                                                    0.5),
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
-                                                    completedOrders[index]
-                                                        .createdAt!
-                                                        .toString(),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor,
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
+                                              Text(
+                                                "Date",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
                                               ),
-                                              Column(
-                                                children: [
-                                                  Text(
-                                                    "Type",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor
-                                                                .withOpacity(
-                                                                    0.5),
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
+                                              Text(
+                                                completedOrders[index]
+                                                    .createdAt!
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                          ),
+                                          Column(
+                                            children: [
+                                              Text(
+                                                "Type",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                                                completedOrders[index]
+                                                    .tradeType
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    14.0,
                                                     completedOrders[index]
                                                         .tradeType
-                                                        .toString(),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            14.0,
-                                                            completedOrders[index]
-                                                                        .tradeType
-                                                                        .toString()
-                                                                        .toLowerCase() ==
-                                                                    "buy"
-                                                                ? CustomTheme.of(
-                                                                        context)
-                                                                    .indicatorColor
-                                                                : CustomTheme.of(
-                                                                        context)
-                                                                    .scaffoldBackgroundColor,
-                                                            FontWeight.w500,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
-                                              ),
-                                              Column(
-                                                children: [
-                                                  Text(
-                                                    "Order Type",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor
-                                                                .withOpacity(
-                                                                    0.5),
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
-                                                    completedOrders[index]
-                                                        .orderType
-                                                        .toString(),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor,
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.end,
-                                              )
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(
-                                          height: 10.0,
-                                        ),
-                                        Padding(
-                                          padding: EdgeInsets.only(
-                                              left: 5.0, right: 5.0),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.center,
-                                            children: [
-                                              Column(
-                                                children: [
-                                                  Text(
-                                                    "Price",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor
-                                                                .withOpacity(
-                                                                    0.5),
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
-                                                    completedOrders[index]
-                                                        .price
-                                                        .toString(),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor,
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                              ),
-                                              Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    "Fee",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor
-                                                                .withOpacity(
-                                                                    0.5),
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
-                                                    completedOrders[index]
-                                                        .fees
-                                                        .toString(),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            14.0,
-                                                            Theme.of(context)
-                                                                .focusColor,
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
-                                              ),
-                                              Column(
-                                                children: [
-                                                  Text(
-                                                    "Quantity",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor
-                                                                .withOpacity(
-                                                                    0.5),
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
-                                                    completedOrders[index]
-                                                        .volume
-                                                        .toString(),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor,
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.end,
+                                                        .toString()
+                                                        .toLowerCase() ==
+                                                        "buy"
+                                                        ? CustomTheme
+                                                        .of(
+                                                        context)
+                                                        .indicatorColor
+                                                        : CustomTheme
+                                                        .of(
+                                                        context)
+                                                        .hoverColor,
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
                                               ),
                                             ],
                                           ),
-                                        ),
-                                        const SizedBox(
-                                          height: 10.0,
-                                        ),
-                                        Padding(
-                                          padding: EdgeInsets.only(
-                                              left: 5.0, right: 5.0),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.center,
+                                          Column(
                                             children: [
-                                              Column(
-                                                children: [
-                                                  Text(
-                                                    "Total",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor
-                                                                .withOpacity(
-                                                                    0.5),
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
-                                                    completedOrders[index]
-                                                        .value
-                                                        .toString(),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor,
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
+                                              Text(
+                                                "Order Type",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
                                               ),
+                                              Text(
+                                                completedOrders[index]
+                                                    .orderType
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                          )
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      height: 10.0,
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                          left: 5.0, right: 5.0),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                        children: [
+                                          Column(
+                                            children: [
+                                              Text(
+                                                "Price",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                                                completedOrders[index]
+                                                    .price
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                          ),
+                                          Column(
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                "Fee",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                                                completedOrders[index]
+                                                    .fees
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    14.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                          ),
+                                          Column(
+                                            children: [
+                                              Text(
+                                                "Quantity",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                                                completedOrders[index]
+                                                    .volume
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      height: 10.0,
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                          left: 5.0, right: 5.0),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                        children: [
+                                          Column(
+                                            children: [
+                                              Text(
+                                                "Total",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                                                completedOrders[index]
+                                                    .value
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                          ),
 
-                                              Column(
-                                                children: [
-                                                  Text(
-                                                    "Status",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor
-                                                                .withOpacity(
-                                                                    0.5),
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
+                                          Column(
+                                            children: [
+                                              Text(
+                                                "Status",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                                                completedOrders[index]
+                                                    .status
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
                                                     completedOrders[index]
                                                         .status
-                                                        .toString(),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            completedOrders[index]
-                                                                        .status
-                                                                        .toString() ==
-                                                                    "canceled"
-                                                                ? Theme.of(
-                                                                        context)
-                                                                    .scaffoldBackgroundColor
-                                                                : Theme.of(
-                                                                        context)
-                                                                    .unselectedWidgetColor,
-                                                            FontWeight.w500,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
+                                                        .toString() ==
+                                                        "canceled"
+                                                        ? Theme
+                                                        .of(
+                                                        context)
+                                                        .scaffoldBackgroundColor
+                                                        : Theme
+                                                        .of(
+                                                        context)
+                                                        .unselectedWidgetColor,
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
                                               ),
-                                              // InkWell(
-                                              //   child: Container(
-                                              //     width: 80,
-                                              //     padding: const EdgeInsets.only(
-                                              //         top: 3.0, bottom: 3.0),
-                                              //     decoration: BoxDecoration(
-                                              //       color: Colors.red,
-                                              //       borderRadius:
-                                              //       BorderRadius.circular(5),
-                                              //     ),
-                                              //     child: Align(
-                                              //       alignment: Alignment.center,
-                                              //       child: Text(
-                                              //         "Cancel",
-                                              //         style: CustomWidget(
-                                              //             context: context)
-                                              //             .CustomSizedTextStyle(
-                                              //             12.0,
-                                              //             Theme.of(context)
-                                              //                 .focusColor,
-                                              //             FontWeight.w400,
-                                              //             'FontRegular'),
-                                              //         textAlign: TextAlign.center,
-                                              //       ),
-                                              //     ),
-                                              //   ),
-                                              //   onTap: () {
-                                              //     setState(() {
-                                              //       loading = true;
-                                              //       updatecancelOrder(
-                                              //         AllopenOrders[index]
-                                              //             .id
-                                              //             .toString(),
-                                              //       );
-                                              //     });
-                                              //   },
-                                              // ),
                                             ],
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
                                           ),
-                                        ),
-                                        const SizedBox(
-                                          height: 10.0,
-                                        ),
-                                      ],
+                                          // InkWell(
+                                          //   child: Container(
+                                          //     width: 80,
+                                          //     padding: const EdgeInsets.only(
+                                          //         top: 3.0, bottom: 3.0),
+                                          //     decoration: BoxDecoration(
+                                          //       color: Colors.red,
+                                          //       borderRadius:
+                                          //       BorderRadius.circular(5),
+                                          //     ),
+                                          //     child: Align(
+                                          //       alignment: Alignment.center,
+                                          //       child: Text(
+                                          //         "Cancel",
+                                          //         style: CustomWidget(
+                                          //             context: context)
+                                          //             .CustomSizedTextStyle(
+                                          //             12.0,
+                                          //             Theme.of(context)
+                                          //                 .focusColor,
+                                          //             FontWeight.w400,
+                                          //             'FontRegular'),
+                                          //         textAlign: TextAlign.center,
+                                          //       ),
+                                          //     ),
+                                          //   ),
+                                          //   onTap: () {
+                                          //     setState(() {
+                                          //       loading = true;
+                                          //       updatecancelOrder(
+                                          //         AllopenOrders[index]
+                                          //             .id
+                                          //             .toString(),
+                                          //       );
+                                          //     });
+                                          //   },
+                                          // ),
+                                        ],
+                                      ),
                                     ),
-                                  )
-                                ],
-                                trailing: Container(
-                                  width: 1.0,
-                                  height: 10.0,
+                                    const SizedBox(
+                                      height: 10.0,
+                                    ),
+                                  ],
                                 ),
-                              ),
+                              )
+                            ],
+                            trailing: Container(
+                              width: 1.0,
+                              height: 10.0,
                             ),
-                            const SizedBox(
-                              height: 5.0,
-                            ),
-                            Container(
-                              height: 1.0,
-                              width: MediaQuery.of(context).size.width,
-                              color: Theme.of(context).focusColor,
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ))
-              : Container(
-                  height: MediaQuery.of(context).size.height * 0.3,
-                  color: Theme.of(context).primaryColorLight,
-                  child: Center(
-                    child: Text(
-                      "No Records Found..!",
-                      style: CustomWidget(context: context)
-                          .CustomSizedTextStyle(
-                              12.0,
-                              Theme.of(context).focusColor,
-                              FontWeight.w400,
-                              'FontRegular'),
-                    ),
-                  ),
+                          ),
+                        ),
+                        const SizedBox(
+                          height: 5.0,
+                        ),
+                        Container(
+                          height: 1.0,
+                          width: MediaQuery
+                              .of(context)
+                              .size
+                              .width,
+                          color: Theme
+                              .of(context)
+                              .focusColor,
+                        ),
+                      ],
+                    );
+                  },
                 ),
+              ))
+              : Container(
+            height: MediaQuery
+                .of(context)
+                .size
+                .height * 0.3,
+            color: Theme
+                .of(context)
+                .primaryColorLight,
+            child: Center(
+              child: Text(
+                "No Records Found..!",
+                style: CustomWidget(context: context)
+                    .CustomSizedTextStyle(
+                    12.0,
+                    Theme
+                        .of(context)
+                        .focusColor,
+                    FontWeight.w400,
+                    'FontRegular'),
+              ),
+            ),
+          ),
           const SizedBox(
             height: 30.0,
           )
@@ -7604,398 +8316,448 @@ class _SellTradeScreenState extends State<TradeScreen>
         children: [
           openOrders.length > 0
               ? Container(
-                  color: Theme.of(context).primaryColorLight,
-                  width: MediaQuery.of(context).size.width,
-                  height: MediaQuery.of(context).size.height * 0.82,
-                  child: SingleChildScrollView(
-                    controller: controller,
-                    child: ListView.builder(
-                      itemCount: openOrders.length,
-                      shrinkWrap: true,
-                      controller: controller,
-                      itemBuilder: (BuildContext context, int index) {
-                        // Moment spiritRoverOnMars =
-                        // Moment(openOrders[index].createdAt!).toLocal();
-                        return Column(
-                          children: [
-                            Theme(
-                              data: Theme.of(context)
-                                  .copyWith(dividerColor: Colors.transparent),
-                              child: ExpansionTile(
-                                key: PageStorageKey(index.toString()),
-                                title: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  crossAxisAlignment: CrossAxisAlignment.center,
+              color: Theme
+                  .of(context)
+                  .primaryColorLight,
+              width: MediaQuery
+                  .of(context)
+                  .size
+                  .width,
+              height: MediaQuery
+                  .of(context)
+                  .size
+                  .height * 0.82,
+              child: SingleChildScrollView(
+                controller: controller,
+                child: ListView.builder(
+                  itemCount: openOrders.length,
+                  shrinkWrap: true,
+                  controller: controller,
+                  itemBuilder: (BuildContext context, int index) {
+                    // Moment spiritRoverOnMars =
+                    // Moment(openOrders[index].createdAt!).toLocal();
+                    return Column(
+                      children: [
+                        Theme(
+                          data: Theme.of(context)
+                              .copyWith(dividerColor: Colors.transparent),
+                          child: ExpansionTile(
+                            key: PageStorageKey(index.toString()),
+                            title: Row(
+                              mainAxisAlignment:
+                              MainAxisAlignment.spaceBetween,
+                              crossAxisAlignment: CrossAxisAlignment.center,
+                              children: [
+                                Column(
+                                  crossAxisAlignment:
+                                  CrossAxisAlignment.start,
                                   children: [
-                                    Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        Text(
-                                          "Pair",
-                                          style: CustomWidget(context: context)
-                                              .CustomSizedTextStyle(
-                                                  12.0,
-                                                  Theme.of(context)
-                                                      .focusColor
-                                                      .withOpacity(0.5),
-                                                  FontWeight.w400,
-                                                  'FontRegular'),
-                                        ),
-                                        Text(
-                                          openOrders[index].symbol.toString(),
-                                          style: CustomWidget(context: context)
-                                              .CustomSizedTextStyle(
-                                                  14.0,
-                                                  Theme.of(context).focusColor,
-                                                  FontWeight.w400,
-                                                  'FontRegular'),
-                                        ),
-                                      ],
+                                    Text(
+                                      "Pair",
+                                      style: CustomWidget(context: context)
+                                          .CustomSizedTextStyle(
+                                          12.0,
+                                          Theme
+                                              .of(context)
+                                              .focusColor
+                                              .withOpacity(0.5),
+                                          FontWeight.w400,
+                                          'FontRegular'),
                                     ),
-                                    const SizedBox(
-                                      width: 10.0,
+                                    Text(
+                                      openOrders[index].pair.toString(),
+                                      style: CustomWidget(context: context)
+                                          .CustomSizedTextStyle(
+                                          14.0,
+                                          Theme
+                                              .of(context)
+                                              .focusColor,
+                                          FontWeight.w400,
+                                          'FontRegular'),
                                     ),
-                                    Icon(
-                                      Icons.keyboard_arrow_down_outlined,
-                                      color: Theme.of(context).focusColor,
-                                      size: 18.0,
-                                    )
                                   ],
                                 ),
-                                trailing: Container(
-                                  width: 1.0,
-                                  height: 10.0,
+                                const SizedBox(
+                                  width: 10.0,
                                 ),
-                                children: [
-                                  Padding(
-                                    padding: const EdgeInsets.only(
-                                        left: 10.0, right: 10.0),
-                                    child: Column(
-                                      children: [
-                                        Padding(
-                                          padding: const EdgeInsets.only(
-                                              left: 5.0, right: 5.0),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
+                                Icon(
+                                  Icons.keyboard_arrow_down_outlined,
+                                  color: Theme
+                                      .of(context)
+                                      .focusColor,
+                                  size: 18.0,
+                                )
+                              ],
+                            ),
+                            trailing: Container(
+                              width: 1.0,
+                              height: 10.0,
+                            ),
+                            children: [
+                              Padding(
+                                padding: const EdgeInsets.only(
+                                    left: 10.0, right: 10.0),
+                                child: Column(
+                                  children: [
+                                    Padding(
+                                      padding: const EdgeInsets.only(
+                                          left: 5.0, right: 5.0),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                        children: [
+                                          Column(
                                             crossAxisAlignment:
-                                                CrossAxisAlignment.center,
+                                            CrossAxisAlignment.start,
                                             children: [
-                                              Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    "Date",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor
-                                                                .withOpacity(
-                                                                    0.5),
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
-                                                    // spiritRoverOnMars
-                                                    //     .format(
-                                                    //     "YYYY MMMM Do - hh:mm:ssa")
-                                                    //     .toString(),
-                                                    "22.02.2023",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor,
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
+                                              Text(
+                                                "Date",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
                                               ),
-                                              Column(
-                                                children: [
-                                                  Text(
-                                                    "Type",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor
-                                                                .withOpacity(
-                                                                    0.5),
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
+                                              Text(
+                                                // spiritRoverOnMars
+                                                //     .format(
+                                                //     "YYYY MMMM Do - hh:mm:ssa")
+                                                //     .toString(),
+                                                openOrders[index]
+                                                    .createdAt
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                          ),
+                                          Column(
+                                            children: [
+                                              Text(
+                                                "Type",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                                                openOrders[index]
+                                                    .tradeType
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    14.0,
                                                     openOrders[index]
                                                         .tradeType
-                                                        .toString(),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            14.0,
-                                                            openOrders[index]
-                                                                        .tradeType
-                                                                        .toString()
-                                                                        .toLowerCase() ==
-                                                                    "buy"
-                                                                ? CustomTheme.of(
-                                                                        context)
-                                                                    .indicatorColor
-                                                                : CustomTheme.of(
-                                                                        context)
-                                                                    .hoverColor,
-                                                            FontWeight.w500,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
+                                                        .toString()
+                                                        .toLowerCase() ==
+                                                        "buy"
+                                                        ? CustomTheme
+                                                        .of(
+                                                        context)
+                                                        .indicatorColor
+                                                        : CustomTheme
+                                                        .of(
+                                                        context)
+                                                        .hoverColor,
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
                                               ),
-                                              Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.end,
-                                                children: [
-                                                  Text(
-                                                    "Order Type",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor
-                                                                .withOpacity(
-                                                                    0.5),
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
-                                                    openOrders[index]
-                                                        .orderType
-                                                        .toString(),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor,
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
-                                              )
                                             ],
                                           ),
-                                        ),
-                                        const SizedBox(
-                                          height: 10.0,
-                                        ),
-                                        Padding(
-                                          padding: EdgeInsets.only(
-                                              left: 5.0, right: 5.0),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
+                                          Column(
                                             crossAxisAlignment:
-                                                CrossAxisAlignment.center,
+                                            CrossAxisAlignment.end,
                                             children: [
-                                              Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    "Price",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor
-                                                                .withOpacity(
-                                                                    0.5),
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
-                                                    openOrders[index]
-                                                        .price
-                                                        .toString(),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor,
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
+                                              Text(
+                                                "Order Type",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
                                               ),
-                                              Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.end,
-                                                children: [
-                                                  Text(
-                                                    "Quantity",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor
-                                                                .withOpacity(
-                                                                    0.5),
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
-                                                    openOrders[index]
-                                                        .volume
-                                                        .toString(),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor,
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
+                                              Text(
+                                                openOrders[index]
+                                                    .orderType
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
                                               ),
                                             ],
-                                          ),
-                                        ),
-                                        const SizedBox(
-                                          height: 10.0,
-                                        ),
-                                        Padding(
-                                          padding: EdgeInsets.only(
-                                              left: 5.0, right: 5.0),
-                                          child: Row(
-                                            mainAxisAlignment:
-                                                MainAxisAlignment.spaceBetween,
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.center,
-                                            children: [
-                                              Column(
-                                                crossAxisAlignment:
-                                                    CrossAxisAlignment.start,
-                                                children: [
-                                                  Text(
-                                                    "Total",
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor
-                                                                .withOpacity(
-                                                                    0.5),
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                  Text(
-                                                    openOrders[index]
-                                                        .value
-                                                        .toString(),
-                                                    style: CustomWidget(
-                                                            context: context)
-                                                        .CustomSizedTextStyle(
-                                                            12.0,
-                                                            Theme.of(context)
-                                                                .focusColor,
-                                                            FontWeight.w400,
-                                                            'FontRegular'),
-                                                  ),
-                                                ],
-                                              ),
-                                              InkWell(
-                                                child: Container(
-                                                  width: 80,
-                                                  padding:
-                                                      const EdgeInsets.only(
-                                                          top: 3.0,
-                                                          bottom: 3.0),
-                                                  decoration: BoxDecoration(
-                                                    color: Colors.red,
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            5),
-                                                  ),
-                                                  child: Align(
-                                                    alignment: Alignment.center,
-                                                    child: Text(
-                                                      "Cancel",
-                                                      style: CustomWidget(
-                                                              context: context)
-                                                          .CustomSizedTextStyle(
-                                                              12.0,
-                                                              Theme.of(context)
-                                                                  .focusColor,
-                                                              FontWeight.w400,
-                                                              'FontRegular'),
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                    ),
-                                                  ),
-                                                ),
-                                                onTap: () {
-                                                  setState(() {
-                                                    // Navigator.pop(context);
-                                                    // loading = true;
-                                                    // updatecancelOrder(
-                                                    //   openOrders[index]
-                                                    //       .id
-                                                    //       .toString(),
-                                                    // );
-                                                  });
-                                                },
-                                              ),
-                                            ],
-                                          ),
-                                        ),
-                                        const SizedBox(
-                                          height: 10.0,
-                                        ),
-                                      ],
+                                          )
+                                        ],
+                                      ),
                                     ),
-                                  )
-                                ],
-                              ),
-                            ),
-                            const SizedBox(
-                              height: 5.0,
-                            ),
-                            Container(
-                              height: 1.0,
-                              width: MediaQuery.of(context).size.width,
-                              color: Theme.of(context).focusColor,
-                            ),
-                          ],
-                        );
-                      },
-                    ),
-                  ))
-              : Container(
-                  height: MediaQuery.of(context).size.height * 0.3,
-                  color: Theme.of(context).primaryColorLight,
-                  child: Center(
-                    child: Text(
-                      "No Records Found..!",
-                      style: CustomWidget(context: context)
-                          .CustomSizedTextStyle(
-                              12.0,
-                              Theme.of(context).focusColor,
-                              FontWeight.w400,
-                              'FontRegular'),
-                    ),
-                  ),
+                                    const SizedBox(
+                                      height: 10.0,
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                          left: 5.0, right: 5.0),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                        children: [
+                                          Column(
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                "Price",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                    openOrders[index]
+                        .price
+                        .toString()==null || openOrders[index]
+                        .price
+                        .toString()=="null" ?  openOrders[index]
+                        .entryPrice
+                        .toString(): openOrders[index]
+                        .price
+                        .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                          ),
+                                          Column(
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                            children: [
+                                              Text(
+                                                "Quantity",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                                                openOrders[index]
+                                                    .volume
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      height: 10.0,
+                                    ),
+                                    Padding(
+                                      padding: EdgeInsets.only(
+                                          left: 5.0, right: 5.0),
+                                      child: Row(
+                                        mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                        crossAxisAlignment:
+                                        CrossAxisAlignment.center,
+                                        children: [
+                                          Column(
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                "Remain",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                                                openOrders[index]
+                                                    .remaining
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                          ),
+                                          InkWell(
+                                            child: Container(
+                                              width: 80,
+                                              padding:
+                                              const EdgeInsets.only(
+                                                  top: 3.0,
+                                                  bottom: 3.0),
+                                              decoration: BoxDecoration(
+                                                color: Colors.red,
+                                                borderRadius:
+                                                BorderRadius.circular(
+                                                    5),
+                                              ),
+                                              child: Align(
+                                                alignment: Alignment.center,
+                                                child: Text(
+                                                  "Cancel",
+                                                  style: CustomWidget(
+                                                      context: context)
+                                                      .CustomSizedTextStyle(
+                                                      12.0,
+                                                      Theme
+                                                          .of(context)
+                                                          .focusColor,
+                                                      FontWeight.w400,
+                                                      'FontRegular'),
+                                                  textAlign:
+                                                  TextAlign.center,
+                                                ),
+                                              ),
+                                            ),
+                                            onTap: () {
+                                              setState(() {
+                                                Navigator.pop(context);
+                                                loading = true;
+                                                updatecancelOrder(
+                                                  marginOption||spotOption?"":"Linear",
+                                                  openOrders[index]
+                                                      .orderId
+                                                      .toString(),
+                                                    openOrders[index].pair.toString()
+
+                                                );
+                                              });
+                                            },
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                    const SizedBox(
+                                      height: 10.0,
+                                    ),
+                                  ],
+                                ),
+                              )
+                            ],
+                          ),
+                        ),
+                        const SizedBox(
+                          height: 5.0,
+                        ),
+                        Container(
+                          height: 1.0,
+                          width: MediaQuery
+                              .of(context)
+                              .size
+                              .width,
+                          color: Theme
+                              .of(context)
+                              .focusColor,
+                        ),
+                      ],
+                    );
+                  },
                 ),
+              ))
+              : Container(
+            height: MediaQuery
+                .of(context)
+                .size
+                .height * 0.3,
+            color: Theme
+                .of(context)
+                .primaryColorLight,
+            child: Center(
+              child: Text(
+                "No Records Found..!",
+                style: CustomWidget(context: context)
+                    .CustomSizedTextStyle(
+                    12.0,
+                    Theme
+                        .of(context)
+                        .focusColor,
+                    FontWeight.w400,
+                    'FontRegular'),
+              ),
+            ),
+          ),
           const SizedBox(
             height: 30.0,
           )
@@ -8015,24 +8777,35 @@ class _SellTradeScreenState extends State<TradeScreen>
   tradeDetails() {
     apiUtils
         .tradeInfo(
-        spotOption||marginOption?   selectPair!.symbol.toString():futureselectPair!.symbol.toString(),
-            spotOption ? "cash" : selectedHistoryTradeType.toString(),
-            firstCoin.toString(),
-            tleverageVal.toString(),
-            buySell ? "buy" : "sell",
-            selectedTime.toString(),
-            priceController.text.toString(),
-            amountController.text.toString(),
-            spotOption
-                ? "spot"
-                : marginOption
-                    ? "margin"
-                    : "future", tpslCheck, tppriceController.text.toString(), slpriceController.text.toString())
+        spotOption || marginOption
+            ? selectPair!.symbol.toString()
+            : futureselectPair!.symbol.toString(),
+        spotOption ? "cash" : selectedHistoryTradeType.toString(),
+        firstCoin.toString(),
+        tleverageVal.toString(),
+        buySell ? "Buy" : "sell",
+        selectedTime.toString(),
+        priceController.text.toString(),
+        amountController.text.toString(),
+        spotOption
+            ? "spot"
+            : marginOption
+            ? "Margin"
+            : futurelong ? "future-open-long" : "future-close-short",
+        tpslCheck,
+        tppriceController.text.toString(),
+        slpriceController.text.toString())
         .then((CommonModel loginData) {
       if (loginData.status!) {
         setState(() {
           // getCoinList();
           // getFutureCoinList();
+          loading = false;
+          getTradeHistory(spotOption || marginOption
+              ? selectPair!.symbol.toString()
+              : futureselectPair!.symbol.toString(),);
+          getBalance(spotOption || marginOption?firstCoin:FuturefirstCoin);
+
 
           CustomWidget(context: context).showSuccessAlertDialog(
               "ImperialX", loginData.message.toString(), "success");
@@ -8064,12 +8837,16 @@ class _SellTradeScreenState extends State<TradeScreen>
             ? "spot"
             : marginOption
             ? "margin"
-            : "future", tpslCheck, tppriceController.text.toString(), slpriceController.text.toString())
+            : "future",
+        tpslCheck,
+        tppriceController.text.toString(),
+        slpriceController.text.toString())
         .then((CommonModel loginData) {
       if (loginData.status!) {
         setState(() {
           // getCoinList();
           // getFutureCoinList();
+          loading = false;
 
           CustomWidget(context: context).showSuccessAlertDialog(
               "ImperialX", loginData.message.toString(), "success");
@@ -8087,21 +8864,22 @@ class _SellTradeScreenState extends State<TradeScreen>
   }
 
   getCoinList() {
-    apiUtils.spotAllPairs("SPOT" ).then((TradePairsSpotModel loginData) {
+    apiUtils.spotAllPairs("SPOT").then((TradePairsSpotModel loginData) {
       if (loginData.success!) {
         setState(() {
           buyData = [];
           sellData = [];
           //     tradePair = loginData.result!;
 
-         List<TradePairsSpot> tradePairs = loginData.result!;
-
-          for(int m=0;m<tradePairs.length;m++){
-            if(tradePairs[m].symbol.toString().contains("USDT"))
-              {
+          List<TradePairsSpot> tradePairs = loginData.result!;
+          Set<TradePairsSpot> remove_dup={};
+          for (int m = 0; m < tradePairs.length; m++) {
+            if (tradePairs[m].symbol.toString().contains("USDT")) {
+              if(remove_dup.add(tradePairs[m])) {
                 tradePair.add(tradePairs[m]);
-                // livePrice = tradePairs[m].lastPrice.toString();
               }
+              // livePrice = tradePairs[m].lastPrice.toString();
+            }
             // else if(tradePairs[m].symbol.toString().contains("USDC")) {
             //   tradePair.add(tradePairs[m]);
             //
@@ -8120,21 +8898,27 @@ class _SellTradeScreenState extends State<TradeScreen>
             // }
           }
 
+
           searchPair = tradePair;
           selectPair = tradePair[0];
 
-          firstCoin = selectPair!.symbol.toString().substring(selectPair!.symbol.toString().length-4);
-          selectedSymbol=selectPair?.symbol.toString() ?? "";
-          secondCoin =selectPair!.symbol.toString().split("USDT")[0];
+          firstCoin = selectPair!.symbol.toString().substring(selectPair!
+              .symbol
+              .toString()
+              .length - 4);
+          selectedSymbol = selectPair?.symbol.toString() ?? "";
+          getPairDetail(selectedSymbol);
+          secondCoin = selectPair!.symbol.toString().split("USDT")[0];
           // secondCoin =selectPair!.symbol.toString();
 
           // print(coinName);
           // print("coinName");
           getBalance(firstCoin);
-
-          arrChangeData.add("tickers."+selectPair!.symbol.toString());
-          arrData.add("orderbook.50."+ selectPair!.symbol.toString());
-          arrPriceData.add("publicTrade."+ selectPair!.symbol.toString());
+          getTradeHistory(selectPair!.symbol.toString());
+          _loadWebViewUrl();
+          arrChangeData.add("tickers." + selectPair!.symbol.toString());
+          arrData.add("orderbook.50." + selectPair!.symbol.toString());
+          arrPriceData.add("publicTrade." + selectPair!.symbol.toString());
           loading = false;
           // print(arrData);
           var messageChangeJSON = {
@@ -8156,13 +8940,13 @@ class _SellTradeScreenState extends State<TradeScreen>
           channelOpenOrder!.sink.add(json.encode(messageChangeJSON));
           channelOpenOrder!.sink.add(json.encode(messageJSON));
           channelOpenOrder!.sink.add(json.encode(messagePriceJSON));
-         // channelPriceOpenOrder!.sink.add(json.encode(messagePriceJSON));
+          // channelPriceOpenOrder!.sink.add(json.encode(messagePriceJSON));
 
           currentSymbol = selectPair!.symbol!.toString();
           // print("currentSymbol");
           // print(currentSymbol);
           socketData();
-         socketLivePriceData();
+          socketLivePriceData();
         });
       } else {
         setState(() {
@@ -8176,25 +8960,29 @@ class _SellTradeScreenState extends State<TradeScreen>
   }
 
   getFutureCoinList() {
-    apiUtils.getFutureTradePairList("LINEAR").then((FutureTradePairListModel loginData) {
+    apiUtils.getFutureTradePairList("LINEAR").then((
+        FutureTradePairListModel loginData) {
       if (loginData.success!) {
         setState(() {
           buyData = [];
           sellData = [];
 
-          List<FutureTradePair> futuretradePair = loginData.result!;
+          futuretradePair =loginData.result! ;
 
           futuresearchPair = futuretradePair;
           futureselectPair = futuretradePair[0];
           livePrice = futuretradePair[0].markPrice.toString();
 
-          FuturefirstCoin =futureselectPair!.symbol.toString();
+          FuturefirstCoin = futureselectPair!.symbol.toString();
+          getPairDetail(FuturefirstCoin);
           FuturesecondCoin = futureselectPair!.symbol.toString();
           getBalance(FuturefirstCoin);
 
 
-          arrFutureData.add("orderbook.50."+ futureselectPair!.symbol.toString());
-          arrFuturePriceData.add("publicTrade."+ futureselectPair!.symbol.toString());
+          arrFutureData.add(
+              "orderbook.50." + futureselectPair!.symbol.toString());
+          arrFuturePriceData.add(
+              "publicTrade." + futureselectPair!.symbol.toString());
           loading = false;
           // print(arrData);
           var messageFutureJSON = {
@@ -8206,7 +8994,8 @@ class _SellTradeScreenState extends State<TradeScreen>
             "args": arrFuturePriceData,
           };
 
-          channelOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/linear"),);
+          channelOpenOrder = IOWebSocketChannel.connect(
+            Uri.parse("wss://stream.bybit.com/v5/public/linear"),);
 
           channelOpenOrder!.sink.add(json.encode(messageFutureJSON));
           channelOpenOrder!.sink.add(json.encode(messageFuturePriceJSON));
@@ -8214,7 +9003,6 @@ class _SellTradeScreenState extends State<TradeScreen>
           currentSymbol = futureselectPair!.symbol!.toString();
           // socketFutureData();
           socketData();
-
         });
       } else {
         setState(() {
@@ -8227,27 +9015,108 @@ class _SellTradeScreenState extends State<TradeScreen>
     });
   }
 
-  getTradeHistory(String pair) {
-    apiUtils.getTradehistory(pair).then((TradeHistoryListModel loginData) {
+  getTradeHistory(String pair) async {
+    await apiUtils.getTradehistory(pair).then((
+        TradeHistoryListModel loginData) {
       if (loginData.success!) {
         setState(() {
           AllopenOrders = loginData.result!;
-
+          openOrders=[];
           for (int m = 0; m < AllopenOrders.length; m++) {
             if (AllopenOrders[m].status.toString() == "init" ||
                 AllopenOrders[m].status.toString() == "partially_filled") {
               openOrders.add(AllopenOrders[m]);
+              print("hoo ${openOrders[m]}");
             } else {
               completedOrders.add(AllopenOrders[m]);
             }
+
           }
+          completedOrders=completedOrders.reversed.toList();
+
 
           loading = false;
         });
       } else {
         setState(() {
-          //loading = false;
+          loading = false;
         });
+      }
+    }).catchError((Object error) {
+      print(error);
+    });
+  }
+
+  getPairDetail(String pair) async {
+    await apiUtils.getPairDetails(pair,spotOption||marginOption?"spot":"linear").then((
+        PairDetailsModel loginData) {
+      if (loginData.success!) {
+        setState(() {
+          if(spotOption||marginOption) {
+            if (loginData.result![0].lotSizeFilter!.basePrecision.toString()
+                .contains(".")) {
+              decimal_val = int.parse(
+                  loginData.result![0].lotSizeFilter!.basePrecision.toString()
+                      .split(".")[1]
+                      .toString()
+                      .length
+                      .toString());
+              print("valss $decimal_val");
+            }
+            else {
+              decimal_val = 0;
+            }
+          }
+          else{
+            if (loginData.result![0].lotSizeFilter!.minOrderQty.toString()
+                .contains(".")) {
+              decimal_val = int.parse(
+                  loginData.result![0].lotSizeFilter!.minOrderQty.toString()
+                      .split(".")[1]
+                      .toString()
+                      .length
+                      .toString());
+              print("valss $decimal_val");
+            }
+            else {
+              decimal_val = 0;
+            }
+          }
+          loading = false;
+        });
+      } else {
+        setState(() {
+          loading = false;
+        });
+      }
+    }).catchError((Object error) {
+      print(error);
+    });
+  }
+
+  updatecancelOrder(String category,String orderid,String pair) async {
+    await apiUtils.doCancelTrade(category,orderid,pair).then((
+        CommonModel loginData) {
+      if (loginData.status!) {
+        setState(() {
+
+          loading = false;
+
+          getTradeHistory(pair);
+          CustomWidget(context: context).showSuccessAlertDialog(
+              "Trade", "${loginData.message}", "success");
+          //getTradeHistory(pair);
+        });
+
+      } else {
+        setState(() {
+          loading = false;
+          getTradeHistory(pair);
+          CustomWidget(context: context).showSuccessAlertDialog(
+              "Trade", "${loginData.message}", "error");
+          //getTradeHistory(pair);
+        });
+
       }
     }).catchError((Object error) {
       print(error);
@@ -8261,7 +9130,8 @@ class _SellTradeScreenState extends State<TradeScreen>
           loading = false;
           List<GetWalletAll> walletPair = loginData.result!;
           for (int m = 0; m < walletPair.length; m++) {
-            if (coin.toLowerCase() == walletPair[m].coinname.toString().toLowerCase()) {
+            if (coin.toLowerCase() ==
+                walletPair[m].coinname.toString().toLowerCase()) {
               balance = walletPair[m].balance.toString();
             }
           }
@@ -8286,9 +9156,17 @@ class _SellTradeScreenState extends State<TradeScreen>
           return StatefulBuilder(
             builder: (BuildContext context, StateSetter setStates,) {
               return Container(
-                width: MediaQuery.of(context).size.width,
-                height: MediaQuery.of(context).size.height * 0.9,
-                color: Theme.of(context).primaryColor,
+                width: MediaQuery
+                    .of(context)
+                    .size
+                    .width,
+                height: MediaQuery
+                    .of(context)
+                    .size
+                    .height * 0.9,
+                color: Theme
+                    .of(context)
+                    .primaryColor,
                 child: Column(
                   children: <Widget>[
                     SizedBox(
@@ -8302,30 +9180,49 @@ class _SellTradeScreenState extends State<TradeScreen>
                           child: Container(
                             height: 45.0,
                             padding: EdgeInsets.only(left: 20.0),
-                            width: MediaQuery.of(context).size.width * 0.8,
+                            width: MediaQuery
+                                .of(context)
+                                .size
+                                .width * 0.8,
                             child: TextField(
                               controller: searchController,
                               focusNode: searchFocus,
                               enabled: true,
                               onEditingComplete: () {
-                                setState(() {
+                                setStates(() {
+                                  //searchPair=[];
                                   searchFocus.unfocus();
                                 });
                               },
                               onChanged: (value) {
+
                                 setStates(() {
+                                  Set<String> removeDup={};
                                   buyData = [];
                                   sellData = [];
                                   searchPair = [];
 
+
+
                                   for (int m = 0; m < tradePair.length; m++) {
-                                    if (tradePair[m].symbol.toString().toLowerCase().contains(value.toString().toLowerCase())
-                                        // ||
-                                        // tradePair[m].symbol.toString().toUpperCase().contains(value.toString().toUpperCase()) ||
-                                        // tradePair[m].marketAsset!.symbol.toString().toLowerCase().contains(value.toString().toLowerCase()) ||
-                                        // tradePair[m].symbol.toString().toLowerCase().contains(value.toString().toLowerCase())
+                                    if (tradePair[m].symbol.toString()
+                                        .toLowerCase()
+                                        .contains(
+                                        value.toString().toLowerCase())
+                                    // ||
+                                    // tradePair[m].symbol.toString().toUpperCase().contains(value.toString().toUpperCase()) ||
+                                    // tradePair[m].marketAsset!.symbol.toString().toLowerCase().contains(value.toString().toLowerCase()) ||
+                                    // tradePair[m].symbol.toString().toLowerCase().contains(value.toString().toLowerCase())
                                     ) {
-                                      searchPair.add(tradePair[m]);
+                                      if(removeDup.add(tradePair[m].symbol.toString())) {
+                                        searchPair.add(tradePair[m]);
+                                      }
+                                      else{
+                                        continue;
+                                      }
+                                    }
+                                    else{
+                                      continue;
                                     }
                                   }
                                 });
@@ -8336,54 +9233,61 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 hintText: "Search",
                                 hintStyle: TextStyle(
                                     fontFamily: "FontRegular",
-                                    color: Theme.of(context).focusColor,
+                                    color: Theme
+                                        .of(context)
+                                        .focusColor,
                                     fontSize: 14.0,
                                     fontWeight: FontWeight.w400),
                                 filled: true,
-                                fillColor: CustomTheme.of(context)
+                                fillColor: CustomTheme
+                                    .of(context)
                                     .primaryColorLight
                                     .withOpacity(0.5),
                                 border: OutlineInputBorder(
                                   borderRadius:
-                                      BorderRadius.all(Radius.circular(5.0)),
+                                  BorderRadius.all(Radius.circular(5.0)),
                                   borderSide: BorderSide(
-                                      color: CustomTheme.of(context)
+                                      color: CustomTheme
+                                          .of(context)
                                           .focusColor
                                           .withOpacity(0.5),
                                       width: 1.0),
                                 ),
                                 disabledBorder: OutlineInputBorder(
                                   borderRadius:
-                                      BorderRadius.all(Radius.circular(5.0)),
+                                  BorderRadius.all(Radius.circular(5.0)),
                                   borderSide: BorderSide(
-                                      color: CustomTheme.of(context)
+                                      color: CustomTheme
+                                          .of(context)
                                           .focusColor
                                           .withOpacity(0.5),
                                       width: 1.0),
                                 ),
                                 enabledBorder: OutlineInputBorder(
                                   borderRadius:
-                                      BorderRadius.all(Radius.circular(5.0)),
+                                  BorderRadius.all(Radius.circular(5.0)),
                                   borderSide: BorderSide(
-                                      color: CustomTheme.of(context)
+                                      color: CustomTheme
+                                          .of(context)
                                           .focusColor
                                           .withOpacity(0.5),
                                       width: 1.0),
                                 ),
                                 focusedBorder: OutlineInputBorder(
                                   borderRadius:
-                                      BorderRadius.all(Radius.circular(5.0)),
+                                  BorderRadius.all(Radius.circular(5.0)),
                                   borderSide: BorderSide(
-                                      color: CustomTheme.of(context)
+                                      color: CustomTheme
+                                          .of(context)
                                           .focusColor
                                           .withOpacity(0.5),
                                       width: 1.0),
                                 ),
                                 errorBorder: const OutlineInputBorder(
                                   borderRadius:
-                                      BorderRadius.all(Radius.circular(5)),
+                                  BorderRadius.all(Radius.circular(5)),
                                   borderSide:
-                                      BorderSide(color: Colors.red, width: 0.0),
+                                  BorderSide(color: Colors.red, width: 0.0),
                                 ),
                               ),
                             ),
@@ -8392,19 +9296,24 @@ class _SellTradeScreenState extends State<TradeScreen>
                         Container(
                           child: Align(
                               child: InkWell(
-                            onTap: () {
-                              Navigator.pop(context);
-                              setStates(() {
-                                searchController.clear();
-                                searchPair.addAll(tradePair);
-                              });
-                            },
-                            child: Icon(
-                              Icons.close,
-                              size: 20.0,
-                              color: Theme.of(context).focusColor,
-                            ),
-                          )),
+                                onTap: () {
+
+                                  setStates(() {
+                                    searchController.clear();
+
+                                    //searchPair=[];
+                                    searchPair=tradePair;
+                                    Navigator.pop(context);
+                                  });
+                                },
+                                child: Icon(
+                                  Icons.close,
+                                  size: 20.0,
+                                  color: Theme
+                                      .of(context)
+                                      .focusColor,
+                                ),
+                              )),
                         ),
                         const SizedBox(
                           width: 10.0,
@@ -8506,7 +9415,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                                           currentSymbol =
                                               selectPair!.symbol.toString();
                                           print(currentSymbol + "wel");
-                                          livePrice= "0.00";
+                                          getPairDetail(selectPair!.symbol.toString());
+                                          livePrice = "0.00";
+                                          loading = true;
                                         });
 
                                         // chartload();
@@ -8520,37 +9431,57 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         amountController.clear();
                                         totalAmount = "0.00";
                                         _currentSliderValue = 0;
-                                        firstCoin = selectPair!.symbol.toString().substring(selectPair!.symbol.toString().length-4);
-                                        secondCoin =selectPair!.symbol.toString().split("USDT")[0];
+                                        firstCoin =
+                                            selectPair!.symbol.toString()
+                                                .substring(selectPair!
+                                                .symbol
+                                                .toString()
+                                                .length - 4);
+                                        secondCoin =
+                                        selectPair!.symbol.toString().split(
+                                            "USDT")[0];
                                         // secondCoin =selectPair!.symbol.toString();
                                         pair = firstCoin + "-" + secondCoin;
+                                        getTradeHistory(
+                                            selectPair!.symbol.toString());
 
                                         arrData.clear();
                                         arrPriceData.clear();
-                                        arrData=[];
-                                        arrPriceData=[];
-                                        arrData.add("orderbook.50."+ selectPair!.symbol.toString());
-                                        arrPriceData.add("publicTrade."+ selectPair!.symbol.toString());
+                                        arrData = [];
+                                        arrPriceData = [];
+                                        arrData.add("orderbook.50." +
+                                            selectPair!.symbol.toString());
+                                        arrPriceData.add("publicTrade." +
+                                            selectPair!.symbol.toString());
                                         _loadWebViewUrl();
                                         Navigator.pop(context);
                                         channelOpenOrder!.sink.close();
-                                        channelOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/spot"),
-                                            pingInterval: Duration(seconds: 5));
+                                        channelOpenOrder =
+                                            IOWebSocketChannel.connect(
+                                                Uri.parse(
+                                                    "wss://stream.bybit.com/v5/public/spot"),
+                                                pingInterval: Duration(
+                                                    seconds: 5));
 
                                         var messageJSON = {
                                           "op": "subscribe",
                                           "args": arrData,
                                         };
                                         var messagePriceJSON = {
-                                        "op": "subscribe",
-                                        "args": arrPriceData,
+                                          "op": "subscribe",
+                                          "args": arrPriceData,
                                         };
                                         print(messageJSON);
-                                        channelOpenOrder!.sink.add(json.encode(messageJSON));
-                                        channelOpenOrder!.sink.add(json.encode(messagePriceJSON));
+                                        channelOpenOrder!.sink.add(
+                                            json.encode(messageJSON));
+                                        channelOpenOrder!.sink.add(
+                                            json.encode(messagePriceJSON));
                                         socketData();
                                       });
                                       searchController.clear();
+                                      _loadWebViewUrl();
+                                      loading = false;
+                                      searchPair=[];
 
                                       if (buySell) {
                                         getBalance(firstCoin);
@@ -8559,19 +9490,26 @@ class _SellTradeScreenState extends State<TradeScreen>
                                       }
                                     },
                                     child: Padding(
-                                      padding: EdgeInsets.only(left: 20.0, right: 20.0),
+                                      padding: EdgeInsets.only(
+                                          left: 20.0, right: 20.0),
                                       child: Column(
                                         children: [
                                           Row(
-                                            crossAxisAlignment: CrossAxisAlignment.center,
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            crossAxisAlignment: CrossAxisAlignment
+                                                .center,
+                                            mainAxisAlignment: MainAxisAlignment
+                                                .spaceBetween,
                                             children: [
                                               Text(
-                                                searchPair[index].symbol.toString(),
-                                                style: CustomWidget(context: context)
+                                                searchPair[index].symbol
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
                                                     .CustomSizedTextStyle(
                                                     12.0,
-                                                    Theme.of(context).focusColor,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
                                                     FontWeight.w500,
                                                     'FontRegular'),
                                               ),
@@ -8579,11 +9517,15 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                 width: 10.0,
                                               ),
                                               Text(
-                                                searchPair[index].highPrice24H.toString(),
-                                                style: CustomWidget(context: context)
+                                                searchPair[index].highPrice24H
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
                                                     .CustomSizedTextStyle(
                                                     10.0,
-                                                    Theme.of(context).indicatorColor,
+                                                    Theme
+                                                        .of(context)
+                                                        .indicatorColor,
                                                     FontWeight.w500,
                                                     'FontRegular'),
                                               ),
@@ -8591,15 +9533,21 @@ class _SellTradeScreenState extends State<TradeScreen>
                                           ),
                                           const SizedBox(height: 5.0,),
                                           Row(
-                                            crossAxisAlignment: CrossAxisAlignment.center,
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            crossAxisAlignment: CrossAxisAlignment
+                                                .center,
+                                            mainAxisAlignment: MainAxisAlignment
+                                                .spaceBetween,
                                             children: [
                                               Text(
-                                                searchPair[index].lastPrice.toString(),
-                                                style: CustomWidget(context: context)
+                                                searchPair[index].lastPrice
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
                                                     .CustomSizedTextStyle(
                                                     10.0,
-                                                    Theme.of(context).focusColor,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
                                                     FontWeight.w500,
                                                     'FontRegular'),
                                               ),
@@ -8607,11 +9555,15 @@ class _SellTradeScreenState extends State<TradeScreen>
                                                 width: 10.0,
                                               ),
                                               Text(
-                                                searchPair[index].lowPrice24H.toString(),
-                                                style: CustomWidget(context: context)
+                                                searchPair[index].lowPrice24H
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
                                                     .CustomSizedTextStyle(
                                                     10.0,
-                                                    Theme.of(context).hoverColor,
+                                                    Theme
+                                                        .of(context)
+                                                        .hoverColor,
                                                     FontWeight.w500,
                                                     'FontRegular'),
                                               ),
@@ -8626,9 +9578,14 @@ class _SellTradeScreenState extends State<TradeScreen>
                                   ),
                                   Container(
                                     height: 1.0,
-                                    width: MediaQuery.of(context).size.width,
+                                    width: MediaQuery
+                                        .of(context)
+                                        .size
+                                        .width,
                                     color:
-                                        CustomTheme.of(context).primaryColorLight,
+                                    CustomTheme
+                                        .of(context)
+                                        .primaryColorLight,
                                   ),
                                   const SizedBox(
                                     height: 5.0,
@@ -8644,274 +9601,317 @@ class _SellTradeScreenState extends State<TradeScreen>
         });
   }
 
-  showFutureSheeet() {
-    return showModalBottomSheet(
-        context: context,
-        isScrollControlled: true,
-        builder: (context) {
-          return StatefulBuilder(
-            builder: (BuildContext context, StateSetter setState) {
-              return Container(
-                height: MediaQuery.of(context).size.height * 0.9,
-                width: MediaQuery.of(context).size.width,
-                color: Theme.of(context).primaryColor,
-                child: Column(
-                  children: <Widget>[
-                    SizedBox(
-                      height: 20.0,
-                    ),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Padding(
-                          padding: EdgeInsets.only(top: 10.0),
-                          child: Container(
-                            height: 45.0,
-                            padding: EdgeInsets.only(left: 20.0),
-                            width: MediaQuery.of(context).size.width * 0.8,
-                            child: TextField(
-                              controller: searchFutureController,
-                              focusNode: searchFutureFocus,
-                              enabled: true,
-                              onEditingComplete: () {
-                                setState(() {
-                                  searchFutureFocus.unfocus();
-                                });
-                              },
-                              onChanged: (value) {
-                                setState(() {
-                                  setState(() {
-                                    buyData = [];
+  void showFutureSheeet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setStates) {
+            return Container(
+              height: MediaQuery
+                  .of(context)
+                  .size
+                  .height * 0.9,
+              width: MediaQuery
+                  .of(context)
+                  .size
+                  .width,
+              color: Theme
+                  .of(context)
+                  .primaryColor,
+              child: Column(
+                children: <Widget>[
+                  SizedBox(height: 20.0),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Padding(
+                        padding: EdgeInsets.only(top: 10.0),
+                        child: Container(
+                          height: 45.0,
+                          padding: EdgeInsets.only(left: 20.0),
+                          width: MediaQuery
+                              .of(context)
+                              .size
+                              .width * 0.8,
+                          child: TextField(
+                            controller: searchFutureController,
+                            focusNode: searchFutureFocus,
+                            enabled: true,
+                            onEditingComplete: () {
+                              setStates(() {
+                                searchFutureFocus.unfocus();
+                              });
+                            },
+                            onChanged: (value) {
+                              print("hel0oo");
 
-                                    sellData = [];
+            setStates(() {
+              futuresearchPair=[];
+              Set<FutureTradePair> remove_dup={};
 
-                                    futuresearchPair = [];
-
-                                    for (int m = 0; m < futuretradePair.length; m++) {
-                                      if (futuretradePair[m].symbol.toString().toLowerCase().contains(value.toString().toLowerCase()))
-                                      {
-                                        futuresearchPair.add(futuretradePair[m]);
-                                      }
-                                    }
-                                  });
-                                });
-                              },
-                              decoration: InputDecoration(
-                                contentPadding: const EdgeInsets.only(
-                                    left: 12, right: 0, top: 8, bottom: 8),
-                                hintText: "Search",
-                                hintStyle: TextStyle(
-                                    fontFamily: "FontRegular",
-                                    color: Theme.of(context).focusColor,
-                                    fontSize: 14.0,
-                                    fontWeight: FontWeight.w400),
-                                filled: true,
-                                fillColor: CustomTheme.of(context)
-                                    .primaryColorLight
-                                    .withOpacity(0.5),
-                                border: OutlineInputBorder(
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(5.0)),
-                                  borderSide: BorderSide(
-                                      color: CustomTheme.of(context)
-                                          .focusColor
-                                          .withOpacity(0.5),
-                                      width: 1.0),
+              print("length ${futuretradePair.length}");
+              for (int m = 0; m < futuretradePair.length; m++) {
+                if (futuretradePair[m].symbol.toString()
+                    .toLowerCase()
+                    .contains(value.toLowerCase())) {
+                  // print("truess ${futuretradePair[m].symbol.toString()
+                  //     .toLowerCase()}");
+                  if(remove_dup.add(futuretradePair[m])) {
+                    futuresearchPair.add(futuretradePair[m]);
+                  }
+                  // print(futuresearchPair[m]);
+                }
+                else{
+                  // print("trew");
+                }
+              }
+            });
+                              setStates(() {
+                               // futuresearchPair = newFutureSearchPair;
+                                buyData = [];
+                                sellData = [];
+                              });
+                            },
+                            decoration: InputDecoration(
+                              contentPadding: const EdgeInsets.only(
+                                  left: 12, right: 0, top: 8, bottom: 8),
+                              hintText: "Search",
+                              hintStyle: TextStyle(
+                                fontFamily: "FontRegular",
+                                color: Theme
+                                    .of(context)
+                                    .focusColor,
+                                fontSize: 14.0,
+                                fontWeight: FontWeight.w400,
+                              ),
+                              filled: true,
+                              fillColor: CustomTheme
+                                  .of(context)
+                                  .primaryColorLight
+                                  .withOpacity(0.5),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.all(
+                                    Radius.circular(5.0)),
+                                borderSide: BorderSide(
+                                  color: CustomTheme
+                                      .of(context)
+                                      .focusColor
+                                      .withOpacity(0.5),
+                                  width: 1.0,
                                 ),
-                                disabledBorder: OutlineInputBorder(
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(5.0)),
-                                  borderSide: BorderSide(
-                                      color: CustomTheme.of(context)
-                                          .focusColor
-                                          .withOpacity(0.5),
-                                      width: 1.0),
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.all(
+                                    Radius.circular(5.0)),
+                                borderSide: BorderSide(
+                                  color: CustomTheme
+                                      .of(context)
+                                      .focusColor
+                                      .withOpacity(0.5),
+                                  width: 1.0,
                                 ),
-                                enabledBorder: OutlineInputBorder(
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(5.0)),
-                                  borderSide: BorderSide(
-                                      color: CustomTheme.of(context)
-                                          .focusColor
-                                          .withOpacity(0.5),
-                                      width: 1.0),
-                                ),
-                                focusedBorder: OutlineInputBorder(
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(5.0)),
-                                  borderSide: BorderSide(
-                                      color: CustomTheme.of(context)
-                                          .focusColor
-                                          .withOpacity(0.5),
-                                      width: 1.0),
-                                ),
-                                errorBorder: const OutlineInputBorder(
-                                  borderRadius:
-                                      BorderRadius.all(Radius.circular(5)),
-                                  borderSide:
-                                      BorderSide(color: Colors.red, width: 0.0),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.all(
+                                    Radius.circular(5.0)),
+                                borderSide: BorderSide(
+                                  color: CustomTheme
+                                      .of(context)
+                                      .focusColor
+                                      .withOpacity(0.5),
+                                  width: 1.0,
                                 ),
                               ),
                             ),
                           ),
                         ),
-                        Container(
-                          child: Align(
-                              child: InkWell(
-                            onTap: () {
-                              Navigator.pop(context);
-                              setState(() {
-                                searchFutureController.clear();
-                                futuresearchPair.addAll(futuretradePair);
-                              });
-                            },
-                            child: Icon(
-                              Icons.close,
-                              size: 20.0,
-                              color: Theme.of(context).focusColor,
-                            ),
-                          )),
+                      ),
+                      Align(
+                        child: InkWell(
+                          onTap: () {
+                            setStates(() {
+                              searchFutureController.clear();
+                              futuresearchPair.addAll(futuretradePair);
+                            });
+                            Navigator.pop(context);
+                          },
+                          child: Icon(
+                            Icons.close,
+                            size: 20.0,
+                            color: Theme
+                                .of(context)
+                                .focusColor,
+                          ),
                         ),
-                        const SizedBox(
-                          width: 10.0,
-                        )
-                      ],
-                    ),
-                    SizedBox(
-                      height: 10.0,
-                    ),
-                    Expanded(
-                        child: ListView.builder(
-                            controller: controller,
-                            itemCount: futuresearchPair.length,
-                            itemBuilder: ((BuildContext context, int index) {
-                              return Column(
-                                children: [
-                                  InkWell(
-                                    onTap: () {
-                                      setState(() {
-                                        buyData = [];
+                      ),
+                      SizedBox(width: 10.0),
+                    ],
+                  ),
+                  SizedBox(height: 10.0),
+                  Expanded(
+                    child: ListView.builder(
+                      controller: controller,
+                      itemCount: futuresearchPair.length,
+                      itemBuilder: (BuildContext context, int index) {
+                        return Column(
+                          children: [
+                            InkWell(
+                              onTap: () {
+                                setStates(() {
+                                  buyData = [];
+                                  sellData = [];
+                                  futureselectPair = futuresearchPair[index];
+                                  priceController.clear();
+                                  amountController.clear();
+                                  totalAmount = "0.00";
+                                  _currentSliderValue = 0;
 
-                                        sellData = [];
-                                        futureselectPair =
-                                            futuresearchPair[index];
-                                        priceController.clear();
-                                        amountController.clear();
-                                        totalAmount = "0.00";
-                                        _currentSliderValue = 0;
+                                  FuturefirstCoin =
+                                      futureselectPair!.symbol.toString();
+                                  getPairDetail(futureselectPair!.symbol.toString());
+                                  FuturesecondCoin =
+                                      futureselectPair!.symbol.toString();
 
-                                        FuturefirstCoin = futureselectPair!.symbol.toString();
-                                        FuturesecondCoin = futureselectPair!.symbol.toString();
+                                  arrFutureData.add(
+                                      "orderbook.50.${futureselectPair!
+                                          .symbol}");
+                                  arrFuturePriceData.add(
+                                      "publicTrade.${futureselectPair!
+                                          .symbol}");
 
+                                  Navigator.pop(context);
 
-                                        arrFutureData.add("orderbook.50."+ futureselectPair!.symbol.toString());
-                                        arrFuturePriceData.add("publicTrade."+ futureselectPair!.symbol.toString());
-                                        Navigator.pop(context);
-                                        channelOpenOrder!.sink.close();
-                                        channelOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/linear"),);
+                                  channelOpenOrder?.sink.close();
+                                  channelOpenOrder = IOWebSocketChannel.connect(
+                                    Uri.parse(
+                                        "wss://stream.bybit.com/v5/public/linear"),
+                                  );
 
-                                        var messageFutureJSON = {
-                                          "op": "subscribe",
-                                          "args": arrFutureData,
-                                        };
-                                        var messageFuturePriceJSON = {
-                                          "op": "subscribe",
-                                          "args": arrFuturePriceData,
-                                        };
-                                        channelOpenOrder!.sink.add(json.encode(messageFutureJSON));
-                                        channelOpenOrder!.sink.add(json.encode(messageFuturePriceJSON));
-                                        // socketFutureData();
-                                        socketData();
-                                      });
-                                      searchFutureController.clear();
-                                      livePrice = "0.00";
+                                  var messageFutureJSON = {
+                                    "op": "subscribe",
+                                    "args": arrFutureData,
+                                  };
+                                  var messageFuturePriceJSON = {
+                                    "op": "subscribe",
+                                    "args": arrFuturePriceData,
+                                  };
 
-                                      getTradeHistory(futureselectPair!.symbol.toString());
-                                    },
-                                    child: Padding(
-                                      padding: EdgeInsets.only(left: 20.0, right: 20.0),
-                                      child: Column(
-                                        children: [
-                                          Row(
-                                            crossAxisAlignment: CrossAxisAlignment.center,
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text(
-                                                futuresearchPair[index].symbol.toString(),
-                                                style: CustomWidget(context: context)
-                                                    .CustomSizedTextStyle(
-                                                    12.0,
-                                                    Theme.of(context).focusColor,
-                                                    FontWeight.w500,
-                                                    'FontRegular'),
-                                              ),
-                                              const SizedBox(
-                                                width: 10.0,
-                                              ),
-                                              Text(
-                                                futuresearchPair[index].highPrice24H.toString(),
-                                                style: CustomWidget(context: context)
-                                                    .CustomSizedTextStyle(
-                                                    10.0,
-                                                    Theme.of(context).indicatorColor,
-                                                    FontWeight.w500,
-                                                    'FontRegular'),
-                                              ),
-                                            ],
+                                  channelOpenOrder?.sink.add(
+                                      json.encode(messageFutureJSON));
+                                  channelOpenOrder?.sink.add(
+                                      json.encode(messageFuturePriceJSON));
+
+                                  socketData();
+                                });
+
+                                searchFutureController.clear();
+                                livePrice = "0.00";
+
+                                getTradeHistory(
+                                    futureselectPair!.symbol.toString());
+                              },
+                              child: Padding(
+                                padding: EdgeInsets.symmetric(horizontal: 20.0),
+                                child: Column(
+                                  children: [
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment
+                                          .center,
+                                      mainAxisAlignment: MainAxisAlignment
+                                          .spaceBetween,
+                                      children: [
+                                        Text(
+                                          futuresearchPair[index].symbol
+                                              .toString(),
+                                          style: CustomWidget(context: context)
+                                              .CustomSizedTextStyle(
+                                            12.0,
+                                            Theme
+                                                .of(context)
+                                                .focusColor,
+                                            FontWeight.w500,
+                                            'FontRegular',
                                           ),
-                                          const SizedBox(height: 5.0,),
-                                          Row(
-                                            crossAxisAlignment: CrossAxisAlignment.center,
-                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                            children: [
-                                              Text(
-                                                futuresearchPair[index].lastPrice.toString(),
-                                                style: CustomWidget(context: context)
-                                                    .CustomSizedTextStyle(
-                                                    10.0,
-                                                    Theme.of(context).focusColor,
-                                                    FontWeight.w500,
-                                                    'FontRegular'),
-                                              ),
-                                              const SizedBox(
-                                                width: 10.0,
-                                              ),
-                                              Text(
-                                                futuresearchPair[index].lowPrice24H.toString(),
-                                                style: CustomWidget(context: context)
-                                                    .CustomSizedTextStyle(
-                                                    10.0,
-                                                    Theme.of(context).hoverColor,
-                                                    FontWeight.w500,
-                                                    'FontRegular'),
-                                              ),
-                                            ],
-                                          )
-                                        ],
-                                      ),
+                                        ),
+                                        SizedBox(width: 10.0),
+                                        Text(
+                                          futuresearchPair[index].highPrice24H
+                                              .toString(),
+                                          style: CustomWidget(context: context)
+                                              .CustomSizedTextStyle(
+                                            10.0,
+                                            Theme
+                                                .of(context)
+                                                .indicatorColor,
+                                            FontWeight.w500,
+                                            'FontRegular',
+                                          ),
+                                        ),
+                                      ],
                                     ),
-                                  ),
-                                  const SizedBox(
-                                    height: 5.0,
-                                  ),
-                                  Container(
-                                    height: 1.0,
-                                    width: MediaQuery.of(context).size.width,
-                                    color:
-                                        CustomTheme.of(context).primaryColorLight,
-                                  ),
-                                  const SizedBox(
-                                    height: 5.0,
-                                  ),
-                                ],
-                              );
-                            }))),
-                  ],
-                ),
-              );
-            },
-          );
-        });
+                                    SizedBox(height: 5.0),
+                                    Row(
+                                      crossAxisAlignment: CrossAxisAlignment
+                                          .center,
+                                      mainAxisAlignment: MainAxisAlignment
+                                          .spaceBetween,
+                                      children: [
+                                        Text(
+                                          futuresearchPair[index].lastPrice
+                                              .toString(),
+                                          style: CustomWidget(context: context)
+                                              .CustomSizedTextStyle(
+                                            10.0,
+                                            Theme
+                                                .of(context)
+                                                .focusColor,
+                                            FontWeight.w500,
+                                            'FontRegular',
+                                          ),
+                                        ),
+                                        SizedBox(width: 10.0),
+                                        Text(
+                                          futuresearchPair[index].lowPrice24H
+                                              .toString(),
+                                          style: CustomWidget(context: context)
+                                              .CustomSizedTextStyle(
+                                            10.0,
+                                            Theme
+                                                .of(context)
+                                                .hoverColor,
+                                            FontWeight.w500,
+                                            'FontRegular',
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            SizedBox(height: 5.0),
+                            Divider(
+                              color: CustomTheme
+                                  .of(context)
+                                  .primaryColorLight,
+                              height: 1.0,
+                              thickness: 1.0,
+                            ),
+                            SizedBox(height: 5.0),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 }
 

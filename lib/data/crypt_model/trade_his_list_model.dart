@@ -16,10 +16,13 @@ class TradeHistoryListModel {
   });
 
   factory TradeHistoryListModel.fromJson(Map<String, dynamic> json) => TradeHistoryListModel(
-    success: json["success"],
-    result: List<TradeHistoryList>.from(json["result"].map((x) => TradeHistoryList.fromJson(x))),
-    message: json["message"],
+    success: json["success"] ?? false, // Default to false if null
+    result: json["result"] != null && json["result"] is List
+        ? List<TradeHistoryList>.from(json["result"].map((x) => TradeHistoryList.fromJson(x)))
+        : [], // Default to an empty list if null or not a list
+    message: json["message"] ?? '', // Default to an empty string if null
   );
+
 
   Map<String, dynamic> toJson() => {
     "success": success,
@@ -134,7 +137,7 @@ class TradeHistoryList {
     assetId: json["asset_id"],
     tradeType: json["trade_type"],
     tradeAt: json["trade_at"],
-    entryPrice: json["entry_price"].toDouble(),
+    entryPrice: json["entry_price"],
     tradeIn: json["trade_in"],
     createdAt: DateTime.parse(json["createdAt"]),
     updatedAt: DateTime.parse(json["updatedAt"]),
