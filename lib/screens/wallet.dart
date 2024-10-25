@@ -1,3 +1,5 @@
+
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/svg.dart';
@@ -5,6 +7,7 @@ import 'package:imperial/common/custom_widget.dart';
 import 'package:imperial/screens/side_menu/history.dart';
 import 'package:imperial/screens/wallet/deposit.dart';
 import 'package:imperial/screens/wallet/withdraw.dart';
+import 'package:intl/intl.dart';
 
 import '../common/localization/localizations.dart';
 import '../data/api_utils.dart';
@@ -80,10 +83,7 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
             child: Container(
               height: MediaQuery.of(context).size.height * 0.9,
               color: Theme.of(context).primaryColor,
-              child: loading
-                  ? CustomWidget(context: context)
-                  .loadingIndicator(Theme.of(context).disabledColor)
-                  : Column(
+              child: Column(
                 children: [
                   Expanded(
                     child: favList(),
@@ -532,7 +532,7 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
                     .loadingIndicator(Theme.of(context).disabledColor)
                 : Container(
                     margin: EdgeInsets.only(
-                        top: MediaQuery.of(context).size.height * 0.30),
+                        top: MediaQuery.of(context).size.height * 0.32),
                     child: SingleChildScrollView(
                         child: frozen ? Container(
                       width: MediaQuery.of(context).size.width,
@@ -625,9 +625,9 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
                                                                       .w400,
                                                                   'FontRegular'), ),
                                                               TextSpan(
-                                                                text: double.parse( searchWalletPair[index]
+                                                                text: formatToUSD(double.parse( searchWalletPair[index]
                                                                     .balance
-                                                                    .toString()).toStringAsFixed(6),
+                                                                    .toString()??"0")),
                                                                 style: CustomWidget(
                                                                     context:
                                                                     context)
@@ -661,9 +661,9 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
                                                                       .w400,
                                                                   'FontRegular'), ),
                                                               TextSpan(
-                                                                text: double.parse( searchWalletPair[index]
+                                                                text: formatToUSD(double.parse( searchWalletPair[index]
                                                                     .entryBal
-                                                                    .toString()).toStringAsFixed(6),
+                                                                    .toString()??"0")),
                                                                 style: CustomWidget(
                                                                     context:
                                                                     context)
@@ -679,6 +679,7 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
                                                             ],
                                                           ),
                                                         ),
+
                                                       ],
                                                     )
                                                   ],
@@ -706,9 +707,9 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
                                                                 .w400,
                                                             'FontRegular'), ),
                                                         TextSpan(
-                                                          text: double.parse( searchWalletPair[index]
+                                                          text: formatToUSD(double.parse( searchWalletPair[index]
                                                               .marginLoan
-                                                              .toString()).toStringAsFixed(6),
+                                                              .toString()??"0")),
                                                           style: CustomWidget(
                                                               context:
                                                               context)
@@ -742,9 +743,9 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
                                                                 .w400,
                                                             'FontRegular'), ),
                                                         TextSpan(
-                                                          text: double.parse( searchWalletPair[index]
+                                                          text: formatToUSD(double.parse( searchWalletPair[index]
                                                               .escrowBalance
-                                                              .toString()).toStringAsFixed(6),
+                                                              .toString()??"0")),
                                                           style: CustomWidget(
                                                               context:
                                                               context)
@@ -833,16 +834,16 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
               ),
             ),),
                   ),
-            loading
-                ? CustomWidget(context: context).loadingIndicator(
-                    Theme.of(context).disabledColor,
-                  )
-                : Container()
+
 
           ],
         ),
       ),
     );
+  }
+  String formatToUSD(double number) {
+    final formatCurrency = NumberFormat.simpleCurrency(locale: 'en_US');
+    return formatCurrency.format(number).replaceAll("\$","")+" USD";
   }
 
   getWallList() {
@@ -852,7 +853,14 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
           walletPair = loginData.result!;
           searchWalletPair= walletPair;
           walletBalance = loginData.totalPriceInUsd!.toString();
-          loading = false;
+          Future.delayed(Duration(seconds: 0),(){
+            print("heloooos");
+            setState(() {
+              loading = false;
+            });
+
+          });
+
         });
       } else {
         setState(() {
@@ -861,6 +869,7 @@ class _Wallet_ScreenState extends State<Wallet_Screen> {
       }
     }).catchError((Object error) {
       print("Mano");
+      loading = false;
       print(error);
     });
   }

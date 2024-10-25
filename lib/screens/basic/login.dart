@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 //import 'package:google_sign_in/google_sign_in.dart';
 import 'package:imperial/common/colors.dart';
+import 'package:imperial/common/otp_fields/otp_style.dart';
 import 'package:imperial/data/api_utils.dart';
 import 'package:imperial/data/crypt_model/common_model.dart';
 import 'package:imperial/data/crypt_model/login_model.dart';
@@ -14,13 +15,16 @@ import 'package:imperial/screens/basic/change_pass.dart';
 import 'package:imperial/screens/basic/signup.dart';
 import 'package:imperial/screens/basic/subscription.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:simple_gradient_text/simple_gradient_text.dart';
+
 
 import '../../common/country.dart';
 import '../../common/custom_widget.dart';
 import '../../common/localization/localizations.dart';
+import '../../common/otp_fields/otp_field_custom.dart';
+import '../../common/otp_fields/style.dart';
 import '../../common/textformfield_custom.dart';
 import '../../common/theme/custom_theme.dart';
+import '../../data/crypt_model/profile_model.dart';
 import '../market.dart';
 import 'forgot.dart';
 import 'home.dart';
@@ -46,6 +50,7 @@ class _Login_ScreenState extends State<Login_Screen>
   bool passVisible = false;
   bool conpassVisible = false;
   Country? _selectedCountry;
+  var pinValue;
   bool countryB = false;
   FocusNode mobileFocus = new FocusNode();
 
@@ -79,8 +84,8 @@ class _Login_ScreenState extends State<Login_Screen>
     signin = true;
     email = true;
     //
-    // emailController.text="deposit@mailinator.com";
-    // passwordController.text="deposit@123";
+    //emailController.text="deposit@mailinator.com";
+    //passwordController.text="deposit@123";
     initCountry();
   }
 
@@ -320,6 +325,7 @@ class _Login_ScreenState extends State<Login_Screen>
                                 InkWell(
                                   onTap: () {
                                     setState(() {
+                                     // Navigator.pushReplacement(context,MaterialPageRoute(builder: (context) => Home_Screen(),));
                                       if (loginformKey.currentState!.validate()) {
                                         loading = true;
 
@@ -483,18 +489,23 @@ class _Login_ScreenState extends State<Login_Screen>
         .then((LoginDetailsModel loginData) {
       if (loginData.success!) {
         setState(() {
-          loading = false;
-          CustomWidget(context: context).showSuccessAlertDialog(
-              "Login", loginData.message.toString(), "success");
-          storeData(loginData.result!.token.toString(), loginData.result!.user!.traderType.toString()
+          //loading = false;
+          // if(loginData.result.user.){
+          //
+          // }
+          storeData(loginData.result!.token.toString(), loginData.result!.user!.traderType.toString(),loginData.result!.user!.id.toString(),
+            loginData.result!.user!.email.toString(),passwordController.text.toString(), loginData.result!.user!.name.toString()
           );
+          profileDetails();
+          emailController.clear();
+          passwordController.clear();
         });
 
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(
-            builder: (context) => Home_Screen(),
-          ),
-        );
+        // Navigator.of(context).pushReplacement(
+        //   MaterialPageRoute(
+        //     builder: (context) => Home_Screen(),
+        //   ),
+        // );
       } else {
         setState(() {
           loading = false;
@@ -509,7 +520,259 @@ class _Login_ScreenState extends State<Login_Screen>
       });
     });
   }
+  profileDetails() {
+    apiUtils.getProfileDetils().then((GetProfileModel loginData) {
+      if (loginData.success!) {
+        setState(() {
+          loading = false;
+          if(loginData.result?.f2AStatus=="true"){
+            viewDetails(context,"Verify Google Authenticator");
+          }
+          else{
+            setState(() {
+              CustomWidget(context: context).showSuccessAlertDialog(
+                  "Login", loginData.message.toString(), "success");
+              Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => Home_Screen(),));
+            });
 
+          }
+        });
+      } else {
+        setState(() {
+          loading = false;
+        });
+      }
+    }).catchError((Object error) {
+
+      setState(() {
+
+        loading = false;
+      });
+    });
+  }
+
+  viewDetails(BuildContext contexts,String textData) {
+    return showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,shape: OutlineInputBorder(borderRadius: BorderRadius.circular(30),borderSide: BorderSide(color: Theme.of(context).indicatorColor)),
+        backgroundColor: Theme.of(context).cardColor,elevation: 4.0,
+        builder: (context) => Padding(
+          padding: EdgeInsets.only(
+              bottom: MediaQuery.of(context).viewInsets.bottom),
+          child: StatefulBuilder(
+              builder: (BuildContext context, StateSetter ssetState) {
+                return Container(
+                  margin: EdgeInsets.only(top: 5.0),
+                  width: MediaQuery.of(context).size.width,
+                  padding: EdgeInsets.only(
+                    right: 5.0,
+                    left: 0.0,
+                  ),
+                  decoration: BoxDecoration(
+                      color: CustomTheme.of(context).cardColor,
+                      borderRadius: BorderRadius.only(
+                        topRight: Radius.circular(30.0),
+                        topLeft: Radius.circular(30.0),
+                      )),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        height: 30.0,
+                      ),
+                      Align(
+                        alignment: Alignment.center,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding:
+                              EdgeInsets.fromLTRB(20.0, 10.0, 20.0, 10.0),
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    textData,
+                                    style: CustomWidget(context: context)
+                                        .CustomSizedTextStyle(
+                                        16.0,
+                                        Theme.of(context).focusColor,
+                                        FontWeight.w500,
+                                        'FontRegular'),
+                                    textAlign: TextAlign.start,
+                                  ),
+                                  const SizedBox(
+                                    height: 35.0,
+                                  ),
+                                  OTPTextField(otpFieldStyle:OtpFieldStyle(backgroundColor: Theme.of(context).canvasColor.withOpacity(0.7),borderColor: Theme.of(context).focusColor,),
+
+                                    length: 6,
+                                    width: MediaQuery.of(context).size.width,
+                                    fieldWidth: 45,
+                                    style: CustomWidget(context: context)
+                                        .CustomSizedTextStyle(
+                                        14.0,
+                                        Theme.of(context).cardColor,
+                                        FontWeight.w600,
+                                        'FontRegular'),
+                                    textFieldAlignment:
+                                    MainAxisAlignment.spaceAround,
+                                    fieldStyle: FieldStyle.underline,
+                                    onCompleted: (pin) {
+                                      setState(() {
+                                        pinValue = pin;
+                                      });
+                                    },
+                                  ),
+                                  const SizedBox(
+                                    height: 45.0,
+                                  ),
+                                  Align(
+                                    alignment: Alignment.center,
+                                    child: InkWell(
+                                      onTap: () {
+                                        // if(type=="google") {
+                                          if (pinValue.isEmpty ||
+                                              pinValue.length < 6) {
+                                            CustomWidget(context: context)
+                                                .showSuccessAlertDialog(
+                                                "Login",
+                                                "Please enter OTP",
+                                                "error");
+                                          } else {
+                                            ssetState(() {
+                                              loading = true;
+                                              confirmTwoFA();
+                                              Navigator.pop(context);
+                                            });
+                                          }
+                                       // }
+                                        // else{
+                                        //   if (pinValue.isEmpty ||
+                                        //       pinValue.length < 6) {
+                                        //     CustomWidget(context: context)
+                                        //         .showSuccessAlertDialog(
+                                        //         "Login",
+                                        //         "Please enter OTP",
+                                        //         "error");
+                                        //   } else {
+                                        //     ssetState(() {
+                                        //       loading = true;
+                                        //       confirmTwoFA();
+                                        //       Navigator.pop(context);
+                                        //     });
+                                        //   }
+                                        // }
+                                      },
+                                      child: Container(
+                                        width:
+                                        MediaQuery.of(context).size.width *
+                                            0.6,
+                                        padding: EdgeInsets.fromLTRB(
+                                            0.0, 10.0, 0.0, 10.0),
+                                        decoration: BoxDecoration(
+                                          // border: Border.all(
+                                          //   width: 1.0,
+                                          //   color: Theme.of(context).cardColor,
+                                          // ),
+                                          borderRadius:
+                                          BorderRadius.circular(6.0),
+                                          gradient: LinearGradient(
+                                            begin: Alignment.centerLeft,
+                                            end: Alignment.centerRight,
+                                            colors: <Color>[
+                                              CustomTheme.of(context).indicatorColor,
+                                              CustomTheme.of(context)
+                                                  .indicatorColor,
+                                            ],
+                                            tileMode: TileMode.mirror,
+                                          ),
+                                        ),
+                                        child: Center(
+                                          child: Text(
+                                            "Verify",
+                                            style:
+                                            CustomWidget(context: context)
+                                                .CustomSizedTextStyle(
+                                                16.0,
+                                                Theme.of(context)
+                                                    .cardColor,
+                                                FontWeight.w500,
+                                                'FontRegular'),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(
+                                    height: 10.0,
+                                  ),
+                                  // Align(
+                                  //   alignment: Alignment.center,
+                                  //   child: InkWell(
+                                  //     onTap: (){
+                                  //       ssetState(() {
+                                  //         loading=true;
+                                  //         resndOTP();
+                                  //       });
+                                  //
+                                  //
+                                  //     },
+                                  //     child: Text(
+                                  //       "Resend OTP",
+                                  //       style: CustomWidget(context: context)
+                                  //           .CustomSizedTextStyle(
+                                  //           14.0,
+                                  //           Theme.of(context).shadowColor,
+                                  //           FontWeight.w800,
+                                  //           'FontRegular'),
+                                  //     ),
+                                  //   ),
+                                  // ),
+                                  const SizedBox(
+                                    height: 15.0,
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(
+                        height: 10.0,
+                      ),
+                    ],
+                  ),
+                );
+              }),
+        ));
+  }
+  confirmTwoFA() {
+    apiUtils.veifyEmailOTP( pinValue.toString())
+        .then((CommonModel loginData) {
+      if (loginData.status!) {
+        setState(() {
+          loading = false;
+          CustomWidget(context: context).showSuccessAlertDialog("Login", loginData.message.toString(), "success");
+          //storeData(loginData.result!.accessToken.toString());
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (context) => Home_Screen(),));
+        });
+
+      }
+      else {
+        setState(() {
+          loading = false;
+          CustomWidget(context: context).showSuccessAlertDialog("Login", loginData.message.toString(), "error");
+        });
+      }
+    }).catchError((Object error) {
+      print("Mano");
+      print(error);
+      setState(() {
+        loading = false;
+      });
+    });
+  }
   loginGoogle(String name,String mail) {
     apiUtils
         .doGoogleRegister(
@@ -524,7 +787,8 @@ class _Login_ScreenState extends State<Login_Screen>
           CustomWidget(context: context).showSuccessAlertDialog(
               "Login", loginData.message.toString(), "success");
           storeData(
-            loginData.result!.token.toString(),loginData.result!.user!.traderType.toString()
+            loginData.result!.token.toString(),loginData.result!.user!.traderType.toString(),loginData.result!.user!.id.toString(),
+              loginData.result!.user!.email.toString(),"",name
           );
         });
 
@@ -550,11 +814,15 @@ class _Login_ScreenState extends State<Login_Screen>
 
 
   storeData(
-    String token, String trader_type) async {
+    String token, String trader_type,String id,String email,String password,String name) async {
     print("token${token}");
     print("type$trader_type");
     SharedPreferences preferences = await SharedPreferences.getInstance();
     preferences.setString("token", token);
     preferences.setString("trader_type", trader_type);
+    preferences.setString("user_id", id);
+    preferences.setString("email", email);
+    preferences.setString("password", password);
+    preferences.setString("name", name);
   }
 }

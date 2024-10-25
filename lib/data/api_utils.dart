@@ -5,6 +5,7 @@ import 'package:imperial/data/crypt_model/adress_coin_list_model.dart';
 import 'package:imperial/data/crypt_model/adress_coin_list_model.dart';
 import 'package:imperial/data/crypt_model/common_model.dart';
 import 'package:imperial/data/crypt_model/future_trade_pair_model.dart';
+import 'package:imperial/data/crypt_model/get_message_model.dart';
 import 'package:imperial/data/crypt_model/kyc_update_model.dart';
 import 'package:imperial/data/crypt_model/login_model.dart';
 import 'package:imperial/data/crypt_model/market_pair_list_model.dart';
@@ -13,8 +14,11 @@ import 'package:imperial/data/crypt_model/trade_pair_model.dart';
 import 'package:imperial/data/crypt_model/user_wallet_balance_model.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'crypt_model/copy_trade_history_model.dart';
 import 'crypt_model/dashboard_image_model.dart';
 import 'crypt_model/get_pair_details.dart';
+import 'crypt_model/getfavourites_model.dart';
+import 'crypt_model/getwallet_by_id.dart';
 import 'crypt_model/googleTFA_model.dart';
 import 'crypt_model/image_upload_model.dart';
 import 'crypt_model/all_wallet_pairs.dart';
@@ -23,8 +27,11 @@ import 'crypt_model/coin_list_model.dart';
 import 'crypt_model/history_model.dart';
 import 'crypt_model/my_subscription_model.dart';
 import 'crypt_model/notification.dart';
+import 'crypt_model/open_order_history_model.dart';
+import 'crypt_model/position_trade_model.dart';
 import 'crypt_model/profile_model.dart';
 import 'crypt_model/subscribe.dart';
+import 'crypt_model/trade_balance_model.dart';
 import 'crypt_model/trade_pairs_list_model.dart';
 import 'crypt_model/transfer_amount_internal_model.dart';
 import 'crypt_model/transfer_history_model.dart';
@@ -47,36 +54,45 @@ class APIUtils {
   static const String dashBoardImage = 'auth/getDashboardImages';
   static const String KycVerifyUrl = 'users/createKyc';
   static const String KycfrontIDUrl = 'users/imageUpload';
+  static const String profileImageUploadUrl='users/updateprofile';
   static const String forgotPasswordVerifyURL = 'auth/reset';
   static const String marketPairURL = 'assets/marketPairs';
+  static const String favouriteListURL='bybit/getallfav';
   static const String createTicketUrl = '/create-ticket';
   static const String assetListURL = 'assets/getallasset';
   static const String masterListURL = 'users/getMAsters';
   static const String changePassURL = 'profile/changePassword';
   static const String getProfileURL = 'users/get_profile';
+  static const String getMessageURL = 'SupportNew/myQuery';
   static const String getNotifyURL = 'users/getMynotification';
   static const String marketCoinListURL = 'assets/marketPairs';
+  static const String addfavouriteCoinListURL ='assets/addFavPairs';
   static const String getAllMastersURL = 'users/getMastersbyQuery';
   static const String subscribeDetailsURL = 'trade/createSubscription';
   static const String getTradePairURL = 'assets/getalltradepair';
+  static const String addFavFuturePairUrl='assets/favpairsfuture';
   static const String getFutureTradePairURL = 'assets/getfuturepairs';
   static const String getTradeHisURL = 'trade/tradeHistory';
-  static const String getWalletPairURL = 'bybit/getwallets'; // wallet/getWalletById
+  static const String getPositionTradeHistory='bybit/getposition';
+  static const String getWalletPairURL = 'bybit/getwallets';
+  static const String getTradeBalanceURL='bybit/gettradebalance';
   static const String getMySubscibeURL = 'trade/getMysubscription';
   static const String tradePairsWthTypeURL = '/bybit/getnewpairsbytype';
   static const String getHistoryURL = 'trade/tradeHistorypaginate';
   static const String getWalletAddressURL = 'wallet/getWalletaddressById';
   static const String createWalletAddressURL = 'bybit/address';
   static const String resendOTP = 'api/withdraw-resend-otp';
-  static const String withdrawURL = 'wallet/withdrawUser';
+  static const String withdrawURL = 'auth/createwithdraw';
   static const String cancelTrade='bybit/cancelorder';
+  static const String openOrdersUrl='bybit/getopenorders';
   static const String getpairDetailsURL='bybit/getpairdetailes';
   static const String createSubAccURL = 'bybit/createsub'; // trade/createsubaccount
-  // static const String walletDepAddURL = 'wallet/createDepositeAddress';
+  static const String walletDepAddURL = 'wallet/createDepositeAddress';
   static const String tradeAllPairsURL = 'bybit/orderbook';
   static const String tradeURL = 'bybit/trade'; //trade/userTrade
   static const String masterTradeURL = 'bybit/mastertrade';
   static const String addSubsTradeURL = 'trade/addsubscriber';
+  static const String copyTradeHistoryURL='trade/copytradeHistorypaginate';
   static const String transferHistoryURL = 'users/getInternalTransfer';
   static const String transferAmountURL = 'bybit/createInternalTransfer';
   static const String transferTradingURL = 'wallet/getSubAccBal';
@@ -297,7 +313,25 @@ print(bankData);
     return CommonModel.fromJson(json.decode(response.body));
   }
 
+  Future<ImageUploadingModel> doUpload(String image,) async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    var emailbodyData = {
+      'url': image,
+    };
+
+    final response = await http.post(
+        Uri.parse(crypto_baseURL + profileImageUploadUrl),
+        body: emailbodyData, headers: {
+      "authorization": "Bearer " + preferences.getString("token").toString()
+    },);
+    print(response.body);
+
+    return ImageUploadingModel.fromJson(json.decode(response.body));
+  }
+
+
   Future<ImageUploadingModel> updateKycFrontUpload(String image,) async {
+
     SharedPreferences preferences = await SharedPreferences.getInstance();
 
     var request = http.MultipartRequest(
@@ -370,6 +404,41 @@ print(response.body);
         });
     return MarketPairListModel.fromJson(json.decode(response.body));
   }
+  Future<CommonModel> addFavPairlist(String add,String pairs) async {
+    var map={
+      "add":add,
+      "pairs":pairs
+    };
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+
+    final response = await http.post(Uri.parse(crypto_baseURL + addfavouriteCoinListURL),
+        body: map,
+        headers: {
+          "Authorization": "Bearer " + preferences.getString("token").toString()
+        });
+    print(response.headers);
+    print("heye ${response.body}");
+    print(response.headers);
+    return CommonModel.fromJson(json.decode(response.body));
+  }
+  Future<CommonModel> addFavFuturePairlist(String add,String pairs) async {
+    var map={
+      "add":add,
+      "pairs":pairs
+    };
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+
+    final response = await http.post(Uri.parse(crypto_baseURL + addFavFuturePairUrl),
+        body: map,
+        headers: {
+          "Authorization": "Bearer " + preferences.getString("token").toString()
+        });
+    print(response.headers);
+    print("heye ${response.body}");
+    print(response.headers);
+    return CommonModel.fromJson(json.decode(response.body));
+  }
+
 
   Future<MarketPairListModel> getAssetslist() async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
@@ -380,6 +449,17 @@ print(response.body);
         });
 
     return MarketPairListModel.fromJson(json.decode(response.body));
+  }
+  Future<GetFavouritesModel> getFavouriteslist() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+
+    final response = await http.get(Uri.parse(crypto_baseURL + favouriteListURL),
+        headers: {
+          "Authorization": "Bearer " + preferences.getString("token").toString()
+        });
+    print("hellolo ${response.body}");
+
+    return GetFavouritesModel.fromJson(json.decode(response.body));
   }
 
   Future<MarketPairListModel> getMasterlist() async {
@@ -401,6 +481,17 @@ print(response.body);
           "Authorization": "Bearer " + preferences.getString("token").toString()
         });
     return GetProfileModel.fromJson(json.decode(response.body));
+  }
+
+  Future<GetMessageModel> getMessageDetails() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+
+    final response = await http.get(Uri.parse(crypto_baseURL + getMessageURL),
+        headers: {
+          "Authorization": "Bearer " + preferences.getString("token").toString()
+        });
+    print(response.body);
+    return GetMessageModel.fromJson(json.decode(response.body));
   }
 
   Future<GetNotificationModel> getNotiDetils() async {
@@ -526,6 +617,43 @@ print(response.body);
     return TradeHistoryListModel.fromJson(json.decode(response.body));
   }
 
+  Future<OpenOrderHistoryModel> getOpenOrderhistory(String pair,String category) async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+
+    var emailbodyData = {
+      'pair': pair,
+      'category':category,
+    };
+    final response = await http.post(
+      Uri.parse(crypto_baseURL + openOrdersUrl),
+      body: emailbodyData,
+      headers: {
+        "authorization": "Bearer " + preferences.getString("token").toString()
+      },
+    );
+    print("heyyy");
+    print(response.body);
+
+    return OpenOrderHistoryModel.fromJson(json.decode(response.body));
+  }
+
+  Future<PositionHistoryModel> getPositionTradehistory() async {
+
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+
+    final response = await http.post(
+      Uri.parse(crypto_baseURL + getPositionTradeHistory),
+      headers: {
+        "authorization": "Bearer " + preferences.getString("token").toString()
+      },
+    );
+    print(response.body);
+
+    return PositionHistoryModel.fromJson(json.decode(response.body));
+  }
+
+
+
   Future<GetWalletAllPairsModel> getWalletList() async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
 
@@ -536,6 +664,21 @@ print(response.body);
       },
     );
     return GetWalletAllPairsModel.fromJson(json.decode(response.body));
+  }
+  Future<GetTradeBalanceModel> getTradeBalance(String pair) async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    var map={
+      "pair":pair
+    };
+
+    final response = await http.post(
+      Uri.parse(crypto_baseURL + getTradeBalanceURL),
+      body: map,
+      headers: {
+        "authorization": "Bearer " + preferences.getString("token").toString()
+      },
+    );
+    return GetTradeBalanceModel.fromJson(json.decode(response.body));
   }
 
 
@@ -563,14 +706,19 @@ print(response.body);
     return AllHistoryModel.fromJson(json.decode(response.body));
   }
 
-  Future<UserWalletBalanceModel> walletBalanceInfo() async {
+  Future<GetWalltByIdModel> walletBalanceInfo(String ccy) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
+    var body={
+      "ccy":ccy
+    };
+    print(body);
     final response = await http
         .post(Uri.parse(crypto_baseURL + getWalletAddressURL), headers: {
       "authorization": "Bearer " + preferences.getString("token").toString()
-    });
+    },body: body);
+
     print(response.body);
-    return UserWalletBalanceModel.fromJson(json.decode(response.body));
+    return GetWalltByIdModel.fromJson(json.decode(response.body));
   }
 
   Future<CommonModel> resendWithdrawOTP(String atx_id,) async {
@@ -611,19 +759,19 @@ print(response.body);
   }
 
 
-  Future<CommonModel> aithdrawWallet(String amount, String fee, String dest, String currency, String chain, String address) async {
+  Future<CommonModel> aithdrawWallet(String currency, String chain, String address, String amount) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
     var bankData = {
-      "Amount": amount,
-      "Fee": fee,
-      "Dest": dest,
       "Currency": currency,
       "Chain": chain,
       "Address": address,
+      "Amount": amount,
     };
+    print(bankData);
     final response = await http.post(Uri.parse(crypto_baseURL + withdrawURL),
         body: bankData,
         headers: {"authorization": "Bearer " + preferences.getString("token").toString()});
+    print(response.body);
     return CommonModel.fromJson(json.decode(response.body));
   }
 
@@ -639,13 +787,13 @@ print(response.body);
     return CommonModel.fromJson(json.decode(response.body));
   }
 
-  // Future<CommonModel> walletDepoAdd() async {
-  //   SharedPreferences preferences = await SharedPreferences.getInstance();
-  //
-  //   final response = await http.post(Uri.parse(crypto_baseURL + walletDepAddURL),
-  //       headers: {"authorization": "Bearer " + preferences.getString("token").toString()});
-  //   return CommonModel.fromJson(json.decode(response.body));
-  // }
+  Future<CommonModel> walletDepoAdd() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+
+    final response = await http.post(Uri.parse(crypto_baseURL + walletDepAddURL),
+        headers: {"authorization": "Bearer " + preferences.getString("token").toString()});
+    return CommonModel.fromJson(json.decode(response.body));
+  }
 
   Future<CommonModel> tradeInfo(String instId, String tdMode, String ccy, String lever, String side, String orderType,
       String px, String sz, String trade_at, bool tpslType, String tpPrice, String slPrice) async {
@@ -763,6 +911,15 @@ print(response.body);
         headers: {"authorization": "Bearer " + preferences.getString("token").toString()});
     return InternalTransferModel.fromJson(json.decode(response.body));
   }
+  Future<CopyTradeHistoryModel> getcopyTradeHistoryList(String page) async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+
+    final response = await http.get(Uri.parse(crypto_baseURL + copyTradeHistoryURL+"?limit=10"+"?page=$page"),
+        headers: {"authorization": "Bearer " + preferences.getString("token").toString()});
+    print(response.headers);
+    print(response.body);
+    return CopyTradeHistoryModel.fromJson(json.decode(response.body));
+  }
 
   Future<CommonModel> transferAmount(String Currency, String Amount, String from, String to) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
@@ -823,16 +980,18 @@ print(response.body);
     return CommonModel.fromJson(json.decode(response.body));
   }
 
-  Future<CommonModel> pairListWithType(String selectCoin, String orderType) async {
+  Future<CoinListModel> pairListWithType(String selectCoin, String orderType) async {
     SharedPreferences preferences = await SharedPreferences.getInstance();
     var bankData = {
       "category": selectCoin,
       "type": orderType,
     };
+    print("bankss$bankData");
     final response = await http.post(Uri.parse(crypto_baseURL + tradePairsWthTypeURL),
         body: bankData,
         headers: {"authorization": "Bearer " + preferences.getString("token").toString()});
-    return CommonModel.fromJson(json.decode(response.body));
+    print(response.body);
+    return CoinListModel.fromJson(json.decode(response.body));
   }
 
 }

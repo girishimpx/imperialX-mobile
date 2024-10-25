@@ -1,3 +1,4 @@
+
 import 'package:barcode_scan2/barcode_scan2.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
@@ -28,6 +29,8 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
 
   APIUtils apiUtils = APIUtils();
   bool loading = false;
+  String selectedAddress="";
+  String selectedChain="Select Network";
   UserWalletResult? selectedCoin;
   TextEditingController searchController = TextEditingController();
   TextEditingController addressController = TextEditingController();
@@ -46,7 +49,7 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
   var pinValue;
   String axn_id = "";
   String withdrawAmount = "0.00";
-  List<NetworkAddress> networkAddress = [];
+  List<Mugavari> networkAddress = [];
   String fee = "";
 
   int indexVal = 0;
@@ -61,11 +64,17 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
   void initState() {
     // TODO: implement initState
     super.initState();
+    setState(() {
+
+
     loading = true;
     coinPair=widget.coinList;
     walletPair=widget.coinList;
     selectPair= coinPair.first;
+    networkAddress.add(Mugavari(chain: "Select Network",address: ""));
+    //getCoinList(selectPair!.symbol.toString());
     getWallList();
+    });
   }
 
   @override
@@ -240,183 +249,152 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                               SizedBox(
                                 height: 10.0,
                               ),
-                              // selectedCoin!.type.toString()!="coin"||  selectedCoin!.type.toString()!="token"?   bankList.length>0?  Container(
-                              //   height: 45.0,
-                              //   padding: const EdgeInsets.only(
-                              //       left: 10.0, right: 10.0, top: 0.0, bottom: 0.0),
-                              //   decoration: BoxDecoration(
-                              //     borderRadius: BorderRadius.circular(5.0),
-                              //     color:  CustomTheme.of(context)
-                              //         .shadowColor
-                              //         .withOpacity(0.2),
-                              //   ),
-                              //   child: Center(
-                              //     child: Theme(
-                              //       data: Theme.of(context).copyWith(
-                              //         canvasColor:
-                              //         CustomTheme.of(context).cardColor,
-                              //       ),
-                              //       child: DropdownButtonHideUnderline(
-                              //         child: DropdownButton(
-                              //           items: bankList
-                              //               .map((value) => DropdownMenuItem(
-                              //             child: Text(
-                              //               value.bankName.toString(),
-                              //               style: CustomWidget(
-                              //                   context: context)
-                              //                   .CustomSizedTextStyle(
-                              //                   12.0,
-                              //                   Theme.of(context)
-                              //                       .splashColor,
-                              //                   FontWeight.w500,
-                              //                   'FontRegular'),
-                              //             ),
-                              //             value: value,
-                              //           ))
-                              //               .toList(),
-                              //           onChanged: (value) {
-                              //             setState(() {
-                              //               selectedBank = value;
-                              //             });
-                              //           },
-                              //           isExpanded: true,
-                              //           value: selectedBank,
-                              //           icon: Icon(
-                              //             Icons.keyboard_arrow_down,
-                              //             color:
-                              //             CustomTheme.of(context).splashColor,
-                              //           ),
-                              //         ),
-                              //       ),
-                              //     ),
-                              //   ),
-                              // ): Padding(
-                              //   padding: EdgeInsets.only(top:0.0, bottom: 0.0, ),
-                              //   child: InkWell(
-                              //     onTap: () {
-                              //       Navigator.of(context)
-                              //           .push(
-                              //         MaterialPageRoute(builder: (_) => AddBankScreen()),
-                              //       )
-                              //           .then((val) => val ? _getRequests() : null);
-                              //     },
-                              //     child: Container(
-                              //       height: 45.0,
-                              //       decoration: BoxDecoration(
-                              //           color: CustomTheme.of(context)
-                              //               .canvasColor,
-                              //           borderRadius: BorderRadius.circular(5.0)),
-                              //       padding: EdgeInsets.only(left: 10.0,right: 10.0),
-                              //       child: Row(
-                              //         mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              networkAddress.length > 0
+                                  ? Container(
+                                height: 45.0,
+                                padding: const EdgeInsets.only(
+                                    left: 10.0, right: 10.0, top: 0.0, bottom: 0.0),
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(5.0),
+                                  color: CustomTheme.of(context).shadowColor.withOpacity(0.2),
+                                ),
+                                child: Center(
+                                  child: Theme(
+                                    data: Theme.of(context).copyWith(
+                                      canvasColor: CustomTheme.of(context).cardColor,
+                                    ),
+                                    child: DropdownButtonHideUnderline(
+                                      child: DropdownButton(
+                                        items: networkAddress.map((value) {
+                                          return DropdownMenuItem(
+                                            onTap: () {
+                                              setState(() {
+                                                selectedChain = value.chain!;
+                                                selectedAddress = value.address!;
+                                              });
+                                            },
+                                            value: value.chain, // Use `chain` as the value
+                                            child: Text(
+                                              value.chain.toString(),
+                                              style: CustomWidget(context: context).CustomSizedTextStyle(
+                                                12.0,
+                                                Theme.of(context).focusColor,
+                                                FontWeight.w500,
+                                                'FontRegular',
+                                              ),
+                                            ),
+                                          );
+                                        }).toList(),
+                                        value: selectedChain, // Use `selectedChain` for comparison
+                                        isExpanded: true,
+                                        icon: Icon(
+                                          Icons.keyboard_arrow_down,
+                                          color: CustomTheme.of(context).focusColor,
+                                        ),
+                                        onChanged: (Object? newValue) {
+                                          setState(() {
+                                            selectedChain = newValue.toString(); // Update `selectedChain`
+                                            // Update `selectedAddress` accordingly if needed
+                                          });
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              )
+                                  : Container(),
+                              const SizedBox(
+                                height: 10.0,
+                              ),
+
+                              //selectedCoin!.type.toString()!="coin"||  selectedCoin!.type.toString()!="token"?
+                              //Container():
+
+                              //networkAddress.length > 0 ?
+                              // Container(
+                              //   child: ListView.builder(
+                              //     itemCount: networkAddress.length,
+                              //     scrollDirection: Axis.horizontal,
+                              //     itemBuilder:
+                              //         (BuildContext context, int index) {
+                              //       return Row(
                               //         children: [
+                              //           InkWell(
+                              //             onTap: () {
+                              //               setState(() {
+                              //                 indexVal = index;
+                              //                 amountController.clear();
+                              //                 fee = "0.00";
+                              //                 withdrawAmount = "0.00";
                               //
-                              //           Text(
-                              //             "Link A Bank Account",
-                              //             style: CustomWidget(context: context).CustomSizedTextStyle(16.0,
-                              //                 Theme.of(context).splashColor, FontWeight.w500, 'FontRegular'),
+                              //                 if (networkAddress[0]
+                              //                     .withdrawtype
+                              //                     .toString()
+                              //                     .toLowerCase() ==
+                              //                     "percentage") {
+                              //                   fee = (double.parse(networkAddress[
+                              //                   indexVal]
+                              //                       .withdrawcommission
+                              //                       .toString()) /
+                              //                       100)
+                              //                       .toString();
+                              //                 } else {
+                              //                   fee = networkAddress[
+                              //                   indexVal]
+                              //                       .withdrawcommission
+                              //                       .toString();
+                              //                 }
+                              //               });
+                              //             },
+                              //             child: Container(
+                              //                 padding:
+                              //                 EdgeInsets.fromLTRB(
+                              //                     15.0,
+                              //                     0.0,
+                              //                     15.0,
+                              //                     0.0),
+                              //                 decoration: BoxDecoration(
+                              //                   borderRadius:
+                              //                   BorderRadius.circular(
+                              //                       8.0),
+                              //                   color: indexVal == index
+                              //                       ? CustomTheme.of(
+                              //                       context)
+                              //                       .primaryColorLight
+                              //                       : CustomTheme.of(
+                              //                       context)
+                              //                       .disabledColor
+                              //                       .withOpacity(0.4),
+                              //                 ),
+                              //                 child: Center(
+                              //                   child: Text(
+                              //                     // networkAddress[index]
+                              //                     //     .name
+                              //                     //     .toString()
+                              //                     //     .toUpperCase(),
+                              //                     "ashnnmcikmnldlo".toUpperCase(),
+                              //                     style: CustomWidget(
+                              //                         context:
+                              //                         context)
+                              //                         .CustomSizedTextStyle(
+                              //                         14.0,
+                              //                         Theme.of(
+                              //                             context)
+                              //                             .focusColor,
+                              //                         FontWeight.w400,
+                              //                         'FontRegular'),
+                              //                   ),
+                              //                 )),
                               //           ),
-                              //
-                              //           Icon(
-                              //             Icons.add,
-                              //             size: 20.0,
+                              //           const SizedBox(
+                              //             width: 10.0,
                               //           )
                               //         ],
-                              //       ),
-                              //     ),
+                              //       );
+                              //     },
                               //   ),
-                              // ):Container(),
-                              // const SizedBox(
-                              //   height: 10.0,
+                              //   height: 35.0,
                               // ),
-                              // selectedCoin!.type.toString()!="coin"||  selectedCoin!.type.toString()!="token"?
-                              // Container():
-
-                              // networkAddress.length > 0 ?
-                              Container(
-                                child: ListView.builder(
-                                  itemCount: networkAddress.length,
-                                  scrollDirection: Axis.horizontal,
-                                  itemBuilder:
-                                      (BuildContext context, int index) {
-                                    return Row(
-                                      children: [
-                                        InkWell(
-                                          onTap: () {
-                                            setState(() {
-                                              indexVal = index;
-                                              amountController.clear();
-                                              fee = "0.00";
-                                              withdrawAmount = "0.00";
-
-                                              if (networkAddress[0]
-                                                  .withdrawtype
-                                                  .toString()
-                                                  .toLowerCase() ==
-                                                  "percentage") {
-                                                fee = (double.parse(networkAddress[
-                                                indexVal]
-                                                    .withdrawcommission
-                                                    .toString()) /
-                                                    100)
-                                                    .toString();
-                                              } else {
-                                                fee = networkAddress[
-                                                indexVal]
-                                                    .withdrawcommission
-                                                    .toString();
-                                              }
-                                            });
-                                          },
-                                          child: Container(
-                                              padding:
-                                              EdgeInsets.fromLTRB(
-                                                  15.0,
-                                                  0.0,
-                                                  15.0,
-                                                  0.0),
-                                              decoration: BoxDecoration(
-                                                borderRadius:
-                                                BorderRadius.circular(
-                                                    8.0),
-                                                color: indexVal == index
-                                                    ? CustomTheme.of(
-                                                    context)
-                                                    .primaryColorLight
-                                                    : CustomTheme.of(
-                                                    context)
-                                                    .disabledColor
-                                                    .withOpacity(0.4),
-                                              ),
-                                              child: Center(
-                                                child: Text(
-                                                  // networkAddress[index]
-                                                  //     .name
-                                                  //     .toString()
-                                                  //     .toUpperCase(),
-                                                  "ashnnmcikmnldlo".toUpperCase(),
-                                                  style: CustomWidget(
-                                                      context:
-                                                      context)
-                                                      .CustomSizedTextStyle(
-                                                      14.0,
-                                                      Theme.of(
-                                                          context)
-                                                          .focusColor,
-                                                      FontWeight.w400,
-                                                      'FontRegular'),
-                                                ),
-                                              )),
-                                        ),
-                                        const SizedBox(
-                                          width: 10.0,
-                                        )
-                                      ],
-                                    );
-                                  },
-                                ),
-                                height: 35.0,
-                              ),
                                   // : Container(),
                               SizedBox(
                                 height: 10.0,
@@ -490,7 +468,7 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                                       child: TextField(
                                         decoration: InputDecoration(
                                           border: InputBorder.none,
-                                          hintText: 'Withdrawal volume',
+                                          hintText: 'Withdrawal Amount',
                                           hintStyle: TextStyle(
                                             fontSize: 12.0,
                                             color: CustomTheme.of(context)
@@ -498,68 +476,71 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                                             fontWeight: FontWeight.w500,
                                           ),
                                         ),
+
                                         onChanged: (val) {
                                           setState(() {
-                                            withdrawAmount = "0";
-
-                                            if (val.isNotEmpty) {
-                                              if (networkAddress.length > 0) {
-                                                if (networkAddress[0]
-                                                    .withdrawtype
-                                                    .toString()
-                                                    .toLowerCase() ==
-                                                    "percentage") {
-                                                  String fees = (double.parse(
-                                                      networkAddress[
-                                                      indexVal]
-                                                          .withdrawcommission
-                                                          .toString()) /
-                                                      100)
-                                                      .toString();
-                                                  fee = (double.parse(val) *
-                                                      double.parse(fees))
-                                                      .toStringAsFixed(8);
-
-                                                  if(double.parse(val)>double.parse(fee))
-                                                  {
-                                                    withdrawAmount =
-                                                        (double.parse(val) -
-                                                            double.parse(fee))
-                                                            .toStringAsFixed(8);
-                                                  }
-
-
-                                                  print(withdrawAmount);
-                                                } else {
-                                                  fee = networkAddress[indexVal]
-                                                      .withdrawcommission
-                                                      .toString();
-
-                                                  if(double.parse(val)>double.parse(fee))
-                                                  {
-                                                    withdrawAmount = (double
-                                                        .parse(val) -
-                                                        double.parse(
-                                                            networkAddress[
-                                                            indexVal]
-                                                                .withdrawcommission
-                                                                .toString()))
-                                                        .toStringAsFixed(1);
-                                                  }
-
-                                                  print(withdrawAmount);
-                                                }
-                                              }
-                                              // if (double.parse(selectedCoin!.fee
-                                              //         .toString()) <=
-                                              //     double.parse(val))
-                                              //   withdrawAmount = (double.parse(
-                                              //               val) -
-                                              //           double.parse(
-                                              //               selectedCoin!.fee
-                                              //                   .toString()))
-                                              //       .toStringAsFixed(1);
-                                            }
+                                            // withdrawAmount = "0";
+                                            //
+                                            // if (val.isNotEmpty) {
+                                            //   print("his");
+                                            //   if (networkAddress.length > 0) {
+                                            //     print("his");
+                                            //     if (networkAddress[0]
+                                            //         .withdrawtype
+                                            //         .toString()
+                                            //         .toLowerCase() ==
+                                            //         "percentage") {
+                                            //       String fees = (double.parse(
+                                            //           networkAddress[
+                                            //           indexVal]
+                                            //               .withdrawcommission
+                                            //               .toString()) /
+                                            //           100)
+                                            //           .toString();
+                                            //       fee = (double.parse(val) *
+                                            //           double.parse(fees))
+                                            //           .toStringAsFixed(8);
+                                            //
+                                            //       if(double.parse(val)>double.parse(fee))
+                                            //       {
+                                            //         withdrawAmount =
+                                            //             (double.parse(val) -
+                                            //                 double.parse(fee))
+                                            //                 .toStringAsFixed(8);
+                                            //       }
+                                            //
+                                            //
+                                            //       print(withdrawAmount);
+                                            //     } else {
+                                            //       fee = networkAddress[indexVal]
+                                            //           .withdrawcommission
+                                            //           .toString();
+                                            //
+                                            //       if(double.parse(val)>double.parse(fee))
+                                            //       {
+                                            //         withdrawAmount = (double
+                                            //             .parse(val) -
+                                            //             double.parse(
+                                            //                 networkAddress[
+                                            //                 indexVal]
+                                            //                     .withdrawcommission
+                                            //                     .toString()))
+                                            //             .toStringAsFixed(1);
+                                            //       }
+                                            //
+                                            //       print(withdrawAmount);
+                                            //     }
+                                            //   }
+                                            //   // if (double.parse(selectedCoin!.fee
+                                            //   //         .toString()) <=
+                                            //   //     double.parse(val))
+                                            //   //   withdrawAmount = (double.parse(
+                                            //   //               val) -
+                                            //   //           double.parse(
+                                            //   //               selectedCoin!.fee
+                                            //   //                   .toString()))
+                                            //   //       .toStringAsFixed(1);
+                                            // }
                                           });
                                         },
                                         controller: amountController,
@@ -603,36 +584,36 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                               SizedBox(
                                 height: 10.0,
                               ),
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment:
-                                MainAxisAlignment.spaceBetween,
-                                children: [
-                                  Text(
-                                    "Received : " + withdrawAmount,
-                                    textAlign: TextAlign.center,
-                                    style: CustomWidget(context: context)
-                                        .CustomSizedTextStyle(
-                                        12.0,
-                                        Theme.of(context).focusColor,
-                                        FontWeight.w400,
-                                        'FontRegular'),
-                                  ),
-                                  Text(
-                                    "Fee : " + fee,
-                                    textAlign: TextAlign.center,
-                                    style: CustomWidget(context: context)
-                                        .CustomSizedTextStyle(
-                                        12.0,
-                                        Theme.of(context).focusColor,
-                                        FontWeight.w500,
-                                        'FontRegular'),
-                                  ),
-                                ],
-                              ),
-                              SizedBox(
-                                height: 10.0,
-                              ),
+                              // Row(
+                              //   crossAxisAlignment: CrossAxisAlignment.start,
+                              //   mainAxisAlignment:
+                              //   MainAxisAlignment.spaceBetween,
+                              //   children: [
+                              //     Text(
+                              //       "Received : " + withdrawAmount,
+                              //       textAlign: TextAlign.center,
+                              //       style: CustomWidget(context: context)
+                              //           .CustomSizedTextStyle(
+                              //           12.0,
+                              //           Theme.of(context).focusColor,
+                              //           FontWeight.w400,
+                              //           'FontRegular'),
+                              //     ),
+                              //     Text(
+                              //       "Fee : " + fee,
+                              //       textAlign: TextAlign.center,
+                              //       style: CustomWidget(context: context)
+                              //           .CustomSizedTextStyle(
+                              //           12.0,
+                              //           Theme.of(context).focusColor,
+                              //           FontWeight.w500,
+                              //           'FontRegular'),
+                              //     ),
+                              //   ],
+                              // ),
+                              // SizedBox(
+                              //   height: 10.0,
+                              // ),
                               // selectedCoin!.type.toString() ==
                               //     "fiat"
                               //     ?
@@ -797,6 +778,7 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                               InkWell(
                                 onTap: () {
                                   setState(() {
+                                    withdrawAmount=amountController.text.isNotEmpty?amountController.text:"0";
                                     if (double.parse(withdrawAmount) > 0) {
                                       if (addressController.text.isEmpty) {
                                         CustomWidget(context: context)
@@ -811,21 +793,33 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                                             "Imperial",
                                             "Enter  Withdraw amount",
                                             "error");
-                                      } else {
-                                        if (double.parse(selectedCoin!.balance
-                                            .toString()) <
-                                            double.parse(amountController.text
-                                                .toString())) {
-                                          CustomWidget(context: context)
-                                              .showSuccessAlertDialog(
-                                              "Imperial",
-                                              "Balance was too low",
-                                              "error");
+                                      }
+                                      else if (selectedChain=="Select Network") {
+                                        CustomWidget(context: context)
+                                            .showSuccessAlertDialog(
+                                            "Imperial",
+                                            "Select Network",
+                                            "error");
+                                      }
+                                      else {
+                                        if (selectPair!
+                                            .balance
+                                            .toString()
+                                            .isNotEmpty) {
+                                          if (double.parse(selectPair!.balance
+                                              .toString()) <
+                                              double.parse(amountController.text
+                                                  .toString())) {
+                                            CustomWidget(context: context)
+                                                .showSuccessAlertDialog(
+                                                "Imperial",
+                                                "Balance was too low",
+                                                "error");
+                                          } else {
+                                            loading = true;
 
-                                        } else {
-                                          loading = true;
-
-                                          // coinWithdraw();
+                                            coinWithdraw();
+                                          }
                                         }
                                       }
                                     } else {
@@ -914,10 +908,12 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                               onChanged: (value) {
                                 setStates(() {
                                   coinPair = [];
+
                                   for (int m = 0; m < walletPair.length; m++) {
                                     if (walletPair[m].symbol.toString().toLowerCase().contains(value.toString().toLowerCase()) || walletPair[m].coinname!.toString().toLowerCase().contains(value.toString().toLowerCase()))
                                     {
                                       coinPair.add(walletPair[m]);
+
                                     }
                                   }
                                 });
@@ -1020,11 +1016,17 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
                                         //   currentSymbol = selectPair!.tradepair.toString();
                                         //   print(currentSymbol + "wel");
                                         // });
+                                        loading=true;
                                         selectPair = coinPair[index];
+                                        networkAddress=[];
+                                        networkAddress.add(Mugavari(chain: "Select Network",address: ""));
+                                        networkAddress.addAll(coinPair[index].mugavari!.cast<Mugavari>());
+                                        //getCoinList(selectPair!.symbol.toString());
                                         print(index);
                                         print(selectPair!);
                                         // getAddressDetails();
                                         Navigator.pop(context);
+                                        loading=false;
                                       });
                                       searchController.clear();
                                     },
@@ -1558,38 +1560,39 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
   //   });
   // }
 
-  // coinWithdraw() {
-  //   apiUtils
-  //       .coinWithdrawDetails(
-  //       selectedCoin!.symbol.toString(),
-  //       addressController.text.toString(),
-  //       amountController.text.toString(),
-  //       networkAddress.length > 0
-  //           ? networkAddress[indexVal].type.toString()
-  //           : "coin")
-  //       .then((WithdrawModel loginData) {
-  //     if (loginData.success!) {
-  //       setState(() {
-  //         loading = false;
-  //         CustomWidget(context: context).showSuccessAlertDialog(
-  //             "Imperial", loginData.message.toString(), "success");
-  //
-  //         viewDetails(context);
-  //       });
-  //     } else {
-  //       setState(() {
-  //         loading = false;
-  //         CustomWidget(context: context).showSuccessAlertDialog(
-  //             "Imperial", loginData.message.toString(), "error");
-  //       });
-  //     }
-  //   }).catchError((Object error) {
-  //     print(error);
-  //     setState(() {
-  //       loading = false;
-  //     });
-  //   });
-  // }
+  coinWithdraw() {
+    apiUtils
+        .aithdrawWallet(
+      selectPair!.symbol.toString(),
+        networkAddress.length > 0
+            ? selectedChain
+            : "coin",
+        addressController.text.toString(),
+        amountController.text.toString(),
+        )
+        .then((CommonModel loginData) {
+      if (loginData.status!) {
+        setState(() {
+          loading = false;
+          CustomWidget(context: context).showSuccessAlertDialog(
+              "Imperial", loginData.message.toString(), "success");
+
+          // viewDetails(context);
+        });
+      } else {
+        setState(() {
+          loading = false;
+          CustomWidget(context: context).showSuccessAlertDialog(
+              "Imperial", loginData.message.toString(), "error");
+        });
+      }
+    }).catchError((Object error) {
+      print(error);
+      setState(() {
+        loading = false;
+      });
+    });
+  }
 
   // confirmWithdraw() {
   //   setState(() {
@@ -1658,35 +1661,38 @@ class _Withdraw_ScreenState extends State<Withdraw_Screen> {
     });
   }
 
-  getCoinList() {
-    apiUtils.walletBalanceInfo().then((UserWalletBalanceModel loginData) {
-      if (loginData.success!) {
-        setState(() {
-          loading = false;
-          coinList = loginData.result!;
-          searchCoinList = loginData.result!;
-          selectedCoin = coinList.first;
-
-          // getDetails();
-          coinList..sort((a, b) => b.balance!.compareTo(a.balance!));
-        });
-      } else {
-        setState(() {
-          loading = false;
-        });
-      }
-    }).catchError((Object error) {
-      setState(() {
-        loading = false;
-      });
-    });
-  }
+  // getCoinList(String ccy) {
+  //   apiUtils.walletBalanceInfo(ccy).then((GetWalltByIdModel loginData) {
+  //     if (loginData.success!) {
+  //       setState(() {
+  //         loading = false;
+  //         /*coinList = loginData.result!;
+  //         searchCoinList = loginData.result!;
+  //         selectedCoin = coinList.first;*/
+  //         networkAddress=loginData.result![0].mugavari!;
+  //
+  //         // getDetails();
+  //       //  coinList..sort((a, b) => b.balance!.compareTo(a.balance!));
+  //       });
+  //     } else {
+  //       setState(() {
+  //         loading = false;
+  //       });
+  //     }
+  //   }).catchError((Object error) {
+  //     setState(() {
+  //       loading = false;
+  //     });
+  //   });
+  // }
 
   getWallList() {
     apiUtils.getWalletList().then((GetWalletAllPairsModel loginData) {
       if (loginData.success!) {
         setState(() {
           walletPair = loginData.result!;
+          networkAddress.addAll(loginData.result![0].mugavari!.cast<Mugavari>());
+          print("length ${networkAddress.length}");
           // walletBalance = loginData.totalPriceInUsd!.toString();
           loading = false;
         });

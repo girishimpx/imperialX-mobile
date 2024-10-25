@@ -20,7 +20,7 @@ class CommonModel {
 
 
   Map<String, dynamic> toJson() => {
-    "status_code": status,
+    "success": status,
     "message": message,
   };
 }

@@ -13,6 +13,7 @@ import '../data/api_utils.dart';
 import '../data/crypt_model/allmasters_model.dart';
 import 'basic/subscription.dart';
 import 'copy_trade_details.dart';
+import 'copy_trade_history.dart';
 
 class Copy_Trade extends StatefulWidget {
   const Copy_Trade({Key? key}) : super(key: key);
@@ -103,7 +104,7 @@ class _Copy_TradeState extends State<Copy_Trade> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,children: [Text(
                     "Copy trade",
                     style: CustomWidget(context: context)
                         .CustomSizedTextStyle(
@@ -112,6 +113,24 @@ class _Copy_TradeState extends State<Copy_Trade> {
                         FontWeight.w600,
                         'FontRegular'),
                   ),
+                    InkWell(
+                        onTap: (){
+                          setState(() {
+                            Navigator.of(context).push(MaterialPageRoute(builder: (context) => Copy_Trade_History(),),
+                            );
+                          });
+                        },
+                        child: Container(
+                          padding: EdgeInsets.only(left: 16.0, right: 16.0),
+                          child: Icon(
+                            Icons.list_alt,
+                            size: 25.0,
+                            color: Theme.of(context).focusColor,
+                          ),
+                        )
+                    )
+
+                  ],),
                   const SizedBox(
                     height: 15.0,
                   ),
@@ -124,6 +143,8 @@ class _Copy_TradeState extends State<Copy_Trade> {
                           setState(() {
                             trade = true;
                             master = false;
+                            masterAdd=mastersListAll;
+                            searchController.clear();
                           });
                         },
                         child:  Container(
@@ -150,6 +171,8 @@ class _Copy_TradeState extends State<Copy_Trade> {
                           setState(() {
                             trade = false;
                             master = true;
+                            masterAdd=mastersListAll;
+                            searchController.clear();
                           });
                         },
                         child: Container(
@@ -207,106 +230,106 @@ class _Copy_TradeState extends State<Copy_Trade> {
                   const SizedBox(
                     height: 15.0,
                   ),
-                 // Row(
-                 //   crossAxisAlignment: CrossAxisAlignment.center,
-                 //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                 //   children: [
-                 //     Flexible(child:  Container(
-                 //       decoration: BoxDecoration(
-                 //           border: Border.all(width: 1.0, color: Theme.of(context).disabledColor,),
-                 //           borderRadius: BorderRadius.circular(25.0)
-                 //       ),
-                 //       height: 45.0,
-                 //       padding: EdgeInsets.only(left: 10.0, right: 10.0),
-                 //       width: MediaQuery.of(context).size.width,
-                 //       child: TextField(
-                 //         controller: searchController,
-                 //         focusNode: searchFocus,
-                 //         enabled: true,
-                 //         onEditingComplete: () {
-                 //           setState(() {
-                 //             searchFocus.unfocus();
-                 //
-                 //           });
-                 //         },
-                 //         onChanged: (value) {
-                 //           setState(() {
-                 //             masterAdd = [];
-                 //             for (int m = 0; m < mastersListAll.length; m++) {
-                 //               if (mastersListAll[m].master!.name.toString().toLowerCase().contains(value.toLowerCase()) ||
-                 //                   mastersListAll[m].master!.name.toString().toLowerCase().contains(value.toLowerCase())) {
-                 //                 masterAdd.add(mastersListAll[m]);
-                 //               }
-                 //             }
-                 //           });
-                 //         },
-                 //         decoration: InputDecoration(
-                 //           contentPadding: const EdgeInsets.only(
-                 //               left: 10, right: 0, top: 8, bottom: 8),
-                 //           hintText: "Search",
-                 //           hintStyle: TextStyle(
-                 //               fontFamily: "FontRegular",
-                 //               color: Theme.of(context).highlightColor,
-                 //               fontSize: 14.0,
-                 //               fontWeight: FontWeight.w500),
-                 //           filled: true,
-                 //           fillColor: Colors.transparent,
-                 //           border: OutlineInputBorder(
-                 //             borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                 //             borderSide: BorderSide(
-                 //                 color: Colors.transparent,
-                 //                 width: 1.0),
-                 //           ),
-                 //           disabledBorder: OutlineInputBorder(
-                 //             borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                 //             borderSide: BorderSide(
-                 //                 color: Colors.transparent,
-                 //                 width: 1.0),
-                 //           ),
-                 //           enabledBorder: OutlineInputBorder(
-                 //             borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                 //             borderSide: BorderSide(
-                 //                 color:Colors.transparent,
-                 //                 width: 1.0),
-                 //           ),
-                 //           focusedBorder: OutlineInputBorder(
-                 //             borderRadius: BorderRadius.all(Radius.circular(10.0)),
-                 //             borderSide: BorderSide(
-                 //                 color: Colors.transparent,
-                 //                 width: 1.0),
-                 //           ),
-                 //           errorBorder: const OutlineInputBorder(
-                 //             borderRadius: BorderRadius.all(Radius.circular(5)),
-                 //             borderSide: BorderSide(color: Colors.red, width: 0.0),
-                 //           ),
-                 //         ),
-                 //       ),
-                 //     ), flex: 5,),
-                 //     Flexible(child: InkWell(
-                 //       onTap: (){
-                 //       },
-                 //       child: Container(
-                 //         padding: EdgeInsets.all(8.0),
-                 //         decoration: BoxDecoration(
-                 //           shape: BoxShape.circle,
-                 //           border: Border.all(width: 1.0, color: Theme.of(context).disabledColor,),
-                 //           // color: Theme.of(context).disabledColor,
-                 //         ),
-                 //         child: Icon(Icons.filter_alt_rounded, size: 24.0, color: Theme.of(context).focusColor,),
-                 //       ),
-                 //     ),flex: 1,)
-                 //   ],
-                 // ),
+                 Row(
+                   crossAxisAlignment: CrossAxisAlignment.center,
+                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                   children: [
+                     Flexible(child:  Container(
+                       decoration: BoxDecoration(
+                           border: Border.all(width: 1.0, color: Theme.of(context).disabledColor,),
+                           borderRadius: BorderRadius.circular(10.0)
+                       ),
+                       height: 45.0,
+                       padding: EdgeInsets.only(left: 10.0, right: 10.0),
+                       width: MediaQuery.of(context).size.width,
+                       child: TextField(
+                         controller: searchController,
+                         focusNode: searchFocus,
+                         enabled: true,
+                         onEditingComplete: () {
+                           setState(() {
+                             searchFocus.unfocus();
+
+                           });
+                         },
+                         onChanged: (value) {
+                           setState(() {
+                             masterAdd = [];
+                             for (int m = 0; m < mastersListAll.length; m++) {
+                               if (mastersListAll[m].master!.name.toString().toLowerCase().contains(value.toLowerCase()) ||
+                                   mastersListAll[m].master!.name.toString().toLowerCase().contains(value.toLowerCase())) {
+                                 masterAdd.add(mastersListAll[m]);
+                               }
+                             }
+                           });
+                         },
+                         decoration: InputDecoration(
+                           contentPadding: const EdgeInsets.only(
+                               left: 10, right: 0, top: 8, bottom: 8),
+                           hintText: "Search",
+                           hintStyle: TextStyle(
+                               fontFamily: "FontRegular",
+                               color: Theme.of(context).highlightColor,
+                               fontSize: 14.0,
+                               fontWeight: FontWeight.w500),
+                           filled: true,
+                           fillColor: Colors.transparent,
+                           border: OutlineInputBorder(
+                             borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                             borderSide: BorderSide(
+                                 color: Colors.transparent,
+                                 width: 1.0),
+                           ),
+                           disabledBorder: OutlineInputBorder(
+                             borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                             borderSide: BorderSide(
+                                 color: Colors.transparent,
+                                 width: 1.0),
+                           ),
+                           enabledBorder: OutlineInputBorder(
+                             borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                             borderSide: BorderSide(
+                                 color:Colors.transparent,
+                                 width: 1.0),
+                           ),
+                           focusedBorder: OutlineInputBorder(
+                             borderRadius: BorderRadius.all(Radius.circular(10.0)),
+                             borderSide: BorderSide(
+                                 color: Colors.transparent,
+                                 width: 1.0),
+                           ),
+                           errorBorder: const OutlineInputBorder(
+                             borderRadius: BorderRadius.all(Radius.circular(10)),
+                             borderSide: BorderSide(color: Colors.red, width: 0.0),
+                           ),
+                         ),
+                       ),
+                     ), flex: 5,),
+                     // Flexible(child: InkWell(
+                     //   onTap: (){
+                     //   },
+                     //   child: Container(
+                     //     padding: EdgeInsets.all(8.0),
+                     //     decoration: BoxDecoration(
+                     //       shape: BoxShape.circle,
+                     //       border: Border.all(width: 1.0, color: Theme.of(context).disabledColor,),
+                     //       // color: Theme.of(context).disabledColor,
+                     //     ),
+                     //     child: Icon(Icons.filter_alt_rounded, size: 24.0, color: Theme.of(context).focusColor,),
+                     //   ),
+                     // ),flex: 1,)
+                   ],
+                 ),
                 ],
               ),
             ),
             Container(
-              margin: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.12),
+              margin: EdgeInsets.only(top: MediaQuery.of(context).size.height * 0.20),
               child: SingleChildScrollView(
                 child: master ?  Container(
                   width: MediaQuery.of(context).size.width,
                   child: ListView.builder(
-                    itemCount: 15,
+                    itemCount: masterAdd.length,
                     shrinkWrap: true,
                     controller: controller,
                     itemBuilder: (BuildContext context, int index) {
@@ -317,7 +340,8 @@ class _Copy_TradeState extends State<Copy_Trade> {
                           InkWell(
                             onTap:(){
                               Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (context) => Trade_Details()));
+                                  MaterialPageRoute(builder: (context) => Trade_Details(name: masterAdd[index].master!.name.toString(),
+                                      rating: masterAdd[index].master!.rating.toString())));
                             },
                             child: Container(
                               padding: EdgeInsets.only(bottom: 10.0),
@@ -334,27 +358,27 @@ class _Copy_TradeState extends State<Copy_Trade> {
                                         CrossAxisAlignment.center,
                                         children: [
                                           // SvgPicture.network(image, height: 35.0,),
-                                          Container(
-                                            padding: EdgeInsets.all(1.0),
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: Image.asset(
-                                              "assets/images/prof.png",
-                                              height: 40.0,
-                                              // color: Theme.of(context).disabledColor,
-                                            ),
-                                          ),
-                                          const SizedBox(
-                                            width: 10.0,
-                                          ),
+                                          // Container(
+                                          //   padding: EdgeInsets.all(1.0),
+                                          //   decoration: BoxDecoration(
+                                          //     shape: BoxShape.circle,
+                                          //   ),
+                                          //   child: Image.asset(
+                                          //     "assets/images/prof.png",
+                                          //     height: 40.0,
+                                          //     // color: Theme.of(context).disabledColor,
+                                          //   ),
+                                          // ),
+                                          // const SizedBox(
+                                          //   width: 10.0,
+                                          // ),
                                           Column(
                                             crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                             children: [
                                               Text(
                                                 // name,
-                                                "Govahi",
+                                                "${masterAdd[index].master!.name.toString() ?? ""}",
                                                 style: CustomWidget(
                                                     context: context)
                                                     .CustomSizedTextStyle(
@@ -370,11 +394,11 @@ class _Copy_TradeState extends State<Copy_Trade> {
                                               ),
                                               Text(
                                                 // tradePairList[index].baseAsset.toString().toUpperCase(),
-                                                "\$ 25,055.65",
+                                                "Trade List:${masterAdd[index].tradeList.toString() ?? ""}",
                                                 style: CustomWidget(
                                                     context: context)
                                                     .CustomSizedTextStyle(
-                                                    16.0,
+                                                    14.0,
                                                     Theme.of(context)
                                                         .primaryColorDark,
                                                     FontWeight.w900,
@@ -386,16 +410,16 @@ class _Copy_TradeState extends State<Copy_Trade> {
                                         ],
                                       ),
                                     ),
-                                    flex: 4,
+                                    flex: 3,
                                   ),
-                                  Flexible(
-                                    child: SvgPicture.asset(
-                                      "assets/menu/line.svg",
-                                      height: 50.0,
-                                      fit: BoxFit.fitWidth,
-                                    ),
-                                    flex: 2,
-                                  ),
+                                  // Flexible(
+                                  //   child: SvgPicture.asset(
+                                  //     "assets/menu/line.svg",
+                                  //     height: 50.0,
+                                  //     fit: BoxFit.fitWidth,
+                                  //   ),
+                                  //   flex: 2,
+                                  // ),
                                   Flexible(
                                     child: Column(
                                       crossAxisAlignment:
@@ -403,20 +427,20 @@ class _Copy_TradeState extends State<Copy_Trade> {
                                       children: [
                                         Text(
                                           // data.toStringAsFixed(2) +
-                                          "\$46.625,32",
+                                          "${masterAdd[index].master!.traderType.toString() ?? ""}",
                                           style:
                                           CustomWidget(context: context)
                                               .CustomSizedTextStyle(
-                                              14.0,
+                                              12.0,
                                               Theme.of(context)
                                                   .focusColor,
                                               FontWeight.w400,
                                               'FontRegular'),
                                           textAlign: TextAlign.start,
                                         ),
-                                        const SizedBox(
-                                          height: 4.0,
-                                        ),
+                                        // const SizedBox(
+                                        //   height: 4.0,
+                                        // ),
                                         // Text(
                                         //   // "\$"+ double.parse(tradePairList[index]
                                         //   //     .currentPrice
@@ -440,7 +464,7 @@ class _Copy_TradeState extends State<Copy_Trade> {
                                           MainAxisAlignment.end,
                                           children: [
                                             Text(
-                                              "+1.31%",
+                                              "Rating:${masterAdd[index].master!.rating.toString() ?? ""}",
                                               style: CustomWidget(
                                                   context: context)
                                                   .CustomSizedTextStyle(
@@ -449,14 +473,15 @@ class _Copy_TradeState extends State<Copy_Trade> {
                                                       .secondaryHeaderColor,
                                                   FontWeight.w400,
                                                   'FontRegular'),
+                                              overflow: TextOverflow.ellipsis,
                                               textAlign: TextAlign.center,
                                             ),
-                                            Icon(
-                                              Icons.arrow_drop_up,
-                                              size: 12.0,
-                                              color: Theme.of(context)
-                                                  .secondaryHeaderColor,
-                                            ),
+                                            // Icon(
+                                            //   Icons.arrow_drop_up,
+                                            //   size: 12.0,
+                                            //   color: Theme.of(context)
+                                            //       .secondaryHeaderColor,
+                                            // ),
                                           ],
                                         ),
                                       ],

@@ -1,6 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:simple_gradient_text/simple_gradient_text.dart';
+
 
 import '../../common/custom_widget.dart';
 import '../../common/localization/localizations.dart';
@@ -79,8 +79,8 @@ class _View_RulesState extends State<View_Rules> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          GradientText(
-                            gradientDirection: GradientDirection.ttb,
+                          Text(
+                            //gradientDirection: GradientDirection.ttb,
                             "20",
                             style: CustomWidget(context: context)
                                 .CustomSizedTextStyle(
@@ -88,16 +88,16 @@ class _View_RulesState extends State<View_Rules> {
                                 Theme.of(context).cardColor,
                                 FontWeight.w600,
                                 'FontRegular'),
-                            colors: [
-                              Theme.of(context).indicatorColor,
-                              Theme.of(context).indicatorColor.withOpacity(0.7),
-                              Theme.of(context).disabledColor,
-                              Theme.of(context).disabledColor,
-                            ],
+                            // colors: [
+                            //   Theme.of(context).indicatorColor,
+                            //   Theme.of(context).indicatorColor.withOpacity(0.7),
+                            //   Theme.of(context).disabledColor,
+                            //   Theme.of(context).disabledColor,
+                            // ],
                             textAlign: TextAlign.center,
                           ),
-                          GradientText(
-                            gradientDirection: GradientDirection.ttb,
+                          Text(
+                          //  gradientDirection: GradientDirection.ttb,
                             "%",
                             style: CustomWidget(context: context)
                                 .CustomSizedTextStyle(
@@ -105,12 +105,12 @@ class _View_RulesState extends State<View_Rules> {
                                 Theme.of(context).cardColor,
                                 FontWeight.w600,
                                 'FontRegular'),
-                            colors: [
-                              Theme.of(context).indicatorColor,
-                              Theme.of(context).indicatorColor.withOpacity(0.7),
-                              Theme.of(context).disabledColor,
-                              Theme.of(context).disabledColor,
-                            ],
+                            // colors: [
+                            //   Theme.of(context).indicatorColor,
+                            //   Theme.of(context).indicatorColor.withOpacity(0.7),
+                            //   Theme.of(context).disabledColor,
+                            //   Theme.of(context).disabledColor,
+                            // ],
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -153,8 +153,8 @@ class _View_RulesState extends State<View_Rules> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          GradientText(
-                            gradientDirection: GradientDirection.ttb,
+                          Text(
+                            //gradientDirection: GradientDirection.ttb,
                             "25",
                             style: CustomWidget(context: context)
                                 .CustomSizedTextStyle(
@@ -162,16 +162,16 @@ class _View_RulesState extends State<View_Rules> {
                                 Theme.of(context).cardColor,
                                 FontWeight.w600,
                                 'FontRegular'),
-                            colors: [
-                              Theme.of(context).indicatorColor,
-                              Theme.of(context).indicatorColor.withOpacity(0.7),
-                              Theme.of(context).disabledColor,
-                              Theme.of(context).disabledColor,
-                            ],
+                            // colors: [
+                            //   Theme.of(context).indicatorColor,
+                            //   Theme.of(context).indicatorColor.withOpacity(0.7),
+                            //   Theme.of(context).disabledColor,
+                            //   Theme.of(context).disabledColor,
+                            // ],
                             textAlign: TextAlign.center,
                           ),
-                          GradientText(
-                            gradientDirection: GradientDirection.ttb,
+                          Text(
+                           // gradientDirection: GradientDirection.ttb,
                             "%",
                             style: CustomWidget(context: context)
                                 .CustomSizedTextStyle(
@@ -179,12 +179,12 @@ class _View_RulesState extends State<View_Rules> {
                                 Theme.of(context).cardColor,
                                 FontWeight.w600,
                                 'FontRegular'),
-                            colors: [
-                              Theme.of(context).indicatorColor,
-                              Theme.of(context).indicatorColor.withOpacity(0.7),
-                              Theme.of(context).disabledColor,
-                              Theme.of(context).disabledColor,
-                            ],
+                            // colors: [
+                            //   Theme.of(context).indicatorColor,
+                            //   Theme.of(context).indicatorColor.withOpacity(0.7),
+                            //   Theme.of(context).disabledColor,
+                            //   Theme.of(context).disabledColor,
+                            // ],
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -227,8 +227,8 @@ class _View_RulesState extends State<View_Rules> {
                         crossAxisAlignment: CrossAxisAlignment.end,
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          GradientText(
-                            gradientDirection: GradientDirection.ttb,
+                          Text(
+                            //gradientDirection: GradientDirection.ttb,
                             "30",
                             style: CustomWidget(context: context)
                                 .CustomSizedTextStyle(
@@ -236,16 +236,16 @@ class _View_RulesState extends State<View_Rules> {
                                 Theme.of(context).cardColor,
                                 FontWeight.w600,
                                 'FontRegular'),
-                            colors: [
-                              Theme.of(context).indicatorColor,
-                              Theme.of(context).indicatorColor.withOpacity(0.7),
-                              Theme.of(context).disabledColor,
-                              Theme.of(context).disabledColor,
-                            ],
+                            // colors: [
+                            //   Theme.of(context).indicatorColor,
+                            //   Theme.of(context).indicatorColor.withOpacity(0.7),
+                            //   Theme.of(context).disabledColor,
+                            //   Theme.of(context).disabledColor,
+                            // ],
                             textAlign: TextAlign.center,
                           ),
-                          GradientText(
-                            gradientDirection: GradientDirection.ttb,
+                          Text(
+                           // gradientDirection: GradientDirection.ttb,
                             "%",
                             style: CustomWidget(context: context)
                                 .CustomSizedTextStyle(
@@ -253,12 +253,12 @@ class _View_RulesState extends State<View_Rules> {
                                 Theme.of(context).cardColor,
                                 FontWeight.w600,
                                 'FontRegular'),
-                            colors: [
-                              Theme.of(context).indicatorColor,
-                              Theme.of(context).indicatorColor.withOpacity(0.7),
-                              Theme.of(context).disabledColor,
-                              Theme.of(context).disabledColor,
-                            ],
+                            // colors: [
+                            //   Theme.of(context).indicatorColor,
+                            //   Theme.of(context).indicatorColor.withOpacity(0.7),
+                            //   Theme.of(context).disabledColor,
+                            //   Theme.of(context).disabledColor,
+                            // ],
                             textAlign: TextAlign.center,
                           ),
                         ],

@@ -1,5 +1,6 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 
 import '../../common/custom_widget.dart';
 import '../../common/localization/localizations.dart';
@@ -78,7 +79,7 @@ class _Notification_ScreenState extends State<Notification_Screen> {
                       children: [
                         Container(
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
+                            crossAxisAlignment: CrossAxisAlignment.end,
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
                               Flexible(child: Container(
@@ -113,7 +114,7 @@ class _Notification_ScreenState extends State<Notification_Screen> {
                                               FontWeight.w400,
                                               'FontRegular'),
                                           textAlign: TextAlign.start,
-                                          overflow: TextOverflow.ellipsis,
+                                          // /overflow: TextOverflow.ellipsis,
                                         ),
                                       ),
                                     ],
@@ -126,38 +127,38 @@ class _Notification_ScreenState extends State<Notification_Screen> {
                                 crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    "\$46.625,32",
+                                    "${DateFormat('yyyy-MM-dd-HH-mm').format(name[index].createdAt.toString()!="null"||name[index].createdAt.toString()!="null"?DateTime.parse(name[index].createdAt.toString()):DateTime.now())}",
                                     style: CustomWidget(context: context).CustomSizedTextStyle(
-                                        16.0,
+                                        8.0,
                                         Theme.of(context).focusColor,
                                         FontWeight.w500,
                                         'FontRegular'),
-                                    textAlign: TextAlign.start,
+                                    textAlign: TextAlign.end,
                                   ),
-                                  Row(
-                                    crossAxisAlignment: CrossAxisAlignment.center,
-                                    mainAxisAlignment: MainAxisAlignment.end,
-                                    children: [
-                                      Icon(
-                                        Icons.arrow_drop_up,
-                                        size: 14.0,
-                                        color: Theme.of(context).secondaryHeaderColor,
-                                      ),
-                                      Text(
-                                        "23.35",
-                                        style: CustomWidget(context: context)
-                                            .CustomSizedTextStyle(
-                                            12,
-                                            Theme.of(context).secondaryHeaderColor,
-                                            FontWeight.w500,
-                                            'FontRegular'),
-                                        textAlign: TextAlign.center,
-                                      ),
-
-                                    ],
-                                  ),
+                                  // Row(
+                                  //   crossAxisAlignment: CrossAxisAlignment.center,
+                                  //   mainAxisAlignment: MainAxisAlignment.end,
+                                  //   children: [
+                                  //     Icon(
+                                  //       Icons.arrow_drop_up,
+                                  //       size: 14.0,
+                                  //       color: Theme.of(context).secondaryHeaderColor,
+                                  //     ),
+                                  //     Text(
+                                  //       "23.35",
+                                  //       style: CustomWidget(context: context)
+                                  //           .CustomSizedTextStyle(
+                                  //           12,
+                                  //           Theme.of(context).secondaryHeaderColor,
+                                  //           FontWeight.w500,
+                                  //           'FontRegular'),
+                                  //       textAlign: TextAlign.center,
+                                  //     ),
+                                  //
+                                  //   ],
+                                  // ),
                                 ],
-                              ), flex: 2,),
+                              ), flex: 3,),
                             ],
 
                           ),

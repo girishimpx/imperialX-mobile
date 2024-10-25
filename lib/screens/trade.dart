@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_inappwebview/flutter_inappwebview.dart';
 import 'package:flutter_svg/svg.dart';
@@ -8,23 +8,27 @@ import 'package:imperial/data/crypt_model/all_wallet_pairs.dart';
 import 'package:imperial/data/crypt_model/common_model.dart';
 import 'package:imperial/data/crypt_model/future_trade_pair_model.dart';
 import 'package:imperial/data/crypt_model/get_pair_details.dart';
+import 'package:imperial/data/crypt_model/position_trade_model.dart';
 import 'package:imperial/data/crypt_model/trade_his_list_model.dart';
-import 'package:imperial/data/crypt_model/trade_pair_model.dart';
 import 'package:imperial/data/crypt_model/trade_pairs_list_model.dart';
-import 'package:imperial/data/crypt_model/user_wallet_balance_model.dart';
+import 'package:intl/intl.dart';
 import 'package:modal_bottom_sheet/modal_bottom_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:web_socket_channel/io.dart';
 
-//import 'package:webview_flutter/webview_flutter.dart';
-import '../../../common/colors.dart';
 import '../../../common/localization/localizations.dart';
 import '../../../common/theme/custom_theme.dart';
 import '../common/custom_widget.dart';
 import '../data/api_utils.dart';
+import '../data/crypt_model/coin_list_model.dart';
+import '../data/crypt_model/getfavourites_model.dart' as favmodel;
+import '../data/crypt_model/open_order_history_model.dart';
+import '../data/crypt_model/trade_balance_model.dart';
 
 class TradeScreen extends StatefulWidget {
-  const TradeScreen({Key? key}) : super(key: key);
+   final String selectedcoin;
+   final String fromtype;
+   TradeScreen({required this.selectedcoin,required this.fromtype,super.key});
 
   @override
   State<TradeScreen> createState() => _SellTradeScreenState();
@@ -32,30 +36,39 @@ class TradeScreen extends StatefulWidget {
 
 class _SellTradeScreenState extends State<TradeScreen>
     with TickerProviderStateMixin {
+  // String selectedcoin;
+  //_SellTradeScreenState(this.selectedcoin);
+
   List<String> chartTime = ["Limit", "Market",];
   List<String> chartFutureTime = ["Limit", "Market", "Stop-Limit"];
-
+  List<favmodel.Result> favourite_sort=[];
   List<String> tradeType = ["Cross", "Isolated"];
   String selectedTime = "";
   String selectedSymbol = "";
   String selectedFutureTime = "";
+  String selectfuturetab="Open Orders";
+  int countN=0;
 
   List<TradePairsSpot> tradePair = [];
+  List<TradePairsSpot> tradePairs = [];
   List<TradePairsSpot> searchPair = [];
   TradePairsSpot? selectPair;
   final _formKey = GlobalKey<FormState>();
-  List<TradeHistoryList> openOrders = [];
+  List<openOrderList> openOrders = [];
   List<TradeHistoryList> completedOrders = [];
   List<TradeHistoryList> AllopenOrders = [];
   List<MarketDetailsList> marketList = [];
+  List<PositionTrade> positionList = [];
   int decimal_val=0;
+  int quote_pre=0;
   bool buySell = true;
   String traderType = "";
 
 
 
-  late TabController _tabController, tradeTabController;
+  late TabController _tabController, tradeTabController,spottabController;
   bool spotOption = true;
+  bool selectedfav=false;
   bool marginOption = false;
 
   bool futureOption = false;
@@ -80,11 +93,15 @@ class _SellTradeScreenState extends State<TradeScreen>
   FocusNode searchFocus = FocusNode();
   TextEditingController searchFutureController = TextEditingController();
   FocusNode searchFutureFocus = FocusNode();
+  bool visiblespot=false;
+  bool visiblemargin=false;
+  bool visiblefuture=false;
   bool enableTrade = false;
   bool enableStopLimit = false;
   bool enableLoan = true;
   bool leverageLoan = true;
   String balance = "0.00";
+  String tbalance = "0.00";
   String escrow = "0.00";
   String totalBalance = "0.00";
   String totalAmount = "0.00";
@@ -106,6 +123,7 @@ class _SellTradeScreenState extends State<TradeScreen>
     "BRZ"
   ];
   String selectedMarketAsset = "";
+  int selectedmarketindex=-1;
   int indexVal = 0;
 
   final GlobalKey<AnimatedListState> _animatedListKey = GlobalKey();
@@ -127,11 +145,14 @@ class _SellTradeScreenState extends State<TradeScreen>
   String changePercentage = "0.00";
 
   String livePrice = "0.00";
+  String dlivePrice = "";
   bool tpslCheck = false;
   bool socketLoader = false;
   String selectedDecimal = "";
-  String selectedHistoryTradeType = "";
+  String selectedHistoryTradeType = "Cross";
+  String futureselectedHistoryTradeType = "Cross";
   List arrData = [];
+  List arrData1 = [];
   List arrChangeData = [];
   List arrFutureData = [];
   List arrPriceData = [];
@@ -144,6 +165,8 @@ class _SellTradeScreenState extends State<TradeScreen>
   String currentSymbol = "ADAUSDT";
   Timer? timer, timerS;
   bool futurelong = true;
+
+  String minimumbuy="";
 
   //late final WebViewController webcontroller;
   void _loadWebViewUrl() {
@@ -168,24 +191,30 @@ class _SellTradeScreenState extends State<TradeScreen>
   void initState() {
     // TODO: implement initState
     super.initState();
-
+    spotOption =widget.fromtype=="future"?false:true;
     selectedTime = chartTime.first;
     selectedFutureTime = chartFutureTime.first;
     selectedHistoryTradeType = tradeType.first;
     tradeTabController = TabController(vsync: this, length: 3);
-    _tabController = TabController(vsync: this, length: 2);
+    _tabController = TabController(vsync: this, length: 3);
+    spottabController=TabController(length: 2, vsync: this);
     selectedDecimal = _decimal.first;
     loading = true;
     getDetails();
-    getCoinList();
-    getFutureCoinList();
+    getFavList();
+    loading = true;
+    getCoinList(widget.fromtype=="spot"?widget.selectedcoin:"");
+    loading = true;
+    getFutureCoinList(widget.fromtype=="future"?widget.selectedcoin:"");
     Future.delayed(Duration(seconds: 1));
+    getTradePositionHistory();
 
     channelOpenOrder = IOWebSocketChannel.connect(
       Uri.parse("wss://stream.bybit.com/v5/public/spot"),);
     // channelFutureOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/linear"),);
 
     selectedMarketAsset = marketAssetList.first;
+
   }
 
 
@@ -194,21 +223,30 @@ class _SellTradeScreenState extends State<TradeScreen>
           (data) {
         if (data != null || data != "null") {
           var decode = jsonDecode(data);
-          // print(decode);
+         print("hihhi $decode");
           if (mounted) {
             setState(() {
+
               if (decode['type'].toString() == "snapshot") {
                 if (spotOption || marginOption) {
                   if (decode["data"][0]["s"].toString() ==
                       selectPair!.symbol.toString()) {
                     livePrice = decode['data'][0]['p'].toString();
+                    if(livePrice.isNotEmpty){
+                      priceController.text=livePrice;
+                    }
+
                     print("livePrice");
                     print(selectPair!.symbol.toString());
                     print(livePrice);
                   }
-                } else if (decode["data"][0]["s"].toString() ==
+                }
+                else if (decode["data"][0]["s"].toString() ==
                     futureselectPair!.symbol.toString()) {
                   livePrice = decode['data'][0]['p'].toString();
+                  if(livePrice.isNotEmpty){
+                    priceController.text=livePrice;
+                  }
                   print("Future livePrice");
                   print(futureselectPair!.symbol.toString());
                   print(livePrice);
@@ -283,6 +321,8 @@ class _SellTradeScreenState extends State<TradeScreen>
                   }
                 }
               }
+
+
             });
           }
 
@@ -301,34 +341,86 @@ class _SellTradeScreenState extends State<TradeScreen>
 
         channelOpenOrder!.sink.add(json.encode(messageJSON));
         socketData();
+       // socketLivePriceData();
       },
       onError: (error) => print("Err" + error),
     );
   }
-
+  // socketClose(){
+  //   if(count<marketList.length)
+  //   {
+  //     countN=count;
+  //     count=count+10;
+  //
+  //   }
+  //   else{
+  //     count=0;
+  //     timerS!.cancel();
+  //   }
+  //
+  //
+  //   // print(count.toString()+"textM"+countN.toString());
+  //   arrData1.clear();
+  //   arrData1=[];
+  //   for(int m=countN;m<count;m++)
+  //   {
+  //     arrData1.add("tickers."+tradePairs[m].symbol!.toString());
+  //   }
+  //
+  //   //channelOpenOrder!.sink.close();
+  //   channelOpenOrder = IOWebSocketChannel.connect(Uri.parse("wss://stream.bybit.com/v5/public/spot"),);
+  //
+  //   loading = false;
+  //   var messageJSON = {
+  //     "op": "subscribe",
+  //     "args": arrData1,
+  //   };
+  //   channelsearchOrder!.sink.add(json.encode(messageJSON));
+  //
+  //   socketLivePriceData();
+  // }
+  //
   socketLivePriceData() {
     channelOpenOrder!.stream.listen(
           (data) {
         if (data != null || data != "null") {
           var decode = jsonDecode(data);
+          print("helolo $decode");
 
           if (mounted) {
+            print("aaale");
             setState(() {
               String last = decode["data"]['lastPrice'].toString();
-              String high24h = decode["data"]['highPrice24h'].toString();
-              String valueCh = decode["data"]['price24hPcnt'].toString();
-
-              double val = double.parse(last) - double.parse(high24h);
-              double lastChangge = (val / double.parse(high24h)) * 100;
-
-              for (int m = 0; m < marketList.length; m++) {
-                if (marketList[m].name.toString().toLowerCase() ==
-                    decode["data"]['symbol'].toString().toLowerCase()) {
-                  marketList[m].last = last;
-                  marketList[m].change = lastChangge;
-                  changePercentage = marketList[m].change.toString();
-                }
+              if(last.isNotEmpty && last!="") {
+                livePrice = last;
               }
+              String high24h = decode["data"]['highPrice24h'].toString();
+              String low24h = decode["data"]['lowPrice24h'].toString();
+              String askPrice = decode["data"]['turnover24h'].toString();
+              String bitPrice = decode["data"]['volume24h'].toString();
+              double val = double.parse(last.toString().isNotEmpty? last.toString():"0.0") - double.parse(high24h.toString().isNotEmpty? high24h.toString():"0.0");
+              double lastChangge = (val / double.parse(high24h.toString().isNotEmpty? high24h.toString(): "0.0")) * 100;
+              // if(spotOption||marginOption) {
+              //   for (int m = 0; m < searchPair.length; m++) {
+              //     if (searchPair[m].symbol.toString().toLowerCase() ==
+              //         decode["data"]['symbol'].toString().toLowerCase()) {
+              //       print("aaale");
+              //       searchPair[m].lastPrice = last;
+              //       searchPair[m].lowPrice24H = lastChangge.toString();
+              //       //changePercentage = marketList[m].change.toString();
+              //     }
+              //   }
+              // }
+              // else{
+              //   for (int m = 0; m < futuretradePair.length; m++) {
+              //     if (futuretradePair[m].symbol.toString().toLowerCase() ==
+              //         decode["data"]['symbol'].toString().toLowerCase()) {
+              //       futuretradePair[m].lastPrice = last;
+              //       futuretradePair[m].lowPrice24H = lastChangge.toString();
+              //       //changePercentage = marketList[m].change.toString();
+              //     }
+              //   }
+              // }
             });
           }
         }
@@ -453,7 +545,40 @@ class _SellTradeScreenState extends State<TradeScreen>
       ),
     );
   }
+  Future<void> _refreshData() async {
+    await Future.delayed(Duration(seconds: 2));
+    setState(() {
+      _loadWebViewUrl();
+      balance="0.0000";
+      tbalance="0.000";
+      getDetails();
+      getFavList();
+      if(spotOption || marginOption){
+        print("heloooooo");
+        getCoinList(selectPair?.symbol?.toString() ?? "");
+        getOpenOrderHistory(selectPair!.symbol.toString(), spotOption||marginOption?"spot":"linear");
+        getPairDetail(selectPair!.symbol.toString());
+        if(buySell){
+          getBalance(firstCoin);
+          print(firstCoin);
+        }
+        else{
+          getBalance(secondCoin);
+          print(secondCoin);
+        }
+      }
+      else{
+        getFutureCoinList(futureselectPair?.symbol?.toString() ?? "");
+        getBalance("USDT");
+        getOpenOrderHistory(futureselectPair!.symbol.toString(), spotOption||marginOption?"spot":"linear");
+        getPairDetail(futureselectPair!.symbol.toString());
+      }
+      Future.delayed(Duration(seconds: 1));
+      getTradePositionHistory();
 
+
+    });
+  }
   @override
   Widget build(BuildContext context) {
     return MediaQuery(
@@ -463,7 +588,11 @@ class _SellTradeScreenState extends State<TradeScreen>
           backgroundColor: CustomTheme
               .of(context)
               .primaryColor,
-          body: Container(
+          appBar:widget.selectedcoin.isNotEmpty?AppBar(backgroundColor: Theme.of(context).cardColor,automaticallyImplyLeading: false,leading:InkWell(child: Icon(Icons.arrow_back_outlined),onTap: () {
+            Navigator.pop(context);
+          },) ,):AppBar(toolbarHeight: 0,),
+          body: RefreshIndicator(onRefresh:_refreshData,child:
+    Container(
             height: MediaQuery
                 .of(context)
                 .size
@@ -508,8 +637,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                                           enableTrade = false;
 
 
-                                          livePrice = "0.000";
-                                          getCoinList();
+                                         // livePrice = "0.000";
+                                          loading=true;
+                                          getCoinList("");
                                         });
                                         setState(() {
                                           buySell = true;
@@ -522,17 +652,28 @@ class _SellTradeScreenState extends State<TradeScreen>
                                           spotOption = true;
                                           marginOption = false;
                                           enableStopLimit = false;
-                                          priceController.clear();
+
                                           amountController.clear();
                                           stopPriceController.clear();
+                                          completedOrders=[];
+                                          getTradeHistory(
+                                              selectPair!.symbol.toString());
+                                          getOpenOrderHistory(selectPair!.symbol.toString(), spotOption||marginOption?"spot":"linear");
+
 
                                           futureOption = false;
                                           getBalance(firstCoin);
                                           enableTrade = false;
+                                          selectfuturetab="Open Orders";
                                           balance = "0.00";
+                                          tbalance="0.00";
+                                          //selectedfav=false;
                                           selectedTime = chartTime.first;
-                                          livePrice = "0.000";
-                                          getCoinList();
+                                         // livePrice = "0.000";
+                                          getCoinList("");
+                                          getPairDetail(selectPair!.symbol.toString());
+
+                                          priceController.text=livePrice;
                                         });
                                       },
                                       child: Container(
@@ -594,8 +735,8 @@ class _SellTradeScreenState extends State<TradeScreen>
                                           // coinTwoName =
                                           //     selectPair!.coinname2.toString();
                                           //
-                                          livePrice = "0.000";
-                                          getCoinList();
+                                         // livePrice = "0.000";
+                                          getCoinList("");
                                           //
                                           // firstCoin =
                                           //     selectPair!.coinname1.toString();
@@ -613,21 +754,29 @@ class _SellTradeScreenState extends State<TradeScreen>
                                           marginOption = true;
                                           enableStopLimit = false;
                                           balance = "0.00";
+                                          tbalance="0.00";
                                           searchPair=[];
                                           Future.delayed(Duration(seconds: 0));
+                                          completedOrders=[];
                                           getTradeHistory(
                                               selectPair!.symbol.toString());
+                                          getOpenOrderHistory(selectPair!.symbol.toString(), spotOption||marginOption?"spot":"linear");
 
                                           futureOption = false;
-                                          priceController.clear();
+                                         // priceController.clear();
                                           amountController.clear();
                                           stopPriceController.clear();
 
                                           enableTrade = false;
                                           selectedTime = chartTime.first;
+                                          selectfuturetab="Open Orders";
                                           getBalance(firstCoin);
-                                          livePrice = "0.000";
-                                          getCoinList();
+                                          //livePrice = "0.000";
+                                          loading=true;
+                                          selectedfav=false;
+                                          getCoinList("");
+                                          priceController.text=livePrice;
+                                          getPairDetail(selectPair!.symbol.toString());
                                         });
                                       },
                                       child: Container(
@@ -683,8 +832,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                                           spotOption = false;
                                           marginOption = false;
                                           futureOption = true;
-                                          livePrice = "0.000";
-                                          getFutureCoinList();
+                                          //livePrice = "0.000";
+                                          loading=true;
+                                          getFutureCoinList("");
                                           enableStopLimit = false;
                                           futureselectPair = futuretradePair[0];
 
@@ -708,21 +858,27 @@ class _SellTradeScreenState extends State<TradeScreen>
                                           priceController.clear();
                                           amountController.clear();
                                           stopPriceController.clear();
+                                          completedOrders=[];
 
                                           getTradeHistory(
                                               futureselectPair!.symbol
                                                   .toString());
+                                          getOpenOrderHistory(futureselectPair!.symbol.toString(), spotOption||marginOption?"spot":"linear");
                                           futureOption = true;
+                                          selectedfav=false;
 
-                                          livePrice = "0.000";
-                                          getFutureCoinList();
+                                          //livePrice = "0.000";
+                                          getFutureCoinList("");
                                           // getFutureOpenOrder();
                                           enableTrade = false;
                                           selectedFutureTime =
                                               chartFutureTime.first;
                                           totalAmount = "0.0";
-                                          balance = "0.00";
-                                          getBalance(secondCoin);
+                                          loading=true;
+                                          selectfuturetab="Open Orders";
+                                          getBalance("USDT");
+                                          getPairDetail(futureselectPair!.symbol.toString());
+                                          priceController.text=livePrice;
                                         });
                                       },
                                       child: Container(
@@ -813,65 +969,173 @@ class _SellTradeScreenState extends State<TradeScreen>
               ],
             ),
           ),
-        ));
+        )));
   }
 
   Widget spotUI() {
     return SingleChildScrollView(
       child: Column(
         children: [
-          const SizedBox(height: 10.0),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              InkWell(
-                onTap: () {
-                  setState(() {
-                   // searchPair=[];
-                  });
-                  showSheeet();
-                },
-                child: Row(
-                  children: [
-                    Container(
-                      margin: const EdgeInsets.only(right: 5.0),
-                      child: Icon(
-                        Icons.menu_rounded,
-                        size: 25.0,
-                        color: Theme
-                            .of(context)
-                            .focusColor,
-                      ),
-                    ),
-                    tradePair.isNotEmpty
-                        ? Text(
-                      selectPair?.symbol ?? "BTCUSTD",
-                      style: CustomWidget(context: context)
-                          .CustomSizedTextStyle(
-                        14.0,
-                        Theme
-                            .of(context)
-                            .focusColor,
-                        FontWeight.w500,
-                        'FontRegular',
-                      ),
-                    )
-                        : Container(),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10.0),
+          //const SizedBox(height: 10.0),
+          // TextField(readOnly: true,
+          //   controller: searchController,
+          //   focusNode: searchFocus,
+          //   enabled: true,
+          //   textInputAction: TextInputAction.none,
+          //   onTap: () {
+          //     setState(() {
+          //       showSheeet();
+          //
+          //     });
+          //   },
+          //   onEditingComplete: () {
+          //     // setState(() {
+          //     //   //searchPair=[];
+          //     //   searchFocus.unfocus();
+          //     // });
+          //   },
+          //   onChanged: (value) {
+          //   },
+          //   decoration: InputDecoration(
+          //     contentPadding: const EdgeInsets.only(
+          //         left: 12, right: 0, top: 8, bottom: 8),
+          //     hintText: "Search",
+          //     hintStyle: TextStyle(
+          //         fontFamily: "FontRegular",
+          //         color: Theme
+          //             .of(context)
+          //             .focusColor,
+          //         fontSize: 14.0,
+          //         fontWeight: FontWeight.w400),
+          //     filled: true,
+          //     fillColor: CustomTheme
+          //         .of(context)
+          //         .primaryColorLight
+          //         .withOpacity(0.5),
+          //     border: OutlineInputBorder(
+          //       borderRadius:
+          //       BorderRadius.all(Radius.circular(5.0)),
+          //       borderSide: BorderSide(
+          //           color: CustomTheme
+          //               .of(context)
+          //               .focusColor
+          //               .withOpacity(0.5),
+          //           width: 1.0),
+          //     ),
+          //     disabledBorder: OutlineInputBorder(
+          //       borderRadius:
+          //       BorderRadius.all(Radius.circular(5.0)),
+          //       borderSide: BorderSide(
+          //           color: CustomTheme
+          //               .of(context)
+          //               .focusColor
+          //               .withOpacity(0.5),
+          //           width: 1.0),
+          //     ),
+          //     enabledBorder: OutlineInputBorder(
+          //       borderRadius:
+          //       BorderRadius.all(Radius.circular(5.0)),
+          //       borderSide: BorderSide(
+          //           color: CustomTheme
+          //               .of(context)
+          //               .focusColor
+          //               .withOpacity(0.5),
+          //           width: 1.0),
+          //     ),
+          //     focusedBorder: OutlineInputBorder(
+          //       borderRadius:
+          //       BorderRadius.all(Radius.circular(5.0)),
+          //       borderSide: BorderSide(
+          //           color: CustomTheme
+          //               .of(context)
+          //               .focusColor
+          //               .withOpacity(0.5),
+          //           width: 1.0),
+          //     ),
+          //     errorBorder: const OutlineInputBorder(
+          //       borderRadius:
+          //       BorderRadius.all(Radius.circular(5)),
+          //       borderSide:
+          //       BorderSide(color: Colors.red, width: 0.0),
+          //     ),
+          //   ),
+          // ),
+          // const SizedBox(height: 10.0),
+          // Row(
+          //   crossAxisAlignment: CrossAxisAlignment.center,
+          //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          //   children: [
+          //     InkWell(
+          //       onTap: () {
+          //         setState(() {
+          //          // searchPair=[];
+          //         });
+          //         showSheeet();
+          //       },
+          //       child: Row(
+          //         children: [
+          //           Container(
+          //             margin: const EdgeInsets.only(right: 5.0),
+          //             child: Icon(
+          //               Icons.menu_rounded,
+          //               size: 25.0,
+          //               color: Theme
+          //                   .of(context)
+          //                   .focusColor,
+          //             ),
+          //           ),
+          //           tradePair.isNotEmpty
+          //               ? Text(
+          //             selectPair?.symbol ?? "BTCUSTD",
+          //             style: CustomWidget(context: context)
+          //                 .CustomSizedTextStyle(
+          //               14.0,
+          //               Theme
+          //                   .of(context)
+          //                   .focusColor,
+          //               FontWeight.w500,
+          //               'FontRegular',
+          //             ),
+          //           )
+          //               : Container(),
+          //         ],
+          //       ),
+          //     ),
+          //   ],
+          // ),
+          // const SizedBox(height: 10.0),
+
           SizedBox(
             width: MediaQuery
                 .of(context)
                 .size
                 .width,
-            child: Row(
+            child: GestureDetector(
+              onTap: () {
+    setState(() {
+    // searchPair=[];
+    //showSheeet();
+      if(spotOption){
+        visiblespot=!visiblespot;
+      }
+      else if(marginOption){
+        visiblemargin=!visiblemargin;
+      }
+      else{
+        visiblespot=false;
+        visiblemargin=false;
+      }
+    });
+    }, child:Row(
               mainAxisAlignment: MainAxisAlignment.start,
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+
+                GestureDetector(child:Icon(Icons.menu,size: 30,),onTap: () {
+                  setState(() {
+                    showSheeet();
+                  });
+                },),
                 const SizedBox(width: 5.0),
                 Flexible(flex: 2,child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -890,12 +1154,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                             'FontRegular',
                           ),
                         ),
+
                       ],
                     ),
                     Row(
                       children: [
                         Text(
-                          selectPair?.lastPrice.toString() ?? "",
+                          livePrice,
                           style: CustomWidget(context: context)
                               .CustomSizedTextStyle(
                             16.0,
@@ -906,17 +1171,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                             'FontRegular',
                           ),
                         ),
+
                       ],
                     ),
                   ],
                 ),),
-                Flexible(flex: 2, child: GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      // searchPair=[];
-                      showSheeet();
-                    });
-                  },
+                Flexible(flex: 2,
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -932,21 +1192,33 @@ class _SellTradeScreenState extends State<TradeScreen>
                             .size
                             .width * 0.28,
                       ),
-                      Icon(
-                        Icons.keyboard_arrow_down_rounded,
-                        size: 30,
-                        color: Theme
-                            .of(context)
-                            .focusColor,
-                      ),
+                      Container(child: spotOption?visiblespot?uparrow():downarrow():marginOption?visiblemargin?uparrow():downarrow():downarrow(),),
                     ],
                   ),
-                ),)
+                ),
               ],
-            ),
+            ),),
           ),
-          const SizedBox(height: 10.0),
-          Container(
+          //const SizedBox(height: 10.0),
+        // GestureDetector(onTap: () {
+        //   setState(() {
+        //     loading=true;
+        //     addFavourite("true",selectedSymbol);
+        //   });
+        // },child:Align(alignment: Alignment.centerRight,child: Container(padding: EdgeInsets.all(8),child: Text("Add to Favourites",
+        //     style: CustomWidget(context: context)
+        //         .CustomSizedTextStyle(
+        //       8.0,
+        //       Theme
+        //           .of(context)
+        //           .focusColor,
+        //       FontWeight.w500,
+        //       'FontRegular',),),
+        //     decoration: BoxDecoration(borderRadius: BorderRadius.circular(4),color: Theme.of(context).indicatorColor),),),),
+        //   const SizedBox(height: 10.0),
+          //const SizedBox(height: 10.0),
+          Visibility(visible: spotOption?visiblespot:marginOption?visiblemargin:false,child:Column(children: [
+            Container(
             width: MediaQuery
                 .of(context)
                 .size
@@ -956,13 +1228,27 @@ class _SellTradeScreenState extends State<TradeScreen>
                 .size
                 .height * 0.4,
             child: InAppWebView(
+
               initialUrlRequest: URLRequest(
                 url: Uri.parse(
-                  "https://app.imperialx.exchange/chart/${selectPair?.symbol.toString() ??
-                      "BTCUSTD"}",
+                  "https://app.imperialx.exchange/chart/${selectPair?.symbol.toString()??"BTCUSTD"}",
                 ),
               ),
+              // initialOptions: InAppWebViewGroupOptions(
+              //   crossPlatform: InAppWebViewOptions(
+              //     javaScriptEnabled: true,
+              //     useOnDownloadStart: true,
+              //     mediaPlaybackRequiresUserGesture: false,  // Allows automatic media playback
+              //   ),),
+              //   onWebViewCreated: (controller){
+              //     webViewController = controller;
+              //   },
+              //   onReceivedServerTrustAuthRequest: (controller, challenge) async {
+              //     print(challenge);
+              //     return ServerTrustAuthResponse(action: ServerTrustAuthResponseAction.PROCEED);
+              //   },
               onWebViewCreated: (controller) {
+                print("hihihi${"https://app.imperialx.exchange/chart/${selectPair?.symbol.toString()??"BTCUSTD"}"}");
                 webViewController = controller;
               },
               onReceivedServerTrustAuthRequest: (controller, challenge) async {
@@ -972,7 +1258,9 @@ class _SellTradeScreenState extends State<TradeScreen>
               },
             ),
           ),
-          const SizedBox(height: 10.0),
+      const SizedBox(height: 10.0),
+    ],)),
+
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -988,65 +1276,186 @@ class _SellTradeScreenState extends State<TradeScreen>
             ],
           ),
           const SizedBox(height: 10.0),
-          InkWell(
-            onTap: () {
-              setState(() {
-                showOrders();
-              });
-
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 0.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Open Orders (${openOrders.length})",
-                    style: CustomWidget(context: context).CustomTextStyle(
-                      Theme
-                          .of(context)
-                          .focusColor
-                          .withOpacity(0.5),
-                      FontWeight.w400,
-                      'FontRegular',
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        "Show all",
-                        style: CustomWidget(context: context)
-                            .CustomSizedTextStyle(
-                          12.0,
-                          Theme
-                              .of(context)
-                              .focusColor
-                              .withOpacity(0.5),
-                          FontWeight.w500,
-                          'FontRegular',
-                        ),
-                        textAlign: TextAlign.center,
-                      ),
-                      Icon(
-                        Icons.arrow_forward_ios_outlined,
-                        color: Theme
-                            .of(context)
-                            .focusColor
-                            .withOpacity(0.5),
-                        size: 10.0,
-                      ),
-                    ],
-                  ),
-                ],
+          Container(child:Row(children: [
+            GestureDetector(child:Column(crossAxisAlignment: CrossAxisAlignment.start,children: [
+              Text(
+                "Open Orders ( " + (openOrders.length.toString()) + " )",
+                style: CustomWidget(context: context).CustomSizedTextStyle(
+                    13.0,
+                    selectfuturetab=="Open Orders"?Theme.of(context).indicatorColor:Theme
+                        .of(context)
+                        .focusColor
+                        .withOpacity(0.5),
+                    FontWeight.w400,
+                    'FontRegular'),
+                textAlign: TextAlign.center,
               ),
-            ),
-          ),
+              SizedBox(width: MediaQuery.of(context).size.width*0.30,child:Divider(height: 8,color:
+              selectfuturetab=="Open Orders"?Theme.of(context).indicatorColor:Theme
+                  .of(context)
+                  .focusColor
+                  .withOpacity(0.2)
+                ,thickness: 4,indent: 0,endIndent: 1,),),
+            ],),onTap: () {
+              setState(() {
+                selectfuturetab="Open Orders";
+                loading=true;
+                getTradeHistory(spotOption || marginOption
+                    ? selectPair!.symbol.toString()
+                    : futureselectPair!.symbol.toString(),);
+                getOpenOrderHistory(spotOption || marginOption
+                    ? selectPair!.symbol.toString()
+                    : futureselectPair!.symbol.toString(), spotOption||marginOption?"spot":"linear");
+
+                Future.delayed(Duration(seconds: 1));
+                spottabController.animateTo(0);
+                showOrders();
+                selectfuturetab="Open Orders";
+              });
+            },),
+            const SizedBox(width: 10,),
+            GestureDetector(child:Column(crossAxisAlignment: CrossAxisAlignment.start,children: [
+              Text(
+                "Open History",
+                style: CustomWidget(context: context).CustomSizedTextStyle(
+                    13.0,
+                    selectfuturetab=="Open History"?Theme.of(context).indicatorColor:Theme
+                        .of(context)
+                        .focusColor
+                        .withOpacity(0.5),
+                    FontWeight.w400,
+                    'FontRegular'),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(width: MediaQuery.of(context).size.width*0.30,child:Divider(height: 8,color:
+              selectfuturetab=="Open History"?Theme.of(context).indicatorColor:Theme
+                  .of(context)
+                  .focusColor
+                  .withOpacity(0.2)
+                ,thickness: 4,indent: 0,endIndent: 1,),),
+            ],),onTap: () {
+              setState(() {
+                selectfuturetab="Open History";
+                loading=true;
+                getTradeHistory(spotOption || marginOption
+                    ? selectPair!.symbol.toString()
+                    : futureselectPair!.symbol.toString(),);
+                getOpenOrderHistory(spotOption || marginOption
+                    ? selectPair!.symbol.toString()
+                    : futureselectPair!.symbol.toString(), spotOption||marginOption?"spot":"linear");
+                Future.delayed(Duration(seconds: 1));
+                spottabController.animateTo(1);
+                showOrders();
+                selectfuturetab="Open Orders";
+              });
+            },),
+          ],) ,),
+          // InkWell(
+          //   onTap: () {
+          //     print("ello");
+          //     setState(() {
+          //
+          //       // completedOrders=[];
+          //       loading=true;
+          //       getTradeHistory(spotOption || marginOption
+          //           ? selectPair!.symbol.toString()
+          //           : futureselectPair!.symbol.toString(),);
+          //       Future.delayed(Duration(seconds: 1));
+          //       showOrders();
+          //     });
+          //
+          //   },
+          //   child: Padding(
+          //     padding: const EdgeInsets.symmetric(horizontal: 0.0),
+          //     child: Row(
+          //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          //       children: [
+          //         Text(
+          //           "Open Orders (${openOrders.length})",
+          //           style: CustomWidget(context: context).CustomTextStyle(
+          //             Theme
+          //                 .of(context)
+          //                 .focusColor
+          //                 .withOpacity(0.5),
+          //             FontWeight.w400,
+          //             'FontRegular',
+          //           ),
+          //           textAlign: TextAlign.center,
+          //         ),
+          //         Row(
+          //           children: [
+          //             Text(
+          //               "Show all",
+          //               style: CustomWidget(context: context)
+          //                   .CustomSizedTextStyle(
+          //                 12.0,
+          //                 Theme
+          //                     .of(context)
+          //                     .focusColor
+          //                     .withOpacity(0.5),
+          //                 FontWeight.w500,
+          //                 'FontRegular',
+          //               ),
+          //               textAlign: TextAlign.center,
+          //             ),
+          //             Icon(
+          //               Icons.arrow_forward_ios_outlined,
+          //               color: Theme
+          //                   .of(context)
+          //                   .focusColor
+          //                   .withOpacity(0.5),
+          //               size: 10.0,
+          //             ),
+          //           ],
+          //         ),
+          //       ],
+          //     ),
+          //   ),
+          // ),
           const SizedBox(height: 10.0),
           openOrdersUIS(),
         ],
       ),
     );
+  }
+  getFavList() {
+    apiUtils.getFavouriteslist().then((favmodel.GetFavouritesModel loginData) {
+      if (loginData.success==true) {
+        setState(() {
+          //loading = false;
+          // if (loginData.result != null) {
+          favourite_sort=[];
+          //var result=loginData.result!;
+          favourite_sort = loginData.result!;
+          print("hihi${favourite_sort.length}");
+          //}
+        });
+      } else {
+        setState(() {
+          loading = false;
+        });
+      }
+    }).catchError((Object error) {
+
+      setState(() {
+        loading = false;
+      });
+    });
+  }
+
+  Widget uparrow(){
+    return Icon(Icons.keyboard_arrow_up_rounded,
+    size: 30,
+    color: Theme
+        .of(context)
+    .focusColor);
+  }
+  Widget downarrow(){
+    return Icon(Icons.keyboard_arrow_down_rounded,
+        size: 30,
+        color: Theme
+            .of(context)
+            .focusColor);
   }
 
 
@@ -1054,64 +1463,153 @@ class _SellTradeScreenState extends State<TradeScreen>
     return SingleChildScrollView(
       child: Column(
         children: [
-          const SizedBox(
-            height: 10.0,
-          ),
-          Row(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                InkWell(
-                  onTap: () {
-                    setState(() {
-                      getFutureCoinList();
-                      showFutureSheeet();
-                    });
-                  },
-                  child: Row(
-                    children: [
-                      Container(
-                        margin: EdgeInsets.fromLTRB(0, 0, 5, 0),
-                        padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
-                        child: InkWell(
-                          child: Icon(
-                            Icons.menu_rounded,
-                            size: 20.0,
-                            color: Theme
-                                .of(context)
-                                .focusColor,
-                          ),
-                        ),
-                      ),
-                      // futuretradePair.length > 0 ?
-                      Text(
-                        futureselectPair?.symbol.toString() ?? "",
-                        style: CustomWidget(context: context)
-                            .CustomSizedTextStyle(
-                            12.0,
-                            Theme
-                                .of(context)
-                                .focusColor,
-                            FontWeight.w500,
-                            'FontRegular'),
-                      )
-                      // : Container(),
-                    ],
-                  ),
-                ),
-              ]),
-          const SizedBox(height: 10,),
+          // const SizedBox(
+          //   height: 10.0,
+          // ),
+          // TextField(
+          //   readOnly: true,
+          //   controller:searchFutureController,
+          //   focusNode: searchFutureFocus,
+          //   enabled: true,
+          //   textInputAction: TextInputAction.none,
+          //   onTap: () {
+          //     setState(() {
+          //       showFutureSheeet();
+          //     });
+          //   },
+          //   onEditingComplete: () {
+          //     // setState(() {
+          //     //   //searchPair=[];
+          //     //   searchFocus.unfocus();
+          //     // });
+          //   },
+          //   onChanged: (value) {
+          //   },
+          //   decoration: InputDecoration(
+          //     contentPadding: const EdgeInsets.only(
+          //         left: 12, right: 0, top: 8, bottom: 8),
+          //     hintText: "Search",
+          //     hintStyle: TextStyle(
+          //         fontFamily: "FontRegular",
+          //         color: Theme
+          //             .of(context)
+          //             .focusColor,
+          //         fontSize: 14.0,
+          //         fontWeight: FontWeight.w400),
+          //     filled: true,
+          //     fillColor: CustomTheme
+          //         .of(context)
+          //         .primaryColorLight
+          //         .withOpacity(0.5),
+          //     border: OutlineInputBorder(
+          //       borderRadius:
+          //       BorderRadius.all(Radius.circular(5.0)),
+          //       borderSide: BorderSide(
+          //           color: CustomTheme
+          //               .of(context)
+          //               .focusColor
+          //               .withOpacity(0.5),
+          //           width: 1.0),
+          //     ),
+          //     disabledBorder: OutlineInputBorder(
+          //       borderRadius:
+          //       BorderRadius.all(Radius.circular(5.0)),
+          //       borderSide: BorderSide(
+          //           color: CustomTheme
+          //               .of(context)
+          //               .focusColor
+          //               .withOpacity(0.5),
+          //           width: 1.0),
+          //     ),
+          //     enabledBorder: OutlineInputBorder(
+          //       borderRadius:
+          //       BorderRadius.all(Radius.circular(5.0)),
+          //       borderSide: BorderSide(
+          //           color: CustomTheme
+          //               .of(context)
+          //               .focusColor
+          //               .withOpacity(0.5),
+          //           width: 1.0),
+          //     ),
+          //     focusedBorder: OutlineInputBorder(
+          //       borderRadius:
+          //       BorderRadius.all(Radius.circular(5.0)),
+          //       borderSide: BorderSide(
+          //           color: CustomTheme
+          //               .of(context)
+          //               .focusColor
+          //               .withOpacity(0.5),
+          //           width: 1.0),
+          //     ),
+          //     errorBorder: const OutlineInputBorder(
+          //       borderRadius:
+          //       BorderRadius.all(Radius.circular(5)),
+          //       borderSide:
+          //       BorderSide(color: Colors.red, width: 0.0),
+          //     ),
+          //   ),
+          // ),
+          // // const SizedBox(height: 10.0),
+          // // Row(
+          // //     crossAxisAlignment: CrossAxisAlignment.center,
+          // //     mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          // //     children: [
+          // //       InkWell(
+          // //         onTap: () {
+          // //           setState(() {
+          // //             getFutureCoinList();
+          // //             showFutureSheeet();
+          // //           });
+          // //         },
+          // //         child: Row(
+          // //           children: [
+          // //             Container(
+          // //               margin: EdgeInsets.fromLTRB(0, 0, 5, 0),
+          // //               padding: const EdgeInsets.fromLTRB(0, 0, 0, 0),
+          // //               child: InkWell(
+          // //                 child: Icon(
+          // //                   Icons.menu_rounded,
+          // //                   size: 20.0,
+          // //                   color: Theme
+          // //                       .of(context)
+          // //                       .focusColor,
+          // //                 ),
+          // //               ),
+          // //             ),
+          // //             // futuretradePair.length > 0 ?
+          // //             Text(
+          // //               futureselectPair?.symbol.toString() ?? "",
+          // //               style: CustomWidget(context: context)
+          // //                   .CustomSizedTextStyle(
+          // //                   12.0,
+          // //                   Theme
+          // //                       .of(context)
+          // //                       .focusColor,
+          // //                   FontWeight.w500,
+          // //                   'FontRegular'),
+          // //             )
+          // //             // : Container(),
+          // //           ],
+          // //         ),
+          // //       ),
+          // //     ]),
+          // const SizedBox(height: 10,),
           Container(width: MediaQuery
               .of(context)
               .size
               .width,
             child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,crossAxisAlignment: CrossAxisAlignment.start, children: [
               //Flexible(flex: 1,child:Image.asset("assets/images/blogo.png",height: MediaQuery.of(context).size.height*0.06,width: MediaQuery.of(context).size.height*0.06), ),
+              GestureDetector(child:Icon(Icons.menu,size: 30,),onTap: () {
+                setState(() {
+                  showFutureSheeet();
+                });
+              },),
               const SizedBox(width: 5,),
               Flexible(flex: 3, child: Column(children: [
                 Row(children: [
-                  Flexible(child: Text(
+                  Flexible(child:Text(
                     "${futureselectPair?.symbol.toString() ?? ""}",
                     style: CustomWidget(context: context)
                         .CustomSizedTextStyle(
@@ -1120,8 +1618,15 @@ class _SellTradeScreenState extends State<TradeScreen>
                             .of(context)
                             .focusColor,
                         FontWeight.w500,
-                        'FontRegular'),
+                        'FontRegular'),softWrap: true,
                   ),),
+                  // GestureDetector(child: selectedfav?Icon(Icons.star,color: Colors.orangeAccent,size: 30,):Icon(Icons.star_outline_sharp,color: Colors.orangeAccent,size: 30,),onTap: () {
+                  //   setState(() {
+                  //     selectedfav=!selectedfav;
+                  //     loading=true;
+                  //     addFutureFavourite(selectedfav.toString(), futureselectPair!.symbol.toString()??"");
+                  //   });
+                  // },)
                   // Text(
                   //   "Bitcoin",
                   //   style: CustomWidget(context: context)
@@ -1168,8 +1673,8 @@ class _SellTradeScreenState extends State<TradeScreen>
 
                 ],),
               ],)),
-              Flexible(flex: 2,
-                  child: Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              Flexible(flex: 3,
+                  child: GestureDetector(child:Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
                       Image.asset("assets/menu/graph.png", height: MediaQuery
                           .of(context)
@@ -1178,12 +1683,33 @@ class _SellTradeScreenState extends State<TradeScreen>
                           .of(context)
                           .size
                           .width * 0.28),
-                      // Icon(Icons.keyboard_arrow_down_rounded,size: 30,color: Theme.of(context).focusColor,)
-                    ],)),
+                      visiblefuture?Icon(Icons.keyboard_arrow_up_rounded,size: 30,color: Theme.of(context).focusColor,):Icon(Icons.keyboard_arrow_down_rounded,size: 30,color: Theme.of(context).focusColor,)
+                    ],),onTap: () {
+                      setState(() {
+                        visiblefuture=!visiblefuture;
+                      });
+                    },),),
             ],),),
           const SizedBox(
             height: 10.0,
           ),
+          // GestureDetector(onTap: () {
+          //   setState(() {
+          //     loading=true;
+          //     addFavourite("true",futureselectPair!.symbol.toString());
+          //   });
+          // },child:Align(alignment: Alignment.centerRight,child: Container(padding: EdgeInsets.all(8),child: Text("Add to Favourites",
+          //   style: CustomWidget(context: context)
+          //       .CustomSizedTextStyle(
+          //     8.0,
+          //     Theme
+          //         .of(context)
+          //         .focusColor,
+          //     FontWeight.w500,
+          //     'FontRegular',),),
+          //   decoration: BoxDecoration(borderRadius: BorderRadius.circular(4),color: Theme.of(context).indicatorColor),),),),
+          // const SizedBox(height: 10.0),
+          Visibility(visible: visiblefuture,child:Column(children: [
           Image.asset("assets/images/newchart.png", height: MediaQuery
               .of(context)
               .size
@@ -1191,9 +1717,11 @@ class _SellTradeScreenState extends State<TradeScreen>
               .of(context)
               .size
               .width,),
-          const SizedBox(
-            height: 10.0,
-          ),
+            const SizedBox(
+              height: 10.0,
+            ),
+          ],)),
+
           Container(
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1289,6 +1817,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                   ),
                 ),
               ),
+              const SizedBox(width: 10,),
               InkWell(
                 onTap: () {
                   showSuccessAlertDialog();
@@ -1379,6 +1908,99 @@ class _SellTradeScreenState extends State<TradeScreen>
               //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
               //   children: [
               //     Text(
+              //       "Available",
+              //       style: CustomWidget(context: context).CustomSizedTextStyle(
+              //           12.0,
+              //           Theme
+              //               .of(context)
+              //               .focusColor
+              //               .withOpacity(0.5),
+              //           FontWeight.w500,
+              //           'FontRegular'),
+              //     ),
+              //     Text(
+              //       tbalance,
+              //       style: CustomWidget(context: context).CustomSizedTextStyle(
+              //           11.5,
+              //           Theme
+              //               .of(context)
+              //               .focusColor,
+              //           FontWeight.w500,
+              //           'FontRegular'),
+              //     ),
+              //   ],
+              // ),
+              // SizedBox(
+              //   height: 5.0,
+              // ),
+
+              // Row(
+              //   crossAxisAlignment: CrossAxisAlignment.start,
+              //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              //   children: [
+              //     Text(
+              //       "Maxbuy",
+              //       style: CustomWidget(context: context).CustomSizedTextStyle(
+              //           12.0,
+              //           Theme
+              //               .of(context)
+              //               .focusColor
+              //               .withOpacity(0.5),
+              //           FontWeight.w500,
+              //           'FontRegular'),
+              //     ),
+              //     priceController.text.isNotEmpty?Text(
+              //       (((double.parse(balance) * 100) /
+              //           double.parse(priceController.text)) /
+              //           100).toStringAsFixed(4),
+              //       style: CustomWidget(context: context).CustomSizedTextStyle(
+              //           11.5,
+              //           Theme
+              //               .of(context)
+              //               .focusColor,
+              //           FontWeight.w500,
+              //           'FontRegular'),
+              //     ):Text(""),
+              //   ],
+              // ),
+              // SizedBox(
+              //   height: 5.0,
+              // ),
+              // Row(
+              //   crossAxisAlignment: CrossAxisAlignment.start,
+              //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              //   children: [
+              //     Text(
+              //       "Minbuy Qty",
+              //       style: CustomWidget(context: context).CustomSizedTextStyle(
+              //           12.0,
+              //           Theme
+              //               .of(context)
+              //               .focusColor
+              //               .withOpacity(0.5),
+              //           FontWeight.w500,
+              //           'FontRegular'),
+              //     ),
+              //     Text(
+              //       minimumbuy,
+              //       style: CustomWidget(context: context).CustomSizedTextStyle(
+              //           11.5,
+              //           Theme
+              //               .of(context)
+              //               .focusColor,
+              //           FontWeight.w500,
+              //           'FontRegular'),
+              //     ),
+              //   ],
+              // ),
+              // SizedBox(
+              //   height: 5.0,
+              // ),
+              // Row(
+              //   crossAxisAlignment: CrossAxisAlignment.start,
+              //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              //   children: [
+              //     Text(
               //       "Live Price",
               //       style: CustomWidget(context: context).CustomSizedTextStyle(
               //           12.0,
@@ -1461,60 +2083,184 @@ class _SellTradeScreenState extends State<TradeScreen>
           const SizedBox(
             height: 10.0,
           ),
-          InkWell(
-            onTap: () {
-              // futureOption ? showFutureOrders() : showOrders();
-            },
-            child: Padding(
-              padding: const EdgeInsets.only(left: 0.0, right: 0.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    "Open Orders ( " + (openOrders.length.toString()) + " )",
-                    style: CustomWidget(context: context).CustomSizedTextStyle(
-                        13.0,
-                        Theme
-                            .of(context)
-                            .focusColor
-                            .withOpacity(0.5),
-                        FontWeight.w400,
-                        'FontRegular'),
-                    textAlign: TextAlign.center,
-                  ),
-                  Row(
-                    children: [
-                      Text(
-                        "Show all",
-                        style: CustomWidget(context: context)
-                            .CustomSizedTextStyle(
-                            12.0,
-                            Theme
-                                .of(context)
-                                .focusColor
-                                .withOpacity(0.5),
-                            FontWeight.w500,
-                            'FontRegular'),
-                        textAlign: TextAlign.center,
-                      ),
-                      Icon(
-                        Icons.arrow_forward_ios_outlined,
-                        color: Theme
-                            .of(context)
-                            .focusColor
-                            .withOpacity(0.5),
-                        size: 10.0,
-                      )
-                    ],
-                  )
-                ],
+          Container(child:Row(children: [
+            GestureDetector(child:Column(crossAxisAlignment: CrossAxisAlignment.start,children: [
+              Text(
+                "Open Orders ( " + (openOrders.length.toString()) + " )",
+                style: CustomWidget(context: context).CustomSizedTextStyle(
+                    13.0,
+                    selectfuturetab=="Open Orders"?Theme.of(context).indicatorColor:Theme
+                        .of(context)
+                        .focusColor
+                        .withOpacity(0.5),
+                    FontWeight.w400,
+                    'FontRegular'),
+                textAlign: TextAlign.center,
               ),
-            ),
-          ),
-          const SizedBox(
-            height: 10.0,
-          ),
+              SizedBox(width: MediaQuery.of(context).size.width*0.30,child:Divider(height: 8,color:
+              selectfuturetab=="Open Orders"?Theme.of(context).indicatorColor:Theme
+                  .of(context)
+                  .focusColor
+                  .withOpacity(0.2)
+                ,thickness: 4,indent: 0,endIndent: 1,),),
+            ],),onTap: () {
+              setState(() {
+                selectfuturetab="Open Orders";
+                loading=true;
+                      getTradeHistory(spotOption || marginOption
+                          ? selectPair!.symbol.toString()
+                          : futureselectPair!.symbol.toString(),);
+                getOpenOrderHistory(spotOption || marginOption
+                    ? selectPair!.symbol.toString()
+                    : futureselectPair!.symbol.toString(), spotOption||marginOption?"spot":"linear");
+                      Future.delayed(Duration(seconds: 1));
+                      _tabController.animateTo(0);
+                showFutureOrders();
+                selectfuturetab="Open Orders";
+              });
+            },),
+            const SizedBox(width: 10,),
+            GestureDetector(child:Column(crossAxisAlignment: CrossAxisAlignment.start,children: [
+              Text(
+                "Open History",
+                style: CustomWidget(context: context).CustomSizedTextStyle(
+                    13.0,
+                    selectfuturetab=="Open History"?Theme.of(context).indicatorColor:Theme
+                        .of(context)
+                        .focusColor
+                        .withOpacity(0.5),
+                    FontWeight.w400,
+                    'FontRegular'),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(width: MediaQuery.of(context).size.width*0.30,child:Divider(height: 8,color:
+              selectfuturetab=="Open History"?Theme.of(context).indicatorColor:Theme
+                  .of(context)
+                  .focusColor
+                  .withOpacity(0.2)
+                ,thickness: 4,indent: 0,endIndent: 1,),),
+            ],),onTap: () {
+              setState(() {
+                selectfuturetab="Open History";
+                loading=true;
+                      getTradeHistory(spotOption || marginOption
+                          ? selectPair!.symbol.toString()
+                          : futureselectPair!.symbol.toString(),);
+                getOpenOrderHistory(spotOption || marginOption
+                    ? selectPair!.symbol.toString()
+                    : futureselectPair!.symbol.toString(), spotOption||marginOption?"spot":"linear");
+                      Future.delayed(Duration(seconds: 1));
+                _tabController.animateTo(1);
+                showFutureOrders();
+                selectfuturetab="Open Orders";
+              });
+            },),
+            const SizedBox(width: 10,),
+            GestureDetector(child:Column(crossAxisAlignment: CrossAxisAlignment.start,children: [
+              Text(
+                "Position",
+                style: CustomWidget(context: context).CustomSizedTextStyle(
+                    13.0,
+                    selectfuturetab=="Position"?Theme.of(context).indicatorColor:Theme
+                        .of(context)
+                        .focusColor
+                        .withOpacity(0.5),
+                    FontWeight.w400,
+                    'FontRegular'),
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(width: MediaQuery.of(context).size.width*0.20,child:Divider(height: 8,color:
+              selectfuturetab=="Position"?Theme.of(context).indicatorColor:Theme
+                  .of(context)
+                  .focusColor
+                  .withOpacity(0.2)
+                ,thickness: 4,indent: 0,endIndent: 1,),),
+            ],),onTap: () {
+              setState(() {
+                selectfuturetab="Position";
+                loading=true;
+                      getTradeHistory(spotOption || marginOption
+                          ? selectPair!.symbol.toString()
+                          : futureselectPair!.symbol.toString(),);
+                getOpenOrderHistory(spotOption || marginOption
+                    ? selectPair!.symbol.toString()
+                    : futureselectPair!.symbol.toString(), spotOption||marginOption?"spot":"linear");
+                getTradePositionHistory();
+                      Future.delayed(Duration(seconds: 1));
+                _tabController.animateTo(2);
+                showFutureOrders();
+                selectfuturetab="Open Orders";
+              });
+            },),
+          ],) ,),
+          const SizedBox(height: 20,),
+          // InkWell(
+          //   onTap: () {
+          //     setState(() {
+          //
+          //       // completedOrders=[];
+          //       loading=true;
+          //       getTradeHistory(spotOption || marginOption
+          //           ? selectPair!.symbol.toString()
+          //           : futureselectPair!.symbol.toString(),);
+          //       Future.delayed(Duration(seconds: 1));
+          //       showOrders();
+          //     });
+          //     //futureOption ? showFutureOrders() : showOrders();
+          //   },
+          //   child: Padding(
+          //     padding: const EdgeInsets.only(left: 0.0, right: 0.0),
+          //     child: Row(
+          //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          //       children: [
+          //         Text(
+          //           "Open Orders ( " + (openOrders.length.toString()) + " )",
+          //           style: CustomWidget(context: context).CustomSizedTextStyle(
+          //               13.0,
+          //               Theme
+          //                   .of(context)
+          //                   .focusColor
+          //                   .withOpacity(0.5),
+          //               FontWeight.w400,
+          //               'FontRegular'),
+          //           textAlign: TextAlign.center,
+          //         ),
+          //         Row(
+          //           children: [
+          //             Text(
+          //               "Show all",
+          //               style: CustomWidget(context: context)
+          //                   .CustomSizedTextStyle(
+          //                   12.0,
+          //                   Theme
+          //                       .of(context)
+          //                       .focusColor
+          //                       .withOpacity(0.5),
+          //                   FontWeight.w500,
+          //                   'FontRegular'),
+          //               textAlign: TextAlign.center,
+          //             ),
+          //             Icon(
+          //               Icons.arrow_forward_ios_outlined,
+          //               color: Theme
+          //                   .of(context)
+          //                   .focusColor
+          //                   .withOpacity(0.5),
+          //               size: 10.0,
+          //             )
+          //           ],
+          //         )
+          //       ],
+          //     ),
+          //   ),
+          // ),
+          // const SizedBox(
+          //   height: 10.0,
+          // ),
           openOrdersUIS(),
+          const SizedBox(
+            height: 20.0,
+          ),
         ],
       ),
     );
@@ -1548,6 +2294,7 @@ class _SellTradeScreenState extends State<TradeScreen>
               ),
             ),
             Expanded(
+
               child: Text(
                 spotOption || marginOption ? (AppLocalizations.instance.text(
                     "loc_sell_trade_Qty") +
@@ -1584,17 +2331,205 @@ class _SellTradeScreenState extends State<TradeScreen>
             : buyData.length > 0 && sellData.length > 0
             ? Column(
           children: [
+            buyOption
+                ? SizedBox(
+                height: !sellOption
+                    ? MediaQuery
+                    .of(context)
+                    .size
+                    .height * 0.40
+                    :marginOption? MediaQuery
+                    .of(context)
+                    .size
+                    .height *
+                    0.23:MediaQuery
+                    .of(context)
+                    .size
+                    .height *
+                    0.20,
+                child: buyData.length > 0
+                    ? ListView.builder(
+                    controller: controller,
+                    itemCount: buyData.length,
+
+                    itemBuilder:
+                    ((BuildContext context, int index) {
+                      return InkWell(
+                          onTap: () {
+                            setState(() {
+                              priceController.clear();
+                              amountController.clear();
+                              // if (spotOption || marginOption) {
+                              //if (!enableTrade) {
+                              priceController.text = livePrice;
+                              buySell = false;
+                              priceController.text =
+                                  buyData[index]
+                                      .price
+                                      .toString()
+                                      .replaceAll(",", "");
+                              loading=true;
+                              getBalance(secondCoin);
+                              Future.delayed(Duration(milliseconds: 500));
+                              amountController.text =(
+                                  (((double.parse(balance)) * int.parse(tleverageVal)) *
+                                      double.parse(priceController.text)) /
+                                      100).toStringAsFixed(decimal_val);
+                              // (double.parse(balance) * val) /
+                              //     double.parse(priceController.text)) /
+                              // 100;
+
+                              //amountController.text="0.0";
+                              // amountController.text =
+                              //     buyData[index]
+                              //         .quantity
+                              //         .toString()
+                              //         .replaceAll(",", "");
+
+                              takerFee = ((double.parse(
+                                  amountController
+                                      .text
+                                      .toString()) *
+                                  double.parse(
+                                      priceController
+                                          .text
+                                          .toString()) *
+                                  double.parse(
+                                      takerFeeValue
+                                          .toString())) /
+                                  100)
+                                  .toStringAsFixed(decimal_val);
+                              totalAmount = ((double.parse(
+                                  priceController
+                                      .text) *
+                                  double.parse(
+                                      amountController
+                                          .text)))
+                                  .toStringAsFixed(quote_pre);
+
+                              if (futureOption) {
+                                FuturefirstCoin =
+                                    futureselectPair!
+                                    .symbol
+                                    .toString();
+                                FuturesecondCoin = futureselectPair!
+                                    .symbol
+                                    .toString();
+                              } else {
+
+                              }
+                              // getCoinDetailsList(
+                              //     selectPair!.id.toString());
+                            });
+                          },
+                          child: Row(
+                            mainAxisAlignment:
+                            MainAxisAlignment
+                                .spaceBetween,
+                            crossAxisAlignment:
+                            CrossAxisAlignment.start,
+                            children: [
+                              Flexible(flex: 2,child:Text(
+                                double.parse(buyData[index].price.toString())
+                                    .toStringAsFixed(
+                                    decimalIndex),
+                                style: CustomWidget(
+                                    context: context)
+                                    .CustomSizedTextStyle(
+                                    9.0,
+                                    Theme
+                                        .of(context)
+                                        .hoverColor,
+                                    FontWeight.w500,
+                                    'FontRegular'),overflow: TextOverflow.ellipsis,
+                              ),),
+                              Flexible(flex: 3,child:Text(
+                                double.parse(buyData[index]
+                                    .quantity
+                                    .toString()
+                                    .replaceAll(",", ""))
+                                    .toStringAsFixed(
+                                    decimalIndex),
+                                style: CustomWidget(
+                                    context: context)
+                                    .CustomSizedTextStyle(
+                                    9.0,
+                                    Theme
+                                        .of(context)
+                                        .focusColor,
+                                    FontWeight.w500,
+                                    'FontRegular'),overflow: TextOverflow.ellipsis,
+                              ),),
+                            ],
+                          ));
+                    }))
+                    : Container(
+                  height: !sellOption
+                      ? MediaQuery
+                      .of(context)
+                      .size
+                      .height *
+                      0.40
+                      : marginOption? MediaQuery
+                      .of(context)
+                      .size
+                      .height *
+                      0.23:MediaQuery
+                      .of(context)
+                      .size
+                      .height *
+                      0.20,
+                  color:
+                  CustomTheme
+                      .of(context)
+                      .primaryColor,
+                  child: Center(
+                    child: Text(
+                      " No Data Found..!",
+                      style: TextStyle(
+                        fontFamily: "FontRegular",
+                        color: CustomTheme
+                            .of(context)
+                            .focusColor,
+                      ),
+                    ),
+                  ),
+                ))
+                : Container(),
+            const SizedBox(
+              height: 12.0,
+            ),
+   Align(child:Text(
+    "$livePrice",
+    style: TextStyle(
+    fontFamily: "FontRegular",
+    color: CustomTheme
+        .of(context)
+        .indicatorColor,
+    ),textAlign: TextAlign.start,),alignment: Alignment.centerLeft,),
+
+            Align(child:Text(
+              formatToUSD(double.parse(livePrice.toString())),
+              style: TextStyle(
+                fontFamily: "FontRegular",fontSize: 10,
+                color: CustomTheme
+                    .of(context)
+                    .focusColor,
+              ),textAlign: TextAlign.start,),alignment: Alignment.centerLeft,),
+            const SizedBox(
+              height: 12.0,
+            ),
             sellOption
                 ? SizedBox(
               height: !buyOption
                   ? MediaQuery
                   .of(context)
                   .size
-                  .height * 0.4
+                  .height * 0.40
                   : MediaQuery
                   .of(context)
                   .size
-                  .height * 0.2,
+                  .height * 0.23,
               child: sellData.length > 0
                   ? ListView.builder(
                   controller: controller,
@@ -1608,16 +2543,26 @@ class _SellTradeScreenState extends State<TradeScreen>
                         InkWell(
                           onTap: () {
                             setState(() {
+                              priceController.clear();
+                              amountController.clear();
+                              // if (spotOption || marginOption) {
+                              //if (!enableTrade) {
+                              priceController.text = livePrice;
                               buySell = true;
                               priceController.text =
                                   sellData[index]
                                       .price
                                       .toString()
                                       .replaceAll(",", "");
+                              loading=true;
+                              getBalance(firstCoin);
+                              Future.delayed(Duration(milliseconds: 500));
+                              setState(() {
                               amountController.text =(
                               (((double.parse(balance)) * int.parse(tleverageVal)) /
                                       double.parse(priceController.text)) /
                                       100).toStringAsFixed(decimal_val);
+                              //amountController.text="0.0";
 
                               totalAmount = (double.parse(
                                   amountController
@@ -1627,7 +2572,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                                       priceController
                                           .text
                                           .toString()))
-                                  .toStringAsFixed(decimal_val);
+                                  .toStringAsFixed(quote_pre);
+                              });
+
                               // coinName = selectPair!
                               //     .coinname1
                               //     .toString();
@@ -1644,7 +2591,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                             MainAxisAlignment
                                 .spaceBetween,
                             children: [
-                              Text(
+                              Flexible(flex: 2,child:Text(
                                 double.parse(sellData[index]
                                     .price
                                     .toString())
@@ -1653,14 +2600,14 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 style: CustomWidget(
                                     context: context)
                                     .CustomSizedTextStyle(
-                                    8.0,
+                                    9.0,
                                     Theme
                                         .of(context)
                                         .indicatorColor,
                                     FontWeight.w500,
-                                    'FontRegular'),
-                              ),
-                              Text(
+                                    'FontRegular'),overflow: TextOverflow.ellipsis,
+                              ),),
+                              Flexible(child: Text(
                                 double.parse(sellData[index]
                                     .quantity
                                     .toString()
@@ -1671,13 +2618,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 style: CustomWidget(
                                     context: context)
                                     .CustomSizedTextStyle(
-                                    8.0,
+                                    9.0,
                                     Theme
                                         .of(context)
                                         .focusColor,
                                     FontWeight.w500,
-                                    'FontRegular'),
-                              ),
+                                    'FontRegular'),overflow: TextOverflow.ellipsis,
+                              ),flex: 3,),
                             ],
                           ),
                         )
@@ -1716,146 +2663,8 @@ class _SellTradeScreenState extends State<TradeScreen>
                 : Container(
               color: Colors.white,
             ),
-            const SizedBox(
-              height: 10.0,
-            ),
-            buyOption
-                ? SizedBox(
-                height: !sellOption
-                    ? MediaQuery
-                    .of(context)
-                    .size
-                    .height * 0.40
-                    : MediaQuery
-                    .of(context)
-                    .size
-                    .height * 0.20,
-                child: buyData.length > 0
-                    ? ListView.builder(
-                    controller: controller,
-                    itemCount: buyData.length,
 
-                    itemBuilder:
-                    ((BuildContext context, int index) {
-                      return InkWell(
-                          onTap: () {
-                            setState(() {
-                              buySell = false;
-                              priceController.text =
-                                  buyData[index]
-                                      .price
-                                      .toString()
-                                      .replaceAll(",", "");
-                              amountController.text =
-                                  buyData[index]
-                                      .quantity
-                                      .toString()
-                                      .replaceAll(",", "");
 
-                              takerFee = ((double.parse(
-                                  amountController
-                                      .text
-                                      .toString()) *
-                                  double.parse(
-                                      priceController
-                                          .text
-                                          .toString()) *
-                                  double.parse(
-                                      takerFeeValue
-                                          .toString())) /
-                                  100)
-                                  .toStringAsFixed(decimal_val);
-                              totalAmount = ((double.parse(
-                                  priceController
-                                      .text) *
-                                  double.parse(
-                                      amountController
-                                          .text)))
-                                  .toStringAsFixed(decimal_val);
-                              if (futureOption) {
-                                FuturefirstCoin = futureselectPair!
-                                    .symbol
-                                    .toString();
-                                FuturesecondCoin = futureselectPair!
-                                    .symbol
-                                    .toString();
-                              } else {
-
-                              }
-                              // getCoinDetailsList(
-                              //     selectPair!.id.toString());
-                            });
-                          },
-                          child: Row(
-                            mainAxisAlignment:
-                            MainAxisAlignment
-                                .spaceBetween,
-                            crossAxisAlignment:
-                            CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                double.parse(buyData[index].price.toString())
-                                    .toStringAsFixed(
-                                    decimalIndex),
-                                style: CustomWidget(
-                                    context: context)
-                                    .CustomSizedTextStyle(
-                                    8.0,
-                                    Theme
-                                        .of(context)
-                                        .hoverColor,
-                                    FontWeight.w500,
-                                    'FontRegular'),
-                              ),
-                              Text(
-                                double.parse(buyData[index]
-                                    .quantity
-                                    .toString()
-                                    .replaceAll(",", ""))
-                                    .toStringAsFixed(
-                                    decimalIndex),
-                                style: CustomWidget(
-                                    context: context)
-                                    .CustomSizedTextStyle(
-                                    8.0,
-                                    Theme
-                                        .of(context)
-                                        .focusColor,
-                                    FontWeight.w500,
-                                    'FontRegular'),
-                              ),
-                            ],
-                          ));
-                    }))
-                    : Container(
-                  height: !sellOption
-                      ? MediaQuery
-                      .of(context)
-                      .size
-                      .height *
-                      0.40
-                      : MediaQuery
-                      .of(context)
-                      .size
-                      .height *
-                      0.20,
-                  color:
-                  CustomTheme
-                      .of(context)
-                      .primaryColor,
-                  child: Center(
-                    child: Text(
-                      " No Data Found..!",
-                      style: TextStyle(
-                        fontFamily: "FontRegular",
-                        color: CustomTheme
-                            .of(context)
-                            .focusColor,
-                      ),
-                    ),
-                  ),
-                ))
-                : Container(),
           ],
         )
             : Container(
@@ -1878,11 +2687,20 @@ class _SellTradeScreenState extends State<TradeScreen>
             ),
           ),
         ),
+
         const SizedBox(
           height: 12.0,
         ),
       ],
     );
+  }
+  String formatToUSD(double number) {
+    final formatCurrency = NumberFormat.currency(
+      locale: 'en_US',
+      symbol: '',          // Remove the "$" symbol
+      decimalDigits: number < 1 ? 4 : 2, // Use more decimal places for small numbers
+    );
+    return formatCurrency.format(number).trim() + " USD";
   }
 
   Widget openOrdersUIS() {
@@ -1907,6 +2725,8 @@ class _SellTradeScreenState extends State<TradeScreen>
             controller: controller,
 
             itemBuilder: (BuildContext context, int index) {
+              DateTime date = DateTime.fromMillisecondsSinceEpoch(int.parse(openOrders[index].createdTime.toString().isEmpty?"0":openOrders[index].createdTime.toString()));
+              String formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(date);
               // Moment spiritRoverOnMars =
               // Moment(openOrders[index].createdAt!).toLocal();
               return Column(
@@ -1936,7 +2756,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                     'FontRegular'),
                               ),
                               Text(
-                                openOrders[index].pair.toString(),
+                                openOrders[index].symbol.toString(),
                                 style: CustomWidget(context: context)
                                     .CustomSizedTextStyle(
                                     14.0,
@@ -1995,7 +2815,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                           //     .format(
                                           //     "YYYY MMMM Do - hh:mm:ssa")
                                           //     .toString(),
-                                          openOrders[index].createdAt.toString(),
+                                          formattedDate,
                                           style: CustomWidget(
                                               context: context)
                                               .CustomSizedTextStyle(
@@ -2027,14 +2847,14 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         ),
                                         Text(
                                           openOrders[index]
-                                              .tradeType
+                                              .side
                                               .toString(),
                                           style: CustomWidget(
                                               context: context)
                                               .CustomSizedTextStyle(
                                               14.0,
                                               openOrders[index]
-                                                  .tradeType
+                                                  .side
                                                   .toString()
                                                   .toLowerCase() ==
                                                   "buy"
@@ -2120,7 +2940,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                               .toString()==null || openOrders[index]
                                               .price
                                               .toString()=="null" ?  openOrders[index]
-                                              .entryPrice
+                                              .price
                                               .toString(): openOrders[index]
                                               .price
                                               .toString(),
@@ -2155,7 +2975,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         ),
                                         Text(
                                           openOrders[index]
-                                              .volume
+                                              .qty
                                               .toString(),
                                           style: CustomWidget(
                                               context: context)
@@ -2202,9 +3022,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                               'FontRegular'),
                                         ),
                                         Text(
-                                          openOrders[index]
-                                              .remaining
-                                              .toString(),
+                                          "0",
                                           style: CustomWidget(
                                               context: context)
                                               .CustomSizedTextStyle(
@@ -2250,10 +3068,10 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         setState(() {
                                           loading = true;
                                           updatecancelOrder(
-                                              marginOption||spotOption?"":"Linear",
+                                              marginOption||spotOption?"":"linear",
                                               openOrders[index]
                                                   .orderId
-                                                  .toString(),openOrders[index].pair.toString());
+                                                  .toString(),openOrders[index].symbol.toString());
                                         });
                                       },
                                     ),
@@ -2298,18 +3116,85 @@ class _SellTradeScreenState extends State<TradeScreen>
               .height * 0.3,
           color: Theme
               .of(context)
-              .primaryColorLight,
+              .cardColor,
           child: Center(
-            child: Text(
-              "No Records Found..!",
-              style: CustomWidget(context: context).CustomSizedTextStyle(
-                  12.0,
-                  Theme
-                      .of(context)
-                      .focusColor,
-                  FontWeight.w400,
-                  'FontRegular'),
-            ),
+            child:Column(mainAxisAlignment: MainAxisAlignment.center,children: [
+              spotOption?Text(
+                "Please deposit or buy crypto first",
+                style: CustomWidget(context: context)
+                    .CustomSizedTextStyle(
+                    12.0,
+                    Theme
+                        .of(context)
+                        .focusColor,
+                    FontWeight.w400,
+                    'FontRegular'),
+              ):Text(
+                "No Record Found...",
+                style: CustomWidget(context: context)
+                    .CustomSizedTextStyle(
+                    12.0,
+                    Theme
+                        .of(context)
+                        .focusColor,
+                    FontWeight.w400,
+                    'FontRegular'),
+              ),
+              const SizedBox(height: 20,),
+              spotOption?Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,children: [
+                InkWell(onTap: () {
+                  //Navigator.push(context, MaterialPageRoute(builder: (context) => Deposit_Screen(coinList:),));
+                },child:Container(
+                    width: MediaQuery
+                        .of(context)
+                        .size
+                        .width*0.40,
+                    padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10.0),
+                      color: CustomTheme
+                          .of(context)
+                          .indicatorColor
+                      ,
+                    ),
+                    child: Center(
+                      child: Text(
+                       'Deposit',
+                        style: CustomWidget(context: context).CustomSizedTextStyle(
+                            14.0,
+                            Theme
+                                .of(context)
+                                .cardColor,
+                            FontWeight.w500,
+                            'FontRegular'),
+                      ),
+                    )),),
+                Container(
+                    width: MediaQuery
+                        .of(context)
+                        .size
+                        .width*0.40,
+                    padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10.0),
+                      color: CustomTheme
+                          .of(context)
+                          .hoverColor,
+                    ),
+                    child: Center(
+                      child: Text(
+                        AppLocalizations.instance.text("loc_sell_trade_txt5"),
+                        style: CustomWidget(context: context).CustomSizedTextStyle(
+                            14.0,
+                            Theme
+                                .of(context)
+                                .cardColor,
+                            FontWeight.w500,
+                            'FontRegular'),
+                      ),
+                    )),
+              ],):Container()
+            ],),
           ),
         ),
         const SizedBox(
@@ -2324,7 +3209,7 @@ class _SellTradeScreenState extends State<TradeScreen>
         context: context,
         builder: (BuildContext contexts) {
           return Align(
-            alignment: const Alignment(0, 1),
+            alignment: Alignment.centerRight,
             child: Material(
               color: CustomTheme
                   .of(context)
@@ -2441,36 +3326,45 @@ class _SellTradeScreenState extends State<TradeScreen>
                         _currentSliderValue = 0;
                         tleverageVal = "1";
                         balance = "0.00";
+                        tbalance="0.00";
 
                         // getCoinDetailsList(selectPair!.id.toString());
                         // coinName = selectPair!.coinname1.toString();
                         // coinTwoName = selectPair!.coinname2.toString();
                         // print(coinName);
+                        loading=true;
                         getBalance(firstCoin);
                       });
                     },
                     child: Stack(
                       children: [
+                        // Container(
+                        //   child: SvgPicture.asset(
+                        //     'assets/icons/buy.svg',
+                        //     color: buySell
+                        //         ? CustomTheme
+                        //         .of(context)
+                        //         .indicatorColor
+                        //         : CustomTheme
+                        //         .of(context)
+                        //         .focusColor
+                        //         .withOpacity(0.2),
+                        //     fit: BoxFit.fill,
+                        //   ),
+                        //   height: 34.0,
+                        // ),
                         Container(
-                          child: SvgPicture.asset(
-                            'assets/icons/buy.svg',
-                            color: buySell
-                                ? CustomTheme
-                                .of(context)
-                                .indicatorColor
-                                : CustomTheme
-                                .of(context)
-                                .focusColor
-                                .withOpacity(0.2),
-                            fit: BoxFit.fill,
-                          ),
-                          height: 34.0,
-                        ),
-                        Container(
+                          decoration: BoxDecoration(borderRadius: BorderRadius.circular(8.0),color: buySell
+            ? CustomTheme
+            .of(context)
+            .indicatorColor
+            : CustomTheme
+            .of(context)
+            .focusColor ),
                             child: Center(
                                 child: Padding(
-                                  padding: EdgeInsets.only(
-                                      top: 7.0, bottom: 0.0),
+                                  padding: EdgeInsets.all(6.0
+                                      ),
                                   child: Text(
                                     AppLocalizations.instance
                                         .text("loc_sell_trade_txt5"),
@@ -2480,11 +3374,10 @@ class _SellTradeScreenState extends State<TradeScreen>
                                         buySell
                                             ? CustomTheme
                                             .of(context)
-                                            .focusColor
+                                            .cardColor
                                             : CustomTheme
                                             .of(context)
-                                            .focusColor
-                                            .withOpacity(0.5),
+                                            .cardColor,
                                         FontWeight.w500,
                                         'FontRegular'),
                                   ),
@@ -2492,12 +3385,14 @@ class _SellTradeScreenState extends State<TradeScreen>
                       ],
                     )),
               ),
+              const SizedBox(width: 5,),
               Flexible(
                   child: GestureDetector(
                       onTap: () {
                         setState(() {
                           buySell = false;
                           balance = "0.00";
+                          tbalance="0.00";
                         });
                         // print("Test");
                         setState(() {
@@ -2511,31 +3406,40 @@ class _SellTradeScreenState extends State<TradeScreen>
                           // getCoinDetailsList(selectPair!.id.toString());
                           // coinName = selectPair!.coinname1.toString();
                           // coinTwoName = selectPair!.coinname2.toString();
+                          loading=true;
                           getBalance(secondCoin);
                         });
                       },
                       child: Stack(
                         children: [
+                          // Container(
+                          //   child: SvgPicture.asset(
+                          //     'assets/icons/sell.svg',
+                          //     color: !buySell
+                          //         ? CustomTheme
+                          //         .of(context)
+                          //         .hoverColor
+                          //         : CustomTheme
+                          //         .of(context)
+                          //         .focusColor
+                          //         .withOpacity(0.2),
+                          //     fit: BoxFit.fill,
+                          //   ),
+                          //   height: 34.0,
+                          // ),
                           Container(
-                            child: SvgPicture.asset(
-                              'assets/icons/sell.svg',
-                              color: !buySell
-                                  ? CustomTheme
-                                  .of(context)
-                                  .hoverColor
-                                  : CustomTheme
-                                  .of(context)
-                                  .focusColor
-                                  .withOpacity(0.2),
-                              fit: BoxFit.fill,
-                            ),
-                            height: 34.0,
-                          ),
-                          Container(
+                            decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),color: !buySell
+            ? CustomTheme
+            .of(context)
+            .hoverColor
+            : CustomTheme
+            .of(context)
+            .focusColor
+            ),
                               child: Center(
                                   child: Padding(
-                                    padding: EdgeInsets.only(
-                                        top: 7.0, bottom: 0.0),
+                                    padding: EdgeInsets.all(
+                                        6.0),
                                     child: Text(
                                       AppLocalizations.instance
                                           .text("loc_sell_trade_txt6"),
@@ -2545,11 +3449,10 @@ class _SellTradeScreenState extends State<TradeScreen>
                                           !buySell
                                               ? CustomTheme
                                               .of(context)
-                                              .focusColor
+                                              .cardColor
                                               : CustomTheme
                                               .of(context)
-                                              .focusColor
-                                              .withOpacity(0.5),
+                                              .cardColor,
                                           FontWeight.w500,
                                           'FontRegular'),
                                     ),
@@ -2846,7 +3749,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                       amountController.text.toString()) *
                                       double.parse(
                                           stopPriceController.text.toString()))
-                                      .toStringAsFixed(decimal_val);
+                                      .toStringAsFixed(quote_pre);
                                 }
                               }
                             } else {
@@ -2864,13 +3767,13 @@ class _SellTradeScreenState extends State<TradeScreen>
                                       amountController.text.toString()) *
                                       double.parse(
                                           priceController.text.toString()))
-                                      .toStringAsFixed(decimal_val);
+                                      .toStringAsFixed(quote_pre);
                                 } else {
                                   totalAmount = (double.parse(
                                       amountController.text.toString()) *
                                       double.parse(
                                           priceController.text.toString()))
-                                      .toStringAsFixed(decimal_val);
+                                      .toStringAsFixed(quote_pre);
                                 }
                               }
                             }
@@ -3213,9 +4116,16 @@ class _SellTradeScreenState extends State<TradeScreen>
                             if (amountController.text.isNotEmpty) {
                               totalAmount =
                                   (double.parse(
+                                      amountController.text.toString()) /
+                                      double.parse(balance))
+                                      .toStringAsFixed(quote_pre);
+                            }
+                            else{
+                              totalAmount =
+                                  (double.parse(
                                       amountController.text.toString()) *
-                                      double.parse(livePrice))
-                                      .toStringAsFixed(decimal_val);
+                                      double.parse(balance))
+                                      .toStringAsFixed(quote_pre);
                             }
                           } else {
                             if (amountController.text.isNotEmpty) {
@@ -3249,7 +4159,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                               double.parse(
                                                   priceController.text
                                                       .toString()))
-                                              .toStringAsFixed(decimal_val);
+                                              .toStringAsFixed(quote_pre);
                                       /*  totalAmount = ((double.parse(
                                     priceController.text
                                         .toString()) *
@@ -3275,7 +4185,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                               .text
                                               .toString()) *
                                               double.parse(livePrice))
-                                              .toStringAsFixed(decimal_val);
+                                              .toStringAsFixed(quote_pre);
 
                                       /*totalAmount = ((double.parse(
                                     stopPriceController.text
@@ -3301,11 +4211,11 @@ class _SellTradeScreenState extends State<TradeScreen>
                                       totalAmount =
                                           (double.parse(amountController
                                               .text
-                                              .toString()) *
+                                              .toString()) /
                                               double.parse(
                                                   priceController.text
                                                       .toString()))
-                                              .toStringAsFixed(decimal_val);
+                                              .toStringAsFixed(quote_pre);
                                     } else {
                                       totalAmount =
                                           (double.parse(amountController
@@ -3314,7 +4224,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                                               double.parse(
                                                   priceController.text
                                                       .toString()))
-                                              .toStringAsFixed(decimal_val);
+                                              .toStringAsFixed(quote_pre);
                                     }
                                   }
                                 }
@@ -3660,7 +4570,8 @@ class _SellTradeScreenState extends State<TradeScreen>
               valueIndicatorColor: CustomTheme
                   .of(context)
                   .indicatorColor,
-              trackHeight: 10.0,
+              trackHeight: 1.0,
+
               activeTickMarkColor: CustomTheme
                   .of(context)
                   .focusColor,
@@ -3669,7 +4580,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                   .of(context)
                   .focusColor
                   .withOpacity(0.5),
-              tickMarkShape: RoundSliderTickMarkShape(tickMarkRadius: 5.0),
+              tickMarkShape: RoundSliderTickMarkShape(tickMarkRadius: 4.0),
               trackShape: CustomTrackShape(),
               thumbShape: RoundSliderThumbShape(enabledThumbRadius: 5),
               overlayShape: RoundSliderOverlayShape(overlayRadius: 28.0),
@@ -3718,7 +4629,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                         //}
                         if (double.parse(livePrice) > 0) {
                           if (buySell) {
-                            double perce = ((double.parse(balance) * val) /
+                            double perce = ((double.parse(balance) * val==100?98:val) /
                                 double.parse(priceController.text)) /
                                 100;
 
@@ -3729,9 +4640,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                                 .toString()); // this is the value in my first text field (This is the percentage rate i intend to use)
                             double b = double.parse(livePrice);
                             totalAmount = double.parse((a * b).toString())
-                                .toStringAsFixed(decimal_val);
+                                .toStringAsFixed(quote_pre);
                           } else {
-                            double perce = ((double.parse(balance) * val)/
+                            double perce = ((double.parse(balance) * val==100?98:val)*
                                 double.parse(priceController.text)) / 100;
 
                             amountController.text =
@@ -3740,9 +4651,12 @@ class _SellTradeScreenState extends State<TradeScreen>
                             double a = double.parse(perce
                                 .toString()); // this is the value in my first text field (This is the percentage rate i intend to use)
                             double b = double.parse(livePrice);
-                            totalAmount = double.parse((a * b).toString())
-                                .toStringAsFixed(decimal_val);
+                            totalAmount = double.parse((a / b).toString())
+                                .toStringAsFixed(quote_pre);
                           }
+                        }
+                        else{
+                          amountController.text = "0.00";
                         }
                       //}
                     });
@@ -3764,7 +4678,7 @@ class _SellTradeScreenState extends State<TradeScreen>
               tleverageVal="2";
             });
           },child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
-              color: tleverageVal=="2"?Theme.of(context).indicatorColor:Theme.of(context).dividerColor),padding: EdgeInsets.all(10),child: Text("2%",style:CustomWidget(context: context)
+              color: tleverageVal=="2"?Theme.of(context).indicatorColor:Theme.of(context).dividerColor),padding: EdgeInsets.all(8),child: Text("2%",style:CustomWidget(context: context)
               .CustomSizedTextStyle(
               10.0,
               Theme
@@ -3777,7 +4691,7 @@ class _SellTradeScreenState extends State<TradeScreen>
               tleverageVal="5";
             });
           },child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
-              color: tleverageVal=="5"?Theme.of(context).indicatorColor:Theme.of(context).dividerColor),padding: EdgeInsets.all(10),child: Text("5%",style:CustomWidget(context: context)
+              color: tleverageVal=="5"?Theme.of(context).indicatorColor:Theme.of(context).dividerColor),padding: EdgeInsets.all(8),child: Text("5%",style:CustomWidget(context: context)
               .CustomSizedTextStyle(
               10.0,
               Theme
@@ -3790,7 +4704,7 @@ class _SellTradeScreenState extends State<TradeScreen>
               tleverageVal="8";
             });
           },child: Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
-              color: tleverageVal=="8"?Theme.of(context).indicatorColor:Theme.of(context).dividerColor),padding: EdgeInsets.all(10),child: Text("8%",style:CustomWidget(context: context)
+              color: tleverageVal=="8"?Theme.of(context).indicatorColor:Theme.of(context).dividerColor),padding: EdgeInsets.all(8),child: Text("8%",style:CustomWidget(context: context)
               .CustomSizedTextStyle(
               10.0,
               Theme
@@ -3803,7 +4717,7 @@ class _SellTradeScreenState extends State<TradeScreen>
               tleverageVal="10";
             });
           },child:Container(decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
-              color: tleverageVal=="10"?Theme.of(context).indicatorColor:Theme.of(context).dividerColor),padding: EdgeInsets.all(10),child: Text("10%",style:CustomWidget(context: context)
+              color: tleverageVal=="10"?Theme.of(context).indicatorColor:Theme.of(context).dividerColor),padding: EdgeInsets.all(8),child: Text("10%",style:CustomWidget(context: context)
               .CustomSizedTextStyle(
               10.0,
               Theme
@@ -3812,7 +4726,7 @@ class _SellTradeScreenState extends State<TradeScreen>
               FontWeight.w400,
               'FontRegular'),),),),),
         ],):Container(),
-        marginOption?const SizedBox(height: 15,):SizedBox(),
+        marginOption?const SizedBox(height: 15,):SizedBox(height: 10,),
         Row(
           crossAxisAlignment: CrossAxisAlignment.center,
           mainAxisAlignment: MainAxisAlignment.start,
@@ -4684,6 +5598,7 @@ class _SellTradeScreenState extends State<TradeScreen>
             ],
           ),
         ) : Container(),
+        spotOption?const SizedBox(height: 10,):SizedBox(),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -4700,7 +5615,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                   'FontRegular'),
             ),
             Text(
-              double.parse(balance).toStringAsFixed(decimal_val),
+              double.parse(balance.isNotEmpty?balance:"0.0").toStringAsFixed(5).toString()+"" " ${buySell==true?firstCoin:secondCoin}",
               style: CustomWidget(context: context).CustomSizedTextStyle(11.5,
                   Theme
                       .of(context)
@@ -4708,9 +5623,103 @@ class _SellTradeScreenState extends State<TradeScreen>
             ),
           ],
         ),
-        SizedBox(
-          height: 5.0,
-        ),
+        // Row(
+        //   crossAxisAlignment: CrossAxisAlignment.start,
+        //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        //   children: [
+        //     Text(
+        //       "Available",
+        //       style: CustomWidget(context: context).CustomSizedTextStyle(
+        //           12.0,
+        //           Theme
+        //               .of(context)
+        //               .focusColor
+        //               .withOpacity(0.5),
+        //           FontWeight.w500,
+        //           'FontRegular'),
+        //     ),
+        //     Text(
+        //       double.parse(tbalance.isNotEmpty?tbalance:"0.0").toStringAsFixed(4).toString()+"" " ${buySell==true?firstCoin:secondCoin}",
+        //       style: CustomWidget(context: context).CustomSizedTextStyle(
+        //           11.5,
+        //           Theme
+        //               .of(context)
+        //               .focusColor,
+        //           FontWeight.w500,
+        //           'FontRegular'),
+        //     ),
+        //   ],
+        // ),
+        // SizedBox(
+        //   height: 5.0,
+        // ),
+        // SizedBox(
+        //   height: 5.0,
+        // ),
+        // Row(
+        //   crossAxisAlignment: CrossAxisAlignment.start,
+        //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        //   children: [
+        //     Text(
+        //       "Maxbuy",
+        //       style: CustomWidget(context: context).CustomSizedTextStyle(
+        //           12.0,
+        //           Theme
+        //               .of(context)
+        //               .focusColor
+        //               .withOpacity(0.5),
+        //           FontWeight.w500,
+        //           'FontRegular'),
+        //     ),
+        //     priceController.text.isNotEmpty?Text(
+        //       (((double.parse(balance) * 100) /
+        //           double.parse(priceController.text)) /
+        //           100).toStringAsFixed(4),
+        //       style: CustomWidget(context: context).CustomSizedTextStyle(
+        //           11.5,
+        //           Theme
+        //               .of(context)
+        //               .focusColor,
+        //           FontWeight.w500,
+        //           'FontRegular'),
+        //     ):Text(""),
+        //
+        //   ],
+        // ),
+        // SizedBox(
+        //   height: 5.0,
+        // ),
+        // Row(
+        //   crossAxisAlignment: CrossAxisAlignment.start,
+        //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        //   children: [
+        //     Text(
+        //       "Minbuy Qty",
+        //       style: CustomWidget(context: context).CustomSizedTextStyle(
+        //           12.0,
+        //           Theme
+        //               .of(context)
+        //               .focusColor
+        //               .withOpacity(0.5),
+        //           FontWeight.w500,
+        //           'FontRegular'),
+        //     ),
+        //     Text(
+        //       minimumbuy,
+        //       style: CustomWidget(context: context).CustomSizedTextStyle(
+        //           11.5,
+        //           Theme
+        //               .of(context)
+        //               .focusColor,
+        //           FontWeight.w500,
+        //           'FontRegular'),
+        //     ),
+        //   ],
+        // ),
+        // SizedBox(
+        //   height: 5.0,
+        // ),
+        spotOption?const SizedBox(height: 10,):SizedBox(),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -4732,7 +5741,7 @@ class _SellTradeScreenState extends State<TradeScreen>
           ],
         ),
         SizedBox(
-          height: 5.0,
+          height: 10.0,
         ),
         Container(
           padding: EdgeInsets.fromLTRB(5.0, 0.0, 0.0, 0.0),
@@ -4868,6 +5877,10 @@ class _SellTradeScreenState extends State<TradeScreen>
                       "Trade", "Enter Trade Price", "error");
                 }
               }
+
+                loading=true;
+
+
               buySell?getBalance(firstCoin):getBalance(secondCoin);
             });
           },
@@ -4878,7 +5891,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                   .width,
               padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(35.0),
+                borderRadius: BorderRadius.circular(8.0),
                 color: buySell
                     ? CustomTheme
                     .of(context)
@@ -4890,14 +5903,14 @@ class _SellTradeScreenState extends State<TradeScreen>
               child: Center(
                 child: Text(
                   buySell
-                      ? AppLocalizations.instance.text("loc_sell_trade_txt5")
-                      : AppLocalizations.instance.text("loc_sell_trade_txt6"),
+                      ? AppLocalizations.instance.text("loc_sell_trade_txt5")+ " "+firstCoin
+                      : AppLocalizations.instance.text("loc_sell_trade_txt6") + " "+secondCoin,
                   style: CustomWidget(context: context).CustomSizedTextStyle(
                       14.0,
                       Theme
                           .of(context)
-                          .focusColor,
-                      FontWeight.w500,
+                          .cardColor,
+                      FontWeight.w600,
                       'FontRegular'),
                 ),
               )),
@@ -4915,9 +5928,9 @@ class _SellTradeScreenState extends State<TradeScreen>
       children: [
         Container(
           decoration: BoxDecoration(
-            // border: Border.all(
-            //     color: CustomTheme.of(context).focusColor.withOpacity(0.3),
-            //     width: 1.0),
+            border: Border.all(
+                color: CustomTheme.of(context).focusColor.withOpacity(0.8),
+                width: 1.0),
             borderRadius: BorderRadius.circular(5.0),
             color: Colors.transparent,
           ),
@@ -4946,6 +5959,8 @@ class _SellTradeScreenState extends State<TradeScreen>
                           futureselectPair!.symbol.toString();
                       FuturesecondCoin =
                           futureselectPair!.symbol.toString();
+                      loading=true;
+                      getBalance("USDT");
                     });
                   },
                   child: Container(
@@ -4963,7 +5978,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                               : Colors.transparent),
                       child: Center(
                           child: Padding(
-                            padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
+                            padding: EdgeInsets.only(top: 8.0, bottom: 8.0,left: 2.0),
                             child: Text(
                               "Open",
                               style: CustomWidget(context: context)
@@ -5002,8 +6017,9 @@ class _SellTradeScreenState extends State<TradeScreen>
                             futureselectPair!.symbol.toString();
                         FuturesecondCoin =
                             futureselectPair!.symbol.toString();
+                        loading=true;
 
-                        getBalance(FuturefirstCoin);
+                        getBalance("USDT");
                       });
                     },
                     child: Container(
@@ -5074,8 +6090,8 @@ class _SellTradeScreenState extends State<TradeScreen>
                   child: Container(
                       decoration: BoxDecoration(
                           borderRadius: BorderRadius.only(
-                            topLeft: Radius.circular(5),
-                            topRight: Radius.circular(5),
+                            topLeft: Radius.circular(10),
+                            topRight: Radius.circular(10),
                             bottomLeft: Radius.circular(5),
                             bottomRight: Radius.circular(5),
                           ),
@@ -5254,6 +6270,102 @@ class _SellTradeScreenState extends State<TradeScreen>
                 ),
                 isExpanded: true,
                 value: selectedTime,
+                icon: Icon(
+                  Icons.arrow_drop_down,
+                  color: Theme
+                      .of(context)
+                      .focusColor,
+                ),
+              ),
+            ),
+          ),
+        ),
+        SizedBox(
+          height: 15.0,
+        ),
+        Container(
+          width: MediaQuery
+              .of(context)
+              .size
+              .width,
+          height: 35.0,
+          padding: EdgeInsets.fromLTRB(5, 0.0, 5, 0.0),
+          decoration: BoxDecoration(
+            border: Border.all(
+                color:
+                CustomTheme
+                    .of(context)
+                    .focusColor
+                    .withOpacity(0.5),
+                width: 1.0),
+            borderRadius: BorderRadius.circular(5.0),
+            color: Colors.transparent,
+          ),
+          child: Theme(
+            data: Theme.of(context).copyWith(
+              canvasColor: CustomTheme
+                  .of(context)
+                  .primaryColorLight,
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton(
+                menuMaxHeight: MediaQuery
+                    .of(context)
+                    .size
+                    .height * 0.7,
+                items: !futureOption
+                    ? tradeType
+                    .map((value) =>
+                    DropdownMenuItem(
+                      child: Text(
+                        value.toString(),
+                        style: CustomWidget(context: context)
+                            .CustomSizedTextStyle(
+                            10.0,
+                            Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular'),
+                      ),
+                      value: value,
+                    ))
+                    .toList()
+                    : tradeType
+                    .map((value) =>
+                    DropdownMenuItem(
+                      child: Text(
+                        value.toString(),
+                        style: CustomWidget(context: context)
+                            .CustomSizedTextStyle(
+                            10.0,
+                            Theme
+                                .of(context)
+                                .focusColor,
+                            FontWeight.w500,
+                            'FontRegular'),
+                      ),
+                      value: value,
+                    ))
+                    .toList(),
+                onChanged: (value) async {
+                  setState(() {
+                    futureselectedHistoryTradeType = value.toString();
+                  });
+                },
+                hint: Text(
+                  "Select Category",
+                  style: CustomWidget(context: context)
+                      .CustomSizedTextStyle(
+                      12.0,
+                      Theme
+                          .of(context)
+                          .focusColor,
+                      FontWeight.w500,
+                      'FontRegular'),
+                ),
+                isExpanded: true,
+                value: futureselectedHistoryTradeType,
                 icon: Icon(
                   Icons.arrow_drop_down,
                   color: Theme
@@ -6496,7 +7608,7 @@ class _SellTradeScreenState extends State<TradeScreen>
               valueIndicatorColor: CustomTheme
                   .of(context)
                   .indicatorColor,
-              trackHeight: 10.0,
+              trackHeight: 1.0,
               activeTickMarkColor: CustomTheme
                   .of(context)
                   .focusColor,
@@ -6505,7 +7617,7 @@ class _SellTradeScreenState extends State<TradeScreen>
                   .of(context)
                   .focusColor
                   .withOpacity(0.5),
-              tickMarkShape: RoundSliderTickMarkShape(tickMarkRadius: 5.0),
+              tickMarkShape: RoundSliderTickMarkShape(tickMarkRadius: 4.0),
               trackShape: CustomTrackShape(),
               thumbShape: RoundSliderThumbShape(enabledThumbRadius: 5),
               overlayShape: RoundSliderOverlayShape(overlayRadius: 28.0),
@@ -6568,7 +7680,7 @@ print("hi$perce");
                             totalAmount = double.parse((a * b).toString())
                                 .toStringAsFixed(decimal_val);
                           } else {
-                            double perce = ((double.parse(balance) * val) /double.parse(priceController.text)) / 100;
+                            double perce = ((double.parse(balance) * val) * double.parse(priceController.text)) / 100;
 
                             amountController.text =
                                 double.parse(perce.toString())
@@ -6576,7 +7688,7 @@ print("hi$perce");
                             double a = double.parse(perce
                                 .toString()); // this is the value in my first text field (This is the percentage rate i intend to use)
                             double b = double.parse(livePrice);
-                            totalAmount = double.parse((a * b).toString())
+                            totalAmount = double.parse((a / b).toString())
                                 .toStringAsFixed(decimal_val);
                           }
                         }
@@ -7511,7 +8623,7 @@ print("hi$perce");
                     }
                   } else {
                     CustomWidget(context: context).showSuccessAlertDialog(
-                        "Trade", "Insufficient Balance", "error");
+                        "Trade", "Insufficienqqt Balance", "error");
                   }
                 } else {
                   CustomWidget(context: context).showSuccessAlertDialog(
@@ -7660,7 +8772,7 @@ print("hi$perce");
                   .width,
               padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
               decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(5.0),
+                borderRadius: BorderRadius.circular(8.0),
                 color: buySell
                     ? CustomTheme
                     .of(context)
@@ -7676,7 +8788,7 @@ print("hi$perce");
                       14.0,
                       Theme
                           .of(context)
-                          .focusColor,
+                          .cardColor,
                       FontWeight.w500,
                       'FontRegular'),
                 ),
@@ -7689,6 +8801,110 @@ print("hi$perce");
     );
   }
 
+  showFutureOrders() {
+    showBarModalBottomSheet(
+        expand: true,
+        context: context,
+        backgroundColor: CustomTheme
+            .of(context)
+            .primaryColorLight,
+        builder: (context) {
+          return StatefulBuilder(
+              builder: (BuildContext context, StateSetter ssetState) {
+                return Container(
+                  margin:EdgeInsets.only(top:MediaQuery
+                      .of(context)
+                      .size
+                      .height*0.04) ,
+                  color: CustomTheme
+                      .of(context)
+                      .primaryColorLight,
+                  width: MediaQuery
+                      .of(context)
+                      .size
+                      .width,
+                  height: MediaQuery
+                      .of(context)
+                      .size
+                      .height,
+                  child:
+                  // cancelOrder
+                  //     ? CustomWidget(context: context).loadingIndicator(
+                  //   CustomTheme.of(context).focusColor,
+                  // )
+                  //     :
+                  NestedScrollView(
+                    controller: controller,
+                    headerSliverBuilder:
+                        (BuildContext context, bool innerBoxIsScrolled) {
+                      //<-- headerSliverBuilder
+                      return <Widget>[
+                        SliverAppBar(automaticallyImplyLeading: false,
+                          backgroundColor: CustomTheme
+                              .of(context)
+                              .primaryColorLight,
+                          pinned: true,
+                          //<-- pinned to true
+                          floating: true,
+                          //<-- floating to true
+                          expandedHeight: 40.0,
+                          forceElevated: innerBoxIsScrolled,
+                          //<-- forceElevated to innerBoxIsScrolled
+                          bottom: TabBar(
+                            isScrollable: false,
+                            labelColor: CustomTheme
+                                .of(context)
+                                .focusColor,
+                            //<-- selected text color
+                            unselectedLabelColor:
+                            CustomTheme
+                                .of(context)
+                                .focusColor
+                                .withOpacity(0.5),
+                            // isScrollable: true,
+                            indicatorPadding:
+                            EdgeInsets.only(left: 10.0, right: 10.0),
+                            indicatorColor: CustomTheme
+                                .of(context)
+                                .indicatorColor,
+                            tabs: <Tab>[
+                              Tab(
+                                text: "Open Orders",
+                              ),
+                              Tab(
+                                text: "Order History",
+                              ),
+                              Tab(
+                                text: "Position",
+                              ),
+                            ],
+                            controller: _tabController,
+                          ),
+                        ),
+                      ];
+                    },
+                    body: Container(
+                      color: CustomTheme
+                          .of(context)
+                          .primaryColorLight,
+                      height: MediaQuery
+                          .of(context)
+                          .size
+                          .height * 0.9,
+                      child: TabBarView(
+                        children: <Widget>[
+                          openOrdersUI(),
+                          HistoryOrdersUI(ssetState),
+                          HistoryPositionUI(ssetState),
+                        ],
+                        controller: _tabController,
+                      ),
+                    ),
+                  ),
+                );
+              });
+        });
+  }
   showOrders() {
     showBarModalBottomSheet(
         expand: true,
@@ -7727,7 +8943,7 @@ print("hi$perce");
                         (BuildContext context, bool innerBoxIsScrolled) {
                       //<-- headerSliverBuilder
                       return <Widget>[
-                        SliverAppBar(
+                        SliverAppBar(automaticallyImplyLeading: false,
                           backgroundColor: CustomTheme
                               .of(context)
                               .primaryColorLight,
@@ -7754,7 +8970,7 @@ print("hi$perce");
                             EdgeInsets.only(left: 10.0, right: 10.0),
                             indicatorColor: CustomTheme
                                 .of(context)
-                                .cardColor,
+                                .indicatorColor,
                             tabs: <Tab>[
                               Tab(
                                 text: "Open Orders",
@@ -7763,7 +8979,7 @@ print("hi$perce");
                                 text: "Order History",
                               ),
                             ],
-                            controller: _tabController,
+                            controller: spottabController,
                           ),
                         ),
                       ];
@@ -7779,9 +8995,10 @@ print("hi$perce");
                       child: TabBarView(
                         children: <Widget>[
                           openOrdersUI(),
-                          HistoryOrdersUI(ssetState)
+                          HistoryOrdersUI(ssetState),
+
                         ],
-                        controller: _tabController,
+                        controller: spottabController,
                       ),
                     ),
                   ),
@@ -7813,67 +9030,126 @@ print("hi$perce");
               child: SingleChildScrollView(
                 controller: controller,
                 child: ListView.builder(
-                  itemCount: completedOrders.length,
+                  itemCount: completedOrders.length>0?completedOrders.length:0,
                   shrinkWrap: true,
                   controller: controller,
                   itemBuilder: (BuildContext context, int index) {
                     // Moment spiritRoverOnMars =
                     // Moment(completedOrders[index].createdAt!).toLocal();
-                    return Column(
+                    return Column(mainAxisAlignment: MainAxisAlignment.center,crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
                         Theme(
                           data: Theme.of(context)
                               .copyWith(dividerColor: Colors.transparent),
                           child: ExpansionTile(
                             key: PageStorageKey(index.toString()),
-                            title: Row(
+
+                            title:SizedBox(width: MediaQuery.of(context).size.width,child: Row(
                               mainAxisAlignment:
                               MainAxisAlignment.spaceBetween,
-                              crossAxisAlignment: CrossAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
+
                                 Column(
                                   crossAxisAlignment:
                                   CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      "Pair",
-                                      style: CustomWidget(context: context)
-                                          .CustomSizedTextStyle(
-                                          12.0,
-                                          Theme
-                                              .of(context)
-                                              .focusColor
-                                              .withOpacity(0.5),
-                                          FontWeight.w400,
-                                          'FontRegular'),
-                                    ),
-                                    Text(
+                                    // Text(
+                                    //   "Pair",
+                                    //   style: CustomWidget(context: context)
+                                    //       .CustomSizedTextStyle(
+                                    //       12.0,
+                                    //       Theme
+                                    //           .of(context)
+                                    //           .focusColor
+                                    //           .withOpacity(0.5),
+                                    //       FontWeight.w400,
+                                    //       'FontRegular'),
+                                    // ),
+                                    Row(children: [Text(
                                       completedOrders[index]
                                           .pair
                                           .toString(),
                                       style: CustomWidget(context: context)
                                           .CustomSizedTextStyle(
-                                          14.0,
+                                          16.0,
                                           Theme
                                               .of(context)
                                               .focusColor,
                                           FontWeight.w400,
                                           'FontRegular'),
                                     ),
+                                      const SizedBox(width: 10,),
+                                      Container(child:Text(
+                                        completedOrders[index]
+                                            .orderType
+                                            .toString()+"-"+completedOrders[index]
+                                            .tradeType
+                                            .toString(),
+                                        style: CustomWidget(
+                                            context: context)
+                                            .CustomSizedTextStyle(
+                                            12.0,
+                                            completedOrders[index]
+                                                .tradeType
+                                                .toString()
+                                                .toLowerCase() ==
+                                                "buy"
+                                                ? CustomTheme
+                                                .of(
+                                                context)
+                                                .indicatorColor
+                                                : CustomTheme
+                                                .of(
+                                                context)
+                                                .hoverColor,
+                                            FontWeight.w500,
+                                            'FontRegular'),
+                                      ),padding: EdgeInsets.all(4),decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
+                                          color: completedOrders[index]
+                                              .tradeType
+                                              .toString()
+                                              .toLowerCase() ==
+                                              "buy"
+                                              ? CustomTheme
+                                              .of(
+                                              context)
+                                              .indicatorColor.withOpacity(0.2)
+                                              : CustomTheme
+                                              .of(
+                                              context)
+                                              .hoverColor.withOpacity(0.2), ),),
+                                    ]),
+                                    Text(
+                                      completedOrders[index]
+                                          .createdAt!
+                                          .toString(),
+                                      style: CustomWidget(
+                                          context: context)
+                                          .CustomSizedTextStyle(
+                                          12.0,
+                                          Theme
+                                              .of(context)
+                                              .focusColor,
+                                          FontWeight.w400,
+                                          'FontRegular'),
+                                    ),
+
                                   ],
                                 ),
-                                const SizedBox(
-                                  width: 10.0,
-                                ),
-                                Icon(
-                                  Icons.keyboard_arrow_down_outlined,
+                                // const SizedBox(
+                                //   width: 50.0,
+                                // ),
+
+                                Flexible(flex: 2,child: Padding(padding: EdgeInsets.only(left:30),child: Icon(
+                                  Icons.arrow_drop_down,
                                   color: Theme
                                       .of(context)
                                       .focusColor,
                                   size: 18.0,
-                                )
+                                ),),)
                               ],
-                            ),
+                            ),),
                             children: [
                               Padding(
                                 padding: const EdgeInsets.only(
@@ -7889,116 +9165,116 @@ print("hi$perce");
                                         crossAxisAlignment:
                                         CrossAxisAlignment.center,
                                         children: [
-                                          Column(
-                                            children: [
-                                              Text(
-                                                "Date",
-                                                style: CustomWidget(
-                                                    context: context)
-                                                    .CustomSizedTextStyle(
-                                                    12.0,
-                                                    Theme
-                                                        .of(context)
-                                                        .focusColor
-                                                        .withOpacity(
-                                                        0.5),
-                                                    FontWeight.w400,
-                                                    'FontRegular'),
-                                              ),
-                                              Text(
-                                                completedOrders[index]
-                                                    .createdAt!
-                                                    .toString(),
-                                                style: CustomWidget(
-                                                    context: context)
-                                                    .CustomSizedTextStyle(
-                                                    12.0,
-                                                    Theme
-                                                        .of(context)
-                                                        .focusColor,
-                                                    FontWeight.w400,
-                                                    'FontRegular'),
-                                              ),
-                                            ],
-                                            crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                          ),
-                                          Column(
-                                            children: [
-                                              Text(
-                                                "Type",
-                                                style: CustomWidget(
-                                                    context: context)
-                                                    .CustomSizedTextStyle(
-                                                    12.0,
-                                                    Theme
-                                                        .of(context)
-                                                        .focusColor
-                                                        .withOpacity(
-                                                        0.5),
-                                                    FontWeight.w400,
-                                                    'FontRegular'),
-                                              ),
-                                              Text(
-                                                completedOrders[index]
-                                                    .tradeType
-                                                    .toString(),
-                                                style: CustomWidget(
-                                                    context: context)
-                                                    .CustomSizedTextStyle(
-                                                    14.0,
-                                                    completedOrders[index]
-                                                        .tradeType
-                                                        .toString()
-                                                        .toLowerCase() ==
-                                                        "buy"
-                                                        ? CustomTheme
-                                                        .of(
-                                                        context)
-                                                        .indicatorColor
-                                                        : CustomTheme
-                                                        .of(
-                                                        context)
-                                                        .hoverColor,
-                                                    FontWeight.w500,
-                                                    'FontRegular'),
-                                              ),
-                                            ],
-                                          ),
-                                          Column(
-                                            children: [
-                                              Text(
-                                                "Order Type",
-                                                style: CustomWidget(
-                                                    context: context)
-                                                    .CustomSizedTextStyle(
-                                                    12.0,
-                                                    Theme
-                                                        .of(context)
-                                                        .focusColor
-                                                        .withOpacity(
-                                                        0.5),
-                                                    FontWeight.w400,
-                                                    'FontRegular'),
-                                              ),
-                                              Text(
-                                                completedOrders[index]
-                                                    .orderType
-                                                    .toString(),
-                                                style: CustomWidget(
-                                                    context: context)
-                                                    .CustomSizedTextStyle(
-                                                    12.0,
-                                                    Theme
-                                                        .of(context)
-                                                        .focusColor,
-                                                    FontWeight.w400,
-                                                    'FontRegular'),
-                                              ),
-                                            ],
-                                            crossAxisAlignment:
-                                            CrossAxisAlignment.end,
-                                          )
+                                          // Column(
+                                          //   children: [
+                                          //     Text(
+                                          //       "Date",
+                                          //       style: CustomWidget(
+                                          //           context: context)
+                                          //           .CustomSizedTextStyle(
+                                          //           12.0,
+                                          //           Theme
+                                          //               .of(context)
+                                          //               .focusColor
+                                          //               .withOpacity(
+                                          //               0.5),
+                                          //           FontWeight.w400,
+                                          //           'FontRegular'),
+                                          //     ),
+                                          //     Text(
+                                          //       completedOrders[index]
+                                          //           .createdAt!
+                                          //           .toString(),
+                                          //       style: CustomWidget(
+                                          //           context: context)
+                                          //           .CustomSizedTextStyle(
+                                          //           12.0,
+                                          //           Theme
+                                          //               .of(context)
+                                          //               .focusColor,
+                                          //           FontWeight.w400,
+                                          //           'FontRegular'),
+                                          //     ),
+                                          //   ],
+                                          //   crossAxisAlignment:
+                                          //   CrossAxisAlignment.start,
+                                          // ),
+                                          // Column(
+                                          //   children: [
+                                          //     Text(
+                                          //       "Type",
+                                          //       style: CustomWidget(
+                                          //           context: context)
+                                          //           .CustomSizedTextStyle(
+                                          //           12.0,
+                                          //           Theme
+                                          //               .of(context)
+                                          //               .focusColor
+                                          //               .withOpacity(
+                                          //               0.5),
+                                          //           FontWeight.w400,
+                                          //           'FontRegular'),
+                                          //     ),
+                                          //     Text(
+                                          //       completedOrders[index]
+                                          //           .tradeType
+                                          //           .toString(),
+                                          //       style: CustomWidget(
+                                          //           context: context)
+                                          //           .CustomSizedTextStyle(
+                                          //           14.0,
+                                          //           completedOrders[index]
+                                          //               .tradeType
+                                          //               .toString()
+                                          //               .toLowerCase() ==
+                                          //               "buy"
+                                          //               ? CustomTheme
+                                          //               .of(
+                                          //               context)
+                                          //               .indicatorColor
+                                          //               : CustomTheme
+                                          //               .of(
+                                          //               context)
+                                          //               .hoverColor,
+                                          //           FontWeight.w500,
+                                          //           'FontRegular'),
+                                          //     ),
+                                          //   ],
+                                          // ),
+                                          // Column(
+                                          //   children: [
+                                          //     Text(
+                                          //       "Order Type",
+                                          //       style: CustomWidget(
+                                          //           context: context)
+                                          //           .CustomSizedTextStyle(
+                                          //           12.0,
+                                          //           Theme
+                                          //               .of(context)
+                                          //               .focusColor
+                                          //               .withOpacity(
+                                          //               0.5),
+                                          //           FontWeight.w400,
+                                          //           'FontRegular'),
+                                          //     ),
+                                          //     Text(
+                                          //       completedOrders[index]
+                                          //           .orderType
+                                          //           .toString(),
+                                          //       style: CustomWidget(
+                                          //           context: context)
+                                          //           .CustomSizedTextStyle(
+                                          //           12.0,
+                                          //           Theme
+                                          //               .of(context)
+                                          //               .focusColor,
+                                          //           FontWeight.w400,
+                                          //           'FontRegular'),
+                                          //     ),
+                                          //   ],
+                                          //   crossAxisAlignment:
+                                          //   CrossAxisAlignment.end,
+                                          // )
                                         ],
                                       ),
                                     ),
@@ -8007,14 +9283,9 @@ print("hi$perce");
                                     ),
                                     Padding(
                                       padding: EdgeInsets.only(
-                                          left: 5.0, right: 5.0),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                        children: [
-                                          Column(
+                                          left: 10.0, right: 10.0),
+                                      child:
+                                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text(
                                                 "Price",
@@ -8033,6 +9304,8 @@ print("hi$perce");
                                               Text(
                                                 completedOrders[index]
                                                     .price
+                                                    .toString()=="null"?"0.0":completedOrders[index]
+                                                    .price
                                                     .toString(),
                                                 style: CustomWidget(
                                                     context: context)
@@ -8047,8 +9320,11 @@ print("hi$perce");
                                             ],
                                             crossAxisAlignment:
                                             CrossAxisAlignment.start,
-                                          ),
-                                          Column(
+                                          ),),
+                    Padding(
+                    padding: EdgeInsets.only(
+                    left: 10.0, right: 10.0),
+                    child:Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             crossAxisAlignment:
                                             CrossAxisAlignment.start,
                                             children: [
@@ -8081,8 +9357,11 @@ print("hi$perce");
                                                     'FontRegular'),
                                               ),
                                             ],
-                                          ),
-                                          Column(
+                                          ),),
+                    Padding(
+                    padding: EdgeInsets.only(
+                    left: 10.0, right: 10.0),
+                    child:Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text(
                                                 "Quantity",
@@ -8115,23 +9394,16 @@ print("hi$perce");
                                             ],
                                             crossAxisAlignment:
                                             CrossAxisAlignment.end,
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                    const SizedBox(
-                                      height: 10.0,
-                                    ),
+                                          ),),
+                                    // const SizedBox(
+                                    //   height: 10.0,
+                                    // ),
                                     Padding(
                                       padding: EdgeInsets.only(
-                                          left: 5.0, right: 5.0),
-                                      child: Row(
-                                        mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                        crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                        children: [
-                                          Column(
+                                          left: 10.0, right: 10.0),
+                                      child:
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text(
                                                 "Total",
@@ -8164,9 +9436,12 @@ print("hi$perce");
                                             ],
                                             crossAxisAlignment:
                                             CrossAxisAlignment.start,
-                                          ),
+                                          ),),
 
-                                          Column(
+                                            Padding(
+                    padding: EdgeInsets.only(
+                    left: 10.0, right: 10.0),
+                    child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                             children: [
                                               Text(
                                                 "Status",
@@ -8246,21 +9521,20 @@ print("hi$perce");
                                           //     });
                                           //   },
                                           // ),
-                                        ],
-                                      ),
+
                                     ),
                                     const SizedBox(
                                       height: 10.0,
                                     ),
-                                  ],
-                                ),
-                              )
-                            ],
+                            ]),),],
+
                             trailing: Container(
                               width: 1.0,
                               height: 10.0,
                             ),
-                          ),
+                    ),
+
+
                         ),
                         const SizedBox(
                           height: 5.0,
@@ -8275,8 +9549,560 @@ print("hi$perce");
                               .of(context)
                               .focusColor,
                         ),
-                      ],
-                    );
+                    ]);
+                  },
+                ),
+              ))
+              : Container(
+            height: MediaQuery
+                .of(context)
+                .size
+                .height * 0.3,
+            color: Theme
+                .of(context)
+                .primaryColorLight,
+            child: Center(
+              child: Text(
+                "No Records Found..!",
+                style: CustomWidget(context: context)
+                    .CustomSizedTextStyle(
+                    12.0,
+                    Theme
+                        .of(context)
+                        .focusColor,
+                    FontWeight.w400,
+                    'FontRegular'),
+              ),
+            ),
+          ),
+          const SizedBox(
+            height: 30.0,
+          )
+        ],
+      ),
+    );
+  }
+  Widget HistoryPositionUI(StateSetter updateState) {
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          SizedBox(
+            height: 10.0,
+          ),
+          positionList.length > 0
+              ? Container(
+              color: Theme
+                  .of(context)
+                  .primaryColorLight,
+              width: MediaQuery
+                  .of(context)
+                  .size
+                  .width,
+              height: MediaQuery
+                  .of(context)
+                  .size
+                  .height * 0.82,
+              child: SingleChildScrollView(
+                controller: controller,
+                child: ListView.builder(
+                  itemCount: positionList.length>0?positionList.length:0,
+                  shrinkWrap: true,
+                  controller: controller,
+                  itemBuilder: (BuildContext context, int index) {
+                    // Moment spiritRoverOnMars =
+                    // Moment(completedOrders[index].createdAt!).toLocal();
+                    return Column(mainAxisAlignment: MainAxisAlignment.center,crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          Theme(
+                            data: Theme.of(context)
+                                .copyWith(dividerColor: Colors.transparent),
+                            child: ExpansionTile(
+                              key: PageStorageKey(index.toString()),
+
+                              title:SizedBox(width: MediaQuery.of(context).size.width,child: Row(
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceBetween,
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+
+                                  Column(
+                                    crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                    children: [
+                                      // Text(
+                                      //   "Pair",
+                                      //   style: CustomWidget(context: context)
+                                      //       .CustomSizedTextStyle(
+                                      //       12.0,
+                                      //       Theme
+                                      //           .of(context)
+                                      //           .focusColor
+                                      //           .withOpacity(0.5),
+                                      //       FontWeight.w400,
+                                      //       'FontRegular'),
+                                      // ),
+                                      Row(children: [Text(
+                                        positionList[index]
+                                            .symbol
+                                            .toString(),
+                                        style: CustomWidget(context: context)
+                                            .CustomSizedTextStyle(
+                                            16.0,
+                                            Theme
+                                                .of(context)
+                                                .focusColor,
+                                            FontWeight.w400,
+                                            'FontRegular'),
+                                      ),
+                                        const SizedBox(width: 10,),
+                                        Container(child:Text(
+                                          positionList[index]
+                                              .tradeMode
+                                              .toString()=="0"?"Cross":"Isolated",
+                                          style: CustomWidget(
+                                              context: context)
+                                              .CustomSizedTextStyle(
+                                              12.0,
+                                              CustomTheme
+                                                  .of(
+                                                  context)
+                                                  .focusColor,
+                                              FontWeight.w500,
+                                              'FontRegular'),
+                                        ),padding: EdgeInsets.all(4),decoration: BoxDecoration(borderRadius: BorderRadius.circular(8),
+                                          color: CustomTheme
+                                              .of(
+                                              context)
+                                              .dividerColor.withOpacity(0.8), ),),
+                                      ]),
+                                      Text(
+                                        positionList[index]
+                                            .createdTime!
+                                            .toString(),
+                                        style: CustomWidget(
+                                            context: context)
+                                            .CustomSizedTextStyle(
+                                            12.0,
+                                            Theme
+                                                .of(context)
+                                                .focusColor,
+                                            FontWeight.w400,
+                                            'FontRegular'),
+                                      ),
+
+                                    ],
+                                  ),
+                                  // const SizedBox(
+                                  //   width: 50.0,
+                                  // ),
+
+                                  Flexible(flex: 2,child: Padding(padding: EdgeInsets.only(left:30),child: Icon(
+                                    Icons.arrow_drop_down,
+                                    color: Theme
+                                        .of(context)
+                                        .focusColor,
+                                    size: 18.0,
+                                  ),),)
+                                ],
+                              ),),
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                      left: 10.0, right: 10.0),
+                                  child: Column(
+                                      children: [
+                                        Padding(
+                                          padding: EdgeInsets.only(
+                                              left: 5.0, right: 5.0),
+                                          child: Row(
+                                            mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                            children: [
+                                              // Column(
+                                              //   children: [
+                                              //     Text(
+                                              //       "Date",
+                                              //       style: CustomWidget(
+                                              //           context: context)
+                                              //           .CustomSizedTextStyle(
+                                              //           12.0,
+                                              //           Theme
+                                              //               .of(context)
+                                              //               .focusColor
+                                              //               .withOpacity(
+                                              //               0.5),
+                                              //           FontWeight.w400,
+                                              //           'FontRegular'),
+                                              //     ),
+                                              //     Text(
+                                              //       completedOrders[index]
+                                              //           .createdAt!
+                                              //           .toString(),
+                                              //       style: CustomWidget(
+                                              //           context: context)
+                                              //           .CustomSizedTextStyle(
+                                              //           12.0,
+                                              //           Theme
+                                              //               .of(context)
+                                              //               .focusColor,
+                                              //           FontWeight.w400,
+                                              //           'FontRegular'),
+                                              //     ),
+                                              //   ],
+                                              //   crossAxisAlignment:
+                                              //   CrossAxisAlignment.start,
+                                              // ),
+                                              // Column(
+                                              //   children: [
+                                              //     Text(
+                                              //       "Type",
+                                              //       style: CustomWidget(
+                                              //           context: context)
+                                              //           .CustomSizedTextStyle(
+                                              //           12.0,
+                                              //           Theme
+                                              //               .of(context)
+                                              //               .focusColor
+                                              //               .withOpacity(
+                                              //               0.5),
+                                              //           FontWeight.w400,
+                                              //           'FontRegular'),
+                                              //     ),
+                                              //     Text(
+                                              //       completedOrders[index]
+                                              //           .tradeType
+                                              //           .toString(),
+                                              //       style: CustomWidget(
+                                              //           context: context)
+                                              //           .CustomSizedTextStyle(
+                                              //           14.0,
+                                              //           completedOrders[index]
+                                              //               .tradeType
+                                              //               .toString()
+                                              //               .toLowerCase() ==
+                                              //               "buy"
+                                              //               ? CustomTheme
+                                              //               .of(
+                                              //               context)
+                                              //               .indicatorColor
+                                              //               : CustomTheme
+                                              //               .of(
+                                              //               context)
+                                              //               .hoverColor,
+                                              //           FontWeight.w500,
+                                              //           'FontRegular'),
+                                              //     ),
+                                              //   ],
+                                              // ),
+                                              // Column(
+                                              //   children: [
+                                              //     Text(
+                                              //       "Order Type",
+                                              //       style: CustomWidget(
+                                              //           context: context)
+                                              //           .CustomSizedTextStyle(
+                                              //           12.0,
+                                              //           Theme
+                                              //               .of(context)
+                                              //               .focusColor
+                                              //               .withOpacity(
+                                              //               0.5),
+                                              //           FontWeight.w400,
+                                              //           'FontRegular'),
+                                              //     ),
+                                              //     Text(
+                                              //       completedOrders[index]
+                                              //           .orderType
+                                              //           .toString(),
+                                              //       style: CustomWidget(
+                                              //           context: context)
+                                              //           .CustomSizedTextStyle(
+                                              //           12.0,
+                                              //           Theme
+                                              //               .of(context)
+                                              //               .focusColor,
+                                              //           FontWeight.w400,
+                                              //           'FontRegular'),
+                                              //     ),
+                                              //   ],
+                                              //   crossAxisAlignment:
+                                              //   CrossAxisAlignment.end,
+                                              // )
+                                            ],
+                                          ),
+                                        ),
+                                        const SizedBox(
+                                          height: 10.0,
+                                        ),
+                                        Padding(
+                                          padding: EdgeInsets.only(
+                                              left: 10.0, right: 10.0),
+                                          child:
+                                          Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                "Mark Price",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                                                positionList[index]
+                                                    .markPrice
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                          ),),
+                                        Padding(
+                                          padding: EdgeInsets.only(
+                                              left: 10.0, right: 10.0),
+                                          child:Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                            children: [
+                                              Text(
+                                                "Liq Price",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                                                positionList[index]
+                                                    .liqPrice
+                                                    .toString()??"--",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    14.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                          ),),
+                                        Padding(
+                                          padding: EdgeInsets.only(
+                                              left: 10.0, right: 10.0),
+                                          child:Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                "pnl %",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                                                positionList[index]
+                                                    .curRealisedPnl
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.end,
+                                          ),),
+                                        // const SizedBox(
+                                        //   height: 10.0,
+                                        // ),
+                                        Padding(
+                                          padding: EdgeInsets.only(
+                                              left: 10.0, right: 10.0),
+                                          child:
+                                          Row(
+                                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                "Margin",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                                                positionList[index]
+                                                    .autoAddMargin
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor,
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                          ),),
+
+                                        Padding(
+                                          padding: EdgeInsets.only(
+                                              left: 10.0, right: 10.0),
+                                          child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                            children: [
+                                              Text(
+                                                "Entry price",
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    Theme
+                                                        .of(context)
+                                                        .focusColor
+                                                        .withOpacity(
+                                                        0.5),
+                                                    FontWeight.w400,
+                                                    'FontRegular'),
+                                              ),
+                                              Text(
+                                                positionList[index]
+                                                    .avgPrice
+                                                    .toString(),
+                                                style: CustomWidget(
+                                                    context: context)
+                                                    .CustomSizedTextStyle(
+                                                    12.0,
+                                                    completedOrders[index]
+                                                        .status
+                                                        .toString() ==
+                                                        "canceled"
+                                                        ? Theme
+                                                        .of(
+                                                        context)
+                                                        .scaffoldBackgroundColor
+                                                        : Theme
+                                                        .of(
+                                                        context)
+                                                        .unselectedWidgetColor,
+                                                    FontWeight.w500,
+                                                    'FontRegular'),
+                                              ),
+                                            ],
+                                            crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                          ),
+                                          // InkWell(
+                                          //   child: Container(
+                                          //     width: 80,
+                                          //     padding: const EdgeInsets.only(
+                                          //         top: 3.0, bottom: 3.0),
+                                          //     decoration: BoxDecoration(
+                                          //       color: Colors.red,
+                                          //       borderRadius:
+                                          //       BorderRadius.circular(5),
+                                          //     ),
+                                          //     child: Align(
+                                          //       alignment: Alignment.center,
+                                          //       child: Text(
+                                          //         "Cancel",
+                                          //         style: CustomWidget(
+                                          //             context: context)
+                                          //             .CustomSizedTextStyle(
+                                          //             12.0,
+                                          //             Theme.of(context)
+                                          //                 .focusColor,
+                                          //             FontWeight.w400,
+                                          //             'FontRegular'),
+                                          //         textAlign: TextAlign.center,
+                                          //       ),
+                                          //     ),
+                                          //   ),
+                                          //   onTap: () {
+                                          //     setState(() {
+                                          //       loading = true;
+                                          //       updatecancelOrder(
+                                          //         AllopenOrders[index]
+                                          //             .id
+                                          //             .toString(),
+                                          //       );
+                                          //     });
+                                          //   },
+                                          // ),
+
+                                        ),
+                                        const SizedBox(
+                                          height: 10.0,
+                                        ),
+                                      ]),),],
+
+                              trailing: Container(
+                                width: 1.0,
+                                height: 10.0,
+                              ),
+                            ),
+
+
+                          ),
+                          const SizedBox(
+                            height: 5.0,
+                          ),
+                          Container(
+                            height: 1.0,
+                            width: MediaQuery
+                                .of(context)
+                                .size
+                                .width,
+                            color: Theme
+                                .of(context)
+                                .focusColor,
+                          ),
+                        ]);
                   },
                 ),
               ))
@@ -8330,10 +10156,13 @@ print("hi$perce");
               child: SingleChildScrollView(
                 controller: controller,
                 child: ListView.builder(
-                  itemCount: openOrders.length,
+                  itemCount: openOrders.length>0?openOrders.length:0,
                   shrinkWrap: true,
+                  physics: NeverScrollableScrollPhysics(),
                   controller: controller,
                   itemBuilder: (BuildContext context, int index) {
+                    DateTime date = DateTime.fromMillisecondsSinceEpoch(int.parse(openOrders[index].createdTime.toString().isEmpty?"0":openOrders[index].createdTime.toString()));
+                    String formattedDate = DateFormat('yyyy-MM-dd HH:mm:ss').format(date);
                     // Moment spiritRoverOnMars =
                     // Moment(openOrders[index].createdAt!).toLocal();
                     return Column(
@@ -8365,7 +10194,7 @@ print("hi$perce");
                                           'FontRegular'),
                                     ),
                                     Text(
-                                      openOrders[index].pair.toString(),
+                                      openOrders[index].symbol.toString(),
                                       style: CustomWidget(context: context)
                                           .CustomSizedTextStyle(
                                           14.0,
@@ -8431,9 +10260,7 @@ print("hi$perce");
                                                 //     .format(
                                                 //     "YYYY MMMM Do - hh:mm:ssa")
                                                 //     .toString(),
-                                                openOrders[index]
-                                                    .createdAt
-                                                    .toString(),
+                                                formattedDate,
                                                 style: CustomWidget(
                                                     context: context)
                                                     .CustomSizedTextStyle(
@@ -8464,14 +10291,14 @@ print("hi$perce");
                                               ),
                                               Text(
                                                 openOrders[index]
-                                                    .tradeType
+                                                    .side
                                                     .toString(),
                                                 style: CustomWidget(
                                                     context: context)
                                                     .CustomSizedTextStyle(
                                                     14.0,
                                                     openOrders[index]
-                                                        .tradeType
+                                                        .side
                                                         .toString()
                                                         .toLowerCase() ==
                                                         "buy"
@@ -8561,7 +10388,7 @@ print("hi$perce");
                         .toString()==null || openOrders[index]
                         .price
                         .toString()=="null" ?  openOrders[index]
-                        .entryPrice
+                        .price
                         .toString(): openOrders[index]
                         .price
                         .toString(),
@@ -8597,7 +10424,7 @@ print("hi$perce");
                                               ),
                                               Text(
                                                 openOrders[index]
-                                                    .volume
+                                                    .qty
                                                     .toString(),
                                                 style: CustomWidget(
                                                     context: context)
@@ -8644,10 +10471,7 @@ print("hi$perce");
                                                     FontWeight.w400,
                                                     'FontRegular'),
                                               ),
-                                              Text(
-                                                openOrders[index]
-                                                    .remaining
-                                                    .toString(),
+                                              Text("0",
                                                 style: CustomWidget(
                                                     context: context)
                                                     .CustomSizedTextStyle(
@@ -8696,11 +10520,11 @@ print("hi$perce");
                                                 Navigator.pop(context);
                                                 loading = true;
                                                 updatecancelOrder(
-                                                  marginOption||spotOption?"":"Linear",
+                                                  marginOption||spotOption?"":"linear",
                                                   openOrders[index]
                                                       .orderId
                                                       .toString(),
-                                                    openOrders[index].pair.toString()
+                                                    openOrders[index].symbol.toString()
 
                                                 );
                                               });
@@ -8743,10 +10567,11 @@ print("hi$perce");
                 .height * 0.3,
             color: Theme
                 .of(context)
-                .primaryColorLight,
+                .cardColor,
             child: Center(
-              child: Text(
-                "No Records Found..!",
+              child:Column(mainAxisAlignment: MainAxisAlignment.center,children: [
+                spotOption?Text(
+                "Please deposit or buy crypto first",
                 style: CustomWidget(context: context)
                     .CustomSizedTextStyle(
                     12.0,
@@ -8755,7 +10580,72 @@ print("hi$perce");
                         .focusColor,
                     FontWeight.w400,
                     'FontRegular'),
-              ),
+              ):Text(
+                  "No Result Found...",
+                  style: CustomWidget(context: context)
+                      .CustomSizedTextStyle(
+                      12.0,
+                      Theme
+                          .of(context)
+                          .focusColor,
+                      FontWeight.w400,
+                      'FontRegular'),
+                ),
+                const SizedBox(height: 20,),
+                spotOption?Row(mainAxisAlignment: MainAxisAlignment.spaceEvenly,children: [
+                  InkWell(onTap: () {
+                    //Navigator.push(context, MaterialPageRoute(builder: (context) => Deposit_Screen(coinList:),));
+                  },child:Container(
+                      width: MediaQuery
+                          .of(context)
+                          .size
+                          .width*0.40,
+                      padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10.0),
+                        color: CustomTheme
+                            .of(context)
+                            .indicatorColor
+                        ,
+                      ),
+                      child: Center(
+                        child: Text(
+                          'Deposit',
+                          style: CustomWidget(context: context).CustomSizedTextStyle(
+                              14.0,
+                              Theme
+                                  .of(context)
+                                  .cardColor,
+                              FontWeight.w500,
+                              'FontRegular'),
+                        ),
+                      )),),
+                  Container(
+                      width: MediaQuery
+                          .of(context)
+                          .size
+                          .width*0.40,
+                      padding: EdgeInsets.only(top: 10.0, bottom: 10.0),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(10.0),
+                        color: CustomTheme
+                            .of(context)
+                            .hoverColor,
+                      ),
+                      child: Center(
+                        child: Text(
+                          AppLocalizations.instance.text("loc_sell_trade_txt5"),
+                          style: CustomWidget(context: context).CustomSizedTextStyle(
+                              14.0,
+                              Theme
+                                  .of(context)
+                                  .cardColor,
+                              FontWeight.w500,
+                              'FontRegular'),
+                        ),
+                      )),
+                ],):Container()
+              ],),
             ),
           ),
           const SizedBox(
@@ -8780,7 +10670,7 @@ print("hi$perce");
         spotOption || marginOption
             ? selectPair!.symbol.toString()
             : futureselectPair!.symbol.toString(),
-        spotOption ? "cash" : selectedHistoryTradeType.toString(),
+        spotOption ? "cash" :futureOption?futureselectedHistoryTradeType.toString():selectedHistoryTradeType.toString(),
         firstCoin.toString(),
         tleverageVal.toString(),
         buySell ? "Buy" : "sell",
@@ -8800,12 +10690,15 @@ print("hi$perce");
         setState(() {
           // getCoinList();
           // getFutureCoinList();
-          loading = false;
+
           getTradeHistory(spotOption || marginOption
               ? selectPair!.symbol.toString()
               : futureselectPair!.symbol.toString(),);
-          getBalance(spotOption || marginOption?firstCoin:FuturefirstCoin);
-
+          getOpenOrderHistory(spotOption || marginOption
+              ? selectPair!.symbol.toString()
+              : futureselectPair!.symbol.toString(), spotOption||marginOption?"spot":"linear");
+          getBalance(spotOption || marginOption?buySell?firstCoin:secondCoin:buySell?"USDT":"USDT");
+          loading = false;
 
           CustomWidget(context: context).showSuccessAlertDialog(
               "ImperialX", loginData.message.toString(), "success");
@@ -8826,7 +10719,7 @@ print("hi$perce");
     apiUtils
         .masterTradeInfo(
         selectPair!.symbol.toString(),
-        spotOption ? "cash" : selectedHistoryTradeType.toString(),
+        spotOption ? "cash" :futureOption?futureselectedHistoryTradeType.toString():selectedHistoryTradeType.toString(),
         firstCoin.toString(),
         tleverageVal.toString(),
         buySell ? "buy" : "sell",
@@ -8863,7 +10756,7 @@ print("hi$perce");
     });
   }
 
-  getCoinList() {
+  getCoinList(String selectedcoin) {
     apiUtils.spotAllPairs("SPOT").then((TradePairsSpotModel loginData) {
       if (loginData.success!) {
         setState(() {
@@ -8871,15 +10764,15 @@ print("hi$perce");
           sellData = [];
           //     tradePair = loginData.result!;
 
-          List<TradePairsSpot> tradePairs = loginData.result!;
+          tradePairs = loginData.result!;
           Set<TradePairsSpot> remove_dup={};
           for (int m = 0; m < tradePairs.length; m++) {
-            if (tradePairs[m].symbol.toString().contains("USDT")) {
+           // if (tradePairs[m].symbol.toString().contains("USDT")) {
               if(remove_dup.add(tradePairs[m])) {
                 tradePair.add(tradePairs[m]);
               }
               // livePrice = tradePairs[m].lastPrice.toString();
-            }
+            //}
             // else if(tradePairs[m].symbol.toString().contains("USDC")) {
             //   tradePair.add(tradePairs[m]);
             //
@@ -8897,24 +10790,45 @@ print("hi$perce");
             //
             // }
           }
-
-
           searchPair = tradePair;
-          selectPair = tradePair[0];
+          if(selectedcoin.isNotEmpty || selectedcoin!=""){
+            for(int i=0;i<tradePair.length;i++){
+              if(selectedcoin.toLowerCase() == tradePair[i].symbol!.toLowerCase()){
+                selectPair=tradePair[i];
+              }
+            }
+          }
+          else{
+            selectPair = tradePair[0];
+          }
+          livePrice=selectPair!.lastPrice.toString();
+          dlivePrice=selectPair!.lastPrice.toString();
+          priceController.text=livePrice;
 
-          firstCoin = selectPair!.symbol.toString().substring(selectPair!
-              .symbol
-              .toString()
-              .length - 4);
+          //selectPair = tradePair[0];
+          for(int i=0;i<marketAssetList.length;i++) {
+            if (selectPair!.symbol.toString().endsWith(marketAssetList[i])) {
+                      int lengths=marketAssetList[i].length;
+                      secondCoin=selectPair!.symbol.toString().substring(0,selectPair!.symbol.toString().length-lengths);
+                      firstCoin=marketAssetList[i];
+                      break;
+            }
+          }
+
           selectedSymbol = selectPair?.symbol.toString() ?? "";
+          print("sizeof ${favourite_sort.length}");
+          Future.delayed(Duration(seconds: 0));
+
           getPairDetail(selectedSymbol);
-          secondCoin = selectPair!.symbol.toString().split("USDT")[0];
+          //getminimubuyDetail(selectedSymbol);
+          //secondCoin = selectPair!.symbol.toString().split("USDT")[0];
           // secondCoin =selectPair!.symbol.toString();
 
           // print(coinName);
           // print("coinName");
-          getBalance(firstCoin);
+          buySell?getBalance(firstCoin):getBalance(secondCoin);
           getTradeHistory(selectPair!.symbol.toString());
+          getOpenOrderHistory(selectPair!.symbol.toString(),spotOption||marginOption?"spot":"linear");
           _loadWebViewUrl();
           arrChangeData.add("tickers." + selectPair!.symbol.toString());
           arrData.add("orderbook.50." + selectPair!.symbol.toString());
@@ -8946,7 +10860,7 @@ print("hi$perce");
           // print("currentSymbol");
           // print(currentSymbol);
           socketData();
-          socketLivePriceData();
+         // socketLivePriceData();
         });
       } else {
         setState(() {
@@ -8959,7 +10873,7 @@ print("hi$perce");
     });
   }
 
-  getFutureCoinList() {
+  getFutureCoinList(String selectedcoin) {
     apiUtils.getFutureTradePairList("LINEAR").then((
         FutureTradePairListModel loginData) {
       if (loginData.success!) {
@@ -8970,13 +10884,42 @@ print("hi$perce");
           futuretradePair =loginData.result! ;
 
           futuresearchPair = futuretradePair;
-          futureselectPair = futuretradePair[0];
-          livePrice = futuretradePair[0].markPrice.toString();
+          if(selectedcoin.isNotEmpty || selectedcoin!=""){
+            spotOption=false;
+            marginOption=false;
+            futureOption=true;
+            for(int i=0;i<futuretradePair.length;i++){
+              if(selectedcoin.toLowerCase() == futuretradePair[i].symbol!.toLowerCase()){
+                futureselectPair=futuretradePair[i];
+              }
+            }
+          }
+          else{
+            futureselectPair = futuretradePair[0];
+          }
+          //futureselectPair = futuretradePair[0];
+          Future.delayed(Duration(seconds: 0));
+          for(int i=0;i<favourite_sort.length;i++){
+            if(favourite_sort[i].symbol.toString()==futureselectPair!.symbol.toString()){
+              setState(() {
+                selectedfav=true;
+              });
+              break;
+            }
+            else{
+              setState(() {
+                selectedfav=false;
+              });
+            }
+          }
+          livePrice = futureselectPair!.markPrice.toString();
+          priceController.text=livePrice;
 
           FuturefirstCoin = futureselectPair!.symbol.toString();
           getPairDetail(FuturefirstCoin);
+          //getminimubuyDetail(FuturefirstCoin);
           FuturesecondCoin = futureselectPair!.symbol.toString();
-          getBalance(FuturefirstCoin);
+          getBalance("USDT");
 
 
           arrFutureData.add(
@@ -9021,17 +10964,21 @@ print("hi$perce");
       if (loginData.success!) {
         setState(() {
           AllopenOrders = loginData.result!;
-          openOrders=[];
+          //openOrders=[];
+          completedOrders=[];
           for (int m = 0; m < AllopenOrders.length; m++) {
-            if (AllopenOrders[m].status.toString() == "init" ||
-                AllopenOrders[m].status.toString() == "partially_filled") {
-              openOrders.add(AllopenOrders[m]);
-              print("hoo ${openOrders[m]}");
-            } else {
-              completedOrders.add(AllopenOrders[m]);
+            // if (AllopenOrders[m].status.toString() == "init" ||
+            //     AllopenOrders[m].status.toString() == "partially_filled") {
+            //   //openOrders.add(AllopenOrders[m]);
+            //   //print("hoo ${openOrders[m]}");
+            // } else {
+              if(AllopenOrders[m].status.toString().isNotEmpty) {
+                setState(() {
+                  completedOrders.add(AllopenOrders[m]);
+                });
+              }
             }
-
-          }
+          //}
           completedOrders=completedOrders.reversed.toList();
 
 
@@ -9047,8 +10994,44 @@ print("hi$perce");
     });
   }
 
+  getOpenOrderHistory(String pair,String category) async {
+    await apiUtils.getOpenOrderhistory(pair,category).then((
+        OpenOrderHistoryModel loginData) {
+      if (loginData.success!) {
+        setState(() {
+          openOrders=loginData.result!;
+          loading = false;
+        });
+      } else {
+        setState(() {
+          loading = false;
+        });
+      }
+    }).catchError((Object error) {
+      print(error);
+    });
+  }
+
+  getTradePositionHistory() async {
+    await apiUtils.getPositionTradehistory().then((
+        PositionHistoryModel loginData) {
+      if (loginData.success!) {
+        setState(() {
+          positionList=loginData.result!;
+          loading = false;
+        });
+      } else {
+        setState(() {
+          loading = false;
+        });
+      }
+    }).catchError((Object error) {
+      print(error);
+    });
+  }
+
   getPairDetail(String pair) async {
-    await apiUtils.getPairDetails(pair,spotOption||marginOption?"spot":"linear").then((
+    await apiUtils.getPairDetails(pair,spotOption?"spot":"linear").then((
         PairDetailsModel loginData) {
       if (loginData.success!) {
         setState(() {
@@ -9061,13 +11044,29 @@ print("hi$perce");
                       .toString()
                       .length
                       .toString());
+              quote_pre= int.parse(
+                  loginData.result![0].lotSizeFilter!.quotePrecision.toString()
+                      .split(".")[1]
+                      .toString()
+                      .length
+                      .toString());
+
               print("valss $decimal_val");
             }
             else {
-              decimal_val = 0;
+              setState(() {
+                decimal_val = 0;
+                quote_pre = 0;
+
+              });
+
             }
           }
           else{
+            print("variya");
+            setState(() {
+
+
             if (loginData.result![0].lotSizeFilter!.minOrderQty.toString()
                 .contains(".")) {
               decimal_val = int.parse(
@@ -9076,16 +11075,60 @@ print("hi$perce");
                       .toString()
                       .length
                       .toString());
+
               print("valss $decimal_val");
             }
             else {
               decimal_val = 0;
+
             }
+            });
           }
           loading = false;
+
         });
       } else {
         setState(() {
+          loading = false;
+        });
+      }
+    }).catchError((Object error) {
+      print(error);
+    });
+  }
+  getminimubuyDetail(String pair) async {
+    await apiUtils.getPairDetails(pair,spotOption?"spot":"linear").then((
+        PairDetailsModel loginData) {
+      if (loginData.success!) {
+        setState(() {
+          minimumbuy=loginData.result![0].lotSizeFilter!.minOrderQty.toString();
+          print("minimum $minimumbuy");
+          loading=false;
+        });
+
+      } else {
+        setState(() {
+          loading = false;
+        });
+      }
+    }).catchError((Object error) {
+      print(error);
+    });
+  }
+
+  addFutureFavourite(String add,String pair) async {
+    await apiUtils.addFavFuturePairlist(add,pair).then((
+        CommonModel loginData) {
+      if (loginData.status!) {
+        setState(() {
+          CustomWidget(context: context).showSuccessAlertDialog(
+              "Favourite", "${loginData.message}", "success");
+          loading=false;
+        });
+      } else {
+        setState(() {
+          CustomWidget(context: context).showSuccessAlertDialog(
+              "Favourite", "${loginData.message}", "error");
           loading = false;
         });
       }
@@ -9102,7 +11145,7 @@ print("hi$perce");
 
           loading = false;
 
-          getTradeHistory(pair);
+          getOpenOrderHistory(pair, spotOption||marginOption?"spot":"linear");
           CustomWidget(context: context).showSuccessAlertDialog(
               "Trade", "${loginData.message}", "success");
           //getTradeHistory(pair);
@@ -9111,7 +11154,7 @@ print("hi$perce");
       } else {
         setState(() {
           loading = false;
-          getTradeHistory(pair);
+          getOpenOrderHistory(pair, spotOption||marginOption?"spot":"linear");
           CustomWidget(context: context).showSuccessAlertDialog(
               "Trade", "${loginData.message}", "error");
           //getTradeHistory(pair);
@@ -9124,17 +11167,17 @@ print("hi$perce");
   }
 
   getBalance(String coin) {
-    apiUtils.getWalletList().then((GetWalletAllPairsModel loginData) {
+    apiUtils.getTradeBalance(coin).then((GetTradeBalanceModel loginData) {
       if (loginData.success!) {
         setState(() {
-          loading = false;
-          List<GetWalletAll> walletPair = loginData.result!;
-          for (int m = 0; m < walletPair.length; m++) {
-            if (coin.toLowerCase() ==
-                walletPair[m].coinname.toString().toLowerCase()) {
-              balance = walletPair[m].balance.toString();
-            }
-          }
+          String bal=loginData.result!.result!.list![0].coin![0].availableToWithdraw.toString() ?? "0.0";
+          String avbal=loginData.result!.result!.list![0].coin![0].walletBalance.toString() ?? "0.0";
+          Future.delayed(Duration(milliseconds: 200));
+          balance=bal;
+          tbalance=avbal;
+          print("yess");
+          print(coin+""+balance);
+          loading=false;
         });
       } else {
         setState(() {
@@ -9184,7 +11227,8 @@ print("hi$perce");
                                 .of(context)
                                 .size
                                 .width * 0.8,
-                            child: TextField(
+                            child:
+                            TextField(
                               controller: searchController,
                               focusNode: searchFocus,
                               enabled: true,
@@ -9208,7 +11252,7 @@ print("hi$perce");
                                     if (tradePair[m].symbol.toString()
                                         .toLowerCase()
                                         .contains(
-                                        value.toString().toLowerCase())
+                                        value.toString().toLowerCase()) && tradePair[m].symbol.toString().endsWith(selectedMarketAsset)
                                     // ||
                                     // tradePair[m].symbol.toString().toUpperCase().contains(value.toString().toUpperCase()) ||
                                     // tradePair[m].marketAsset!.symbol.toString().toLowerCase().contains(value.toString().toLowerCase()) ||
@@ -9401,6 +11445,153 @@ print("hi$perce");
                     const SizedBox(
                       height: 10.0,
                     ),
+                    SizedBox(width: MediaQuery.of(context).size.width-20,height: 50,child: ListView.builder(
+                      itemCount: marketAssetList.length,
+                      scrollDirection: Axis.horizontal,
+                      itemBuilder: (context, index) {
+                        return GestureDetector(child:Padding(padding: EdgeInsets.all(8),child:
+                        Container(padding: EdgeInsets.only(left: 8,right: 8,top: 8,bottom: 8),decoration: BoxDecoration(borderRadius: BorderRadius.circular(5),
+                            border:Border.all(color: Theme.of(context).indicatorColor),
+                            color:selectedmarketindex==index ? Theme.of(context).indicatorColor: Theme.of(context).cardColor),child:
+                        Text(marketAssetList[index],style:  TextStyle(
+                            fontFamily: "FontRegular",
+                            color: Theme
+                                .of(context)
+                                .focusColor,
+                            fontSize: 12.0,
+                            fontWeight: FontWeight.w400),textAlign: TextAlign.center,),)),onTap: () {
+                          setStates(() {
+                            selectedmarketindex=index;
+                            selectedMarketAsset=marketAssetList[index];
+                              Set<String> removeDup={};
+                              buyData = [];
+                              sellData = [];
+                              searchPair = [];
+
+
+
+                              for (int m = 0; m < tradePair.length; m++) {
+                                if (tradePair[m].symbol.toString().endsWith(selectedMarketAsset)
+                                // ||
+                                // tradePair[m].symbol.toString().toUpperCase().contains(value.toString().toUpperCase()) ||
+                                // tradePair[m].marketAsset!.symbol.toString().toLowerCase().contains(value.toString().toLowerCase()) ||
+                                // tradePair[m].symbol.toString().toLowerCase().contains(value.toString().toLowerCase())
+                                ) {
+                                  if(removeDup.add(tradePair[m].symbol.toString())) {
+                                    searchPair.add(tradePair[m]);
+                                  }
+                                  else{
+                                    continue;
+                                  }
+                                }
+                                else{
+                                  continue;
+                                }
+                              }
+                          });
+                        },);
+                      },),),
+                    const SizedBox(
+                      height: 10.0,
+                    ),
+                    Padding(padding: EdgeInsets.only(left: 15,right: 15),child:Container(
+                        child: Row(
+
+                          children: [
+                            Row(mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  "Pair",
+                                  style: CustomWidget(context: context)
+                                      .CustomSizedTextStyle(
+                                      14.0,
+                                      Theme.of(context).dividerColor,
+                                      FontWeight.w400,
+                                      'FontRegular'),
+                                  textAlign: TextAlign.start,
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    InkWell(
+                                      child: SvgPicture.asset('assets/icons/arrow.svg',color:      Theme.of(context)
+                                          .dividerColor,height: 10.0,),
+                                    ),
+                                    InkWell(
+                                      child: SvgPicture.asset('assets/icons/down.svg',color:      Theme.of(context)
+                                          .dividerColor,height: 10.0,),
+                                    ),
+                                  ],
+                                )
+                              ],
+                            ),
+                            Row(mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                const SizedBox(width: 20,),
+                                Text(
+                                  "     Last Price",
+                                  style: CustomWidget(context: context)
+                                      .CustomSizedTextStyle(
+                                      14.0,
+                                      Theme.of(context).dividerColor,
+                                      FontWeight.w400,
+                                      'FontRegular'),
+                                  textAlign: TextAlign.start,
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    InkWell(
+                                      child: SvgPicture.asset('assets/icons/arrow.svg',color:      Theme.of(context)
+                                          .dividerColor,height: 10.0,),
+                                    ),
+                                    InkWell(
+                                      child: SvgPicture.asset('assets/icons/down.svg',color:      Theme.of(context)
+                                          .dividerColor,height: 10.0,),
+                                    ),
+                                  ],
+                                )
+                              ],
+                            ),
+                            Row(mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  "24hr Change",
+                                  style:
+                                  CustomWidget(context: context)
+                                      .CustomSizedTextStyle(
+                                      12,
+                                      Theme.of(context)
+                                          .dividerColor,
+                                      FontWeight.w400,
+                                      'FontRegular'),
+                                  textAlign: TextAlign.center,
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.center,
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                    InkWell(
+                                      child: SvgPicture.asset('assets/icons/arrow.svg',color:      Theme.of(context)
+                                          .dividerColor,height: 10.0,),
+                                    ),
+                                    InkWell(
+                                      child: SvgPicture.asset('assets/icons/down.svg',color:      Theme.of(context)
+                                          .dividerColor,height: 10.0,),
+                                    ),
+                                  ],
+                                )
+                              ],
+                            )
+                          ],
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        )
+                    ),),
+                    const SizedBox(
+                      height: 10.0,
+                    ),
                     Expanded(
                         child: ListView.builder(
                             controller: controller,
@@ -9412,11 +11603,13 @@ print("hi$perce");
                                     onTap: () {
                                       setState(() {
                                         setState(() {
+                                          loading=true;
                                           currentSymbol =
                                               selectPair!.symbol.toString();
                                           print(currentSymbol + "wel");
+                                          loading=true;
                                           getPairDetail(selectPair!.symbol.toString());
-                                          livePrice = "0.00";
+
                                           loading = true;
                                         });
 
@@ -9427,23 +11620,45 @@ print("hi$perce");
 
                                         sellData = [];
                                         selectPair = searchPair[index];
-                                        priceController.clear();
+                                        livePrice = selectPair!.lastPrice.toString();
+                                       // getminimubuyDetail(selectPair!.symbol.toString());
+                                        //priceController.clear();
                                         amountController.clear();
                                         totalAmount = "0.00";
                                         _currentSliderValue = 0;
-                                        firstCoin =
-                                            selectPair!.symbol.toString()
-                                                .substring(selectPair!
-                                                .symbol
-                                                .toString()
-                                                .length - 4);
-                                        secondCoin =
-                                        selectPair!.symbol.toString().split(
-                                            "USDT")[0];
+                                        for(int i=0;i<marketAssetList.length;i++) {
+                                          if (selectPair!.symbol.toString().endsWith(marketAssetList[i])) {
+                                            int lengths=marketAssetList[i].length;
+                                            secondCoin=selectPair!.symbol.toString().substring(0,selectPair!.symbol.toString().length-lengths);
+                                            firstCoin=marketAssetList[i];
+                                            break;
+                                          }
+                                        }
+                                        priceController.text=selectPair!.lastPrice.toString();
+                                        // secondCoin =
+                                        // selectPair!.symbol.toString().split(
+                                        //     "USDT")[0];
                                         // secondCoin =selectPair!.symbol.toString();
                                         pair = firstCoin + "-" + secondCoin;
+                                        for(int j=0;j<favourite_sort.length;j++){
+                                          print("helooo");
+                                          if(favourite_sort[j].symbol.toString()==selectPair!.symbol.toString()){
+                                            print("hih");
+                                            setState(() {
+                                              selectedfav=true;
+                                            });
+                                            break;
+                                          }
+                                          else{
+                                            setState(() {
+                                              selectedfav=false;
+                                            });
+                                          }
+                                        }
                                         getTradeHistory(
                                             selectPair!.symbol.toString());
+                                        getOpenOrderHistory(selectPair!.symbol.toString(), spotOption||marginOption?"spot":"linear");
+                                        getPairDetail(selectPair!.symbol.toString());
 
                                         arrData.clear();
                                         arrPriceData.clear();
@@ -9481,7 +11696,7 @@ print("hi$perce");
                                       searchController.clear();
                                       _loadWebViewUrl();
                                       loading = false;
-                                      searchPair=[];
+                                      //searchPair=[];
 
                                       if (buySell) {
                                         getBalance(firstCoin);
@@ -9494,81 +11709,89 @@ print("hi$perce");
                                           left: 20.0, right: 20.0),
                                       child: Column(
                                         children: [
-                                          Row(
-                                            crossAxisAlignment: CrossAxisAlignment
-                                                .center,
-                                            mainAxisAlignment: MainAxisAlignment
-                                                .spaceBetween,
-                                            children: [
-                                              Text(
-                                                searchPair[index].symbol
-                                                    .toString(),
-                                                style: CustomWidget(
-                                                    context: context)
-                                                    .CustomSizedTextStyle(
+                                          Row(mainAxisAlignment: MainAxisAlignment.center,children: [
+                                            Flexible(flex: 2,child:Row(
+                                              crossAxisAlignment: CrossAxisAlignment
+                                                  .center,
+                                              mainAxisAlignment: MainAxisAlignment
+                                                  .spaceBetween,
+                                              children: [
+                                                Flexible(child:Text(
+                                                  searchPair[index].symbol
+                                                      .toString(),
+                                                  style: CustomWidget(context: context)
+                                                      .CustomSizedTextStyle(
                                                     12.0,
                                                     Theme
                                                         .of(context)
                                                         .focusColor,
                                                     FontWeight.w500,
-                                                    'FontRegular'),
-                                              ),
-                                              const SizedBox(
-                                                width: 10.0,
-                                              ),
-                                              Text(
-                                                searchPair[index].highPrice24H
-                                                    .toString(),
-                                                style: CustomWidget(
-                                                    context: context)
-                                                    .CustomSizedTextStyle(
-                                                    10.0,
-                                                    Theme
-                                                        .of(context)
-                                                        .indicatorColor,
-                                                    FontWeight.w500,
-                                                    'FontRegular'),
-                                              ),
-                                            ],
-                                          ),
-                                          const SizedBox(height: 5.0,),
-                                          Row(
-                                            crossAxisAlignment: CrossAxisAlignment
-                                                .center,
-                                            mainAxisAlignment: MainAxisAlignment
-                                                .spaceBetween,
-                                            children: [
-                                              Text(
-                                                searchPair[index].lastPrice
-                                                    .toString(),
-                                                style: CustomWidget(
-                                                    context: context)
-                                                    .CustomSizedTextStyle(
-                                                    10.0,
+                                                    'FontRegular',
+                                                  ),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),),
+                                                //SizedBox(width: 10.0),
+                                                Flexible(child:Text(
+                                                  searchPair[index].lastPrice
+                                                      .toString(),
+                                                  style: CustomWidget(context: context)
+                                                      .CustomSizedTextStyle(
+                                                    12.0,
                                                     Theme
                                                         .of(context)
                                                         .focusColor,
                                                     FontWeight.w500,
-                                                    'FontRegular'),
-                                              ),
-                                              const SizedBox(
-                                                width: 10.0,
-                                              ),
-                                              Text(
-                                                searchPair[index].lowPrice24H
-                                                    .toString(),
-                                                style: CustomWidget(
-                                                    context: context)
-                                                    .CustomSizedTextStyle(
+                                                    'FontRegular',
+                                                  ),
+                                                  textAlign: TextAlign.start,
+                                                  maxLines: 1,
+                                                    overflow: TextOverflow.ellipsis,
+                                                ),),
+                                               // SizedBox(width: 2,),
+                                              ],
+                                            ),),
+                                            // Text(
+                                            // futuresearchPair[index].lastPrice
+                                            //     .toString(),
+                                            // style: CustomWidget(context: context)
+                                            //     .CustomSizedTextStyle(
+                                            // 10.0,
+                                            // Theme
+                                            //     .of(context)
+                                            //     .focusColor,
+                                            // FontWeight.w500,
+                                            // 'FontRegular',
+                                            // ),
+                                            // ),
+                                            // SizedBox(height: 5.0),
+                                            Flexible(child: Row(
+                                              crossAxisAlignment: CrossAxisAlignment
+                                                  .center,
+                                              mainAxisAlignment: MainAxisAlignment
+                                                  .spaceBetween,
+                                              children: [
+
+                                                SizedBox(width: 10.0),
+                                                Container(width: MediaQuery.of(context).size.width*0.20,padding: EdgeInsets.only(top: 5,bottom: 5),child:
+                                                Text(
+                                                  searchPair[index].price24HPcnt.toString()+"%",
+                                                  style: CustomWidget(context: context)
+                                                      .CustomSizedTextStyle(
                                                     10.0,
+
                                                     Theme
                                                         .of(context)
-                                                        .hoverColor,
+                                                        .focusColor,
                                                     FontWeight.w500,
-                                                    'FontRegular'),
-                                              ),
-                                            ],
-                                          )
+                                                    'FontRegular',
+                                                  ),textAlign: TextAlign.center,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),decoration: BoxDecoration(borderRadius: BorderRadius.circular(5),
+                                                    color: double.parse(searchPair[index].price24HPcnt.toString())>0?Theme.of(context).indicatorColor:Theme.of(context).hoverColor),),
+                                              ],
+                                            ),)
+                                          ]),
                                         ],
                                       ),
                                     ),
@@ -9733,7 +11956,7 @@ print("hi$perce");
                           onTap: () {
                             setStates(() {
                               searchFutureController.clear();
-                              futuresearchPair.addAll(futuretradePair);
+                              futuresearchPair=futuretradePair;
                             });
                             Navigator.pop(context);
                           },
@@ -9762,7 +11985,11 @@ print("hi$perce");
                                 setStates(() {
                                   buyData = [];
                                   sellData = [];
-                                  futureselectPair = futuresearchPair[index];
+                                  futureselectPair= futuresearchPair[index];
+
+                                  //futureselectPair = futuresearchPair[index];
+                                  //getminimubuyDetail(futureselectPair!.symbol.toString());
+
                                   priceController.clear();
                                   amountController.clear();
                                   totalAmount = "0.00";
@@ -9770,25 +11997,38 @@ print("hi$perce");
 
                                   FuturefirstCoin =
                                       futureselectPair!.symbol.toString();
+                                  priceController.text=futureselectPair!.lastPrice.toString();
+                                  loading=true;
+                                  for(int j=0;j<favourite_sort.length;j++){
+                                    print("helooo");
+                                    if(favourite_sort[j].symbol.toString()==futureselectPair!.symbol.toString()){
+                                      print("hih");
+                                      setState(() {
+                                        selectedfav=true;
+                                      });
+                                      break;
+                                    }
+                                    else{
+                                      setState(() {
+                                        selectedfav=false;
+                                      });
+                                    }
+                                  }
+                                  loading=true;
+                                  Future.delayed(Duration(seconds: 1));
                                   getPairDetail(futureselectPair!.symbol.toString());
+                                  getFutureCoinList(futureselectPair!.symbol.toString());
                                   FuturesecondCoin =
                                       futureselectPair!.symbol.toString();
+                                  arrFutureData=[];
+                                  arrFuturePriceData=[];
 
                                   arrFutureData.add(
-                                      "orderbook.50.${futureselectPair!
-                                          .symbol}");
+                                      "orderbook.50." + futureselectPair!.symbol.toString());
                                   arrFuturePriceData.add(
-                                      "publicTrade.${futureselectPair!
-                                          .symbol}");
-
-                                  Navigator.pop(context);
-
-                                  channelOpenOrder?.sink.close();
-                                  channelOpenOrder = IOWebSocketChannel.connect(
-                                    Uri.parse(
-                                        "wss://stream.bybit.com/v5/public/linear"),
-                                  );
-
+                                      "publicTrade." + futureselectPair!.symbol.toString());
+                                  loading = false;
+                                  // print(arrData);
                                   var messageFutureJSON = {
                                     "op": "subscribe",
                                     "args": arrFutureData,
@@ -9798,12 +12038,13 @@ print("hi$perce");
                                     "args": arrFuturePriceData,
                                   };
 
-                                  channelOpenOrder?.sink.add(
-                                      json.encode(messageFutureJSON));
-                                  channelOpenOrder?.sink.add(
-                                      json.encode(messageFuturePriceJSON));
+                                  channelOpenOrder = IOWebSocketChannel.connect(
+                                    Uri.parse("wss://stream.bybit.com/v5/public/linear"),);
 
+                                  channelOpenOrder!.sink.add(json.encode(messageFutureJSON));
+                                  channelOpenOrder!.sink.add(json.encode(messageFuturePriceJSON));
                                   socketData();
+
                                 });
 
                                 searchFutureController.clear();
@@ -9811,18 +12052,22 @@ print("hi$perce");
 
                                 getTradeHistory(
                                     futureselectPair!.symbol.toString());
+                                getOpenOrderHistory(futureselectPair!.symbol.toString(), spotOption||marginOption?"spot":"linear");
+                                Navigator.pop(context);
                               },
+
                               child: Padding(
-                                padding: EdgeInsets.symmetric(horizontal: 20.0),
+                                padding: EdgeInsets.symmetric(horizontal: 14.0),
                                 child: Column(
                                   children: [
-                                    Row(
+                                    Row(mainAxisAlignment: MainAxisAlignment.spaceBetween,children: [
+                                    Flexible(flex: 3,child:Row(
                                       crossAxisAlignment: CrossAxisAlignment
                                           .center,
                                       mainAxisAlignment: MainAxisAlignment
                                           .spaceBetween,
                                       children: [
-                                        Text(
+                                        SizedBox(child:Text(
                                           futuresearchPair[index].symbol
                                               .toString(),
                                           style: CustomWidget(context: context)
@@ -9833,33 +12078,52 @@ print("hi$perce");
                                                 .focusColor,
                                             FontWeight.w500,
                                             'FontRegular',
-                                          ),
-                                        ),
-                                        SizedBox(width: 10.0),
+                                          ),overflow: TextOverflow.ellipsis,
+                                        ),width: MediaQuery.of(context).size.width*0.30,),
+                                        // /SizedBox(width: 10.0),
                                         Text(
                                           futuresearchPair[index].highPrice24H
-                                              .toString(),
+                                              .toString()+"%",
                                           style: CustomWidget(context: context)
                                               .CustomSizedTextStyle(
-                                            10.0,
+                                            12.0,
                                             Theme
                                                 .of(context)
-                                                .indicatorColor,
+                                                .focusColor,
                                             FontWeight.w500,
                                             'FontRegular',
                                           ),
+                                          softWrap: true,
+                                          textAlign: TextAlign.center,
                                         ),
                                       ],
-                                    ),
-                                    SizedBox(height: 5.0),
-                                    Row(
+                                    ),),
+                        // Text(
+                        // futuresearchPair[index].lastPrice
+                        //     .toString(),
+                        // style: CustomWidget(context: context)
+                        //     .CustomSizedTextStyle(
+                        // 10.0,
+                        // Theme
+                        //     .of(context)
+                        //     .focusColor,
+                        // FontWeight.w500,
+                        // 'FontRegular',
+                        // ),
+                        // ),
+                                      SizedBox(width: 10.0),
+                                     //SizedBox(height: 5.0),
+                                    Flexible(flex: 1,child: Row(
                                       crossAxisAlignment: CrossAxisAlignment
                                           .center,
                                       mainAxisAlignment: MainAxisAlignment
                                           .spaceBetween,
                                       children: [
+
+
+                                        Container(width: MediaQuery.of(context).size.width*0.20,padding: EdgeInsets.only(top: 5,bottom: 5),child:
                                         Text(
-                                          futuresearchPair[index].lastPrice
+                                          futuresearchPair[index].price24HPcnt
                                               .toString(),
                                           style: CustomWidget(context: context)
                                               .CustomSizedTextStyle(
@@ -9869,24 +12133,14 @@ print("hi$perce");
                                                 .focusColor,
                                             FontWeight.w500,
                                             'FontRegular',
-                                          ),
-                                        ),
-                                        SizedBox(width: 10.0),
-                                        Text(
-                                          futuresearchPair[index].lowPrice24H
-                                              .toString(),
-                                          style: CustomWidget(context: context)
-                                              .CustomSizedTextStyle(
-                                            10.0,
-                                            Theme
-                                                .of(context)
-                                                .hoverColor,
-                                            FontWeight.w500,
-                                            'FontRegular',
-                                          ),
-                                        ),
+                                          ),textAlign: TextAlign.center,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),decoration: BoxDecoration(borderRadius: BorderRadius.circular(5),
+                                            color:double.parse(futuresearchPair[index].price24HPcnt
+                                                .toString())>0?Theme.of(context).indicatorColor:Theme.of(context).hoverColor),),
                                       ],
-                                    ),
+                                    ),)
+                        ]),
                                   ],
                                 ),
                               ),
@@ -9967,3 +12221,28 @@ class MarketDetailsList {
   dynamic bitP;
   dynamic askP;
 }
+// class Result{
+//   String? imageurl;
+//   String? id;
+//   String? category;
+//   String? symbol;
+//   String? baseCoin;
+//   String? quoteCoin;
+//   String? status;
+//   String? marginTrading;
+//   DateTime? createdAt;
+//   DateTime? updatedAt;
+//
+//   Result({
+//     this.imageurl,
+//     this.id,
+//     this.category,
+//     this.symbol,
+//     this.baseCoin,
+//     this.quoteCoin,
+//     this.status,
+//     this.marginTrading,
+//     this.createdAt,
+//     this.updatedAt,
+//   });
+// }

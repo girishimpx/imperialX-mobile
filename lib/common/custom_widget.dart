@@ -33,10 +33,10 @@ class CustomWidget {
                 animation: AnimationType.fromRight,
                 title: Text(
                   title,
-                  style: TextStyle(color: Colors.red),
+                  style: CTextstyle(Colors.red,16.0),
                 ),
                 description:
-                    Text(message, style: TextStyle(color: Colors.black,fontSize: 12.0)),
+                    Text(message, style: CTextstyle( Colors.black, 12.0)),
                 onDismiss: () {},
               ).show(context)
             : ElegantNotification.info(
@@ -44,10 +44,10 @@ class CustomWidget {
                 animation: AnimationType.fromRight,
                 title: Text(
                   title,
-                  style: TextStyle(color: Colors.red),
+                  style: CTextstyle(Colors.red,16.0),
                 ),
                 description:
-                    Text(message, style: TextStyle(color: Colors.black,fontSize: 12.0)),
+                    Text(message, style: CTextstyle(Colors.black,12.0)),
                 onDismiss: () {},
               ).show(context);
     // show the dialog
@@ -86,6 +86,10 @@ class CustomWidget {
       double size, Color color, FontWeight weight, String family) {
     return GoogleFonts.plusJakartaSans(
         fontWeight: weight, color: color, fontSize: size);
+  }
+  CTextstyle(Color color,double size){
+    return GoogleFonts.plusJakartaSans(
+         color: color,fontSize: size);
   }
 
   Widget noInternet() {

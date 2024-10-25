@@ -1203,6 +1203,7 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
                                   InkWell(
                                     onTap: () {
                                       setState(() {
+                                        loading=true;
                                         // setState(() {
                                         //   currentSymbol = selectPair!.tradepair.toString();
                                         //   print(currentSymbol + "wel");
@@ -1212,6 +1213,7 @@ class _Deposit_ScreenState extends State<Deposit_Screen> {
                                         print(selectPair!);
                                         getAddressDetails();
                                         Navigator.pop(context);
+                                        loading=false;
                                       });
                                       searchController.clear();
                                     },

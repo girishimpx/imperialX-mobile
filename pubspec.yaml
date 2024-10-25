@@ -41,7 +41,7 @@ dependencies:
   google_fonts:
   flutter_svg:
   http:
-  simple_gradient_text:
+#  simple_gradient_text:
   country_calling_code_picker:
   image_picker: ^1.0.7
   permission_handler:
@@ -54,9 +54,10 @@ dependencies:
   flutter_inappwebview:
   qr_flutter:
   google_sign_in:
-  carousel_slider:
+  carousel_slider_plus:
   flutter_onboarding_slider:
   linear_progress_bar:
+  url_launcher:
 
 
 dev_dependencies:

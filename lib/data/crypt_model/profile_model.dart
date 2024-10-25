@@ -53,6 +53,7 @@ class GetProfileResult {
   String? verification;
   DateTime? createdAt;
   DateTime? updatedAt;
+  String? image;
 
   GetProfileResult({
     this.referalMoney,
@@ -78,6 +79,7 @@ class GetProfileResult {
     this.verification,
     this.createdAt,
     this.updatedAt,
+    this.image,
   });
 
   factory GetProfileResult.fromJson(Map<String, dynamic> json) => GetProfileResult(
@@ -104,6 +106,7 @@ class GetProfileResult {
     verification: json["verification"],
     createdAt: DateTime.parse(json["createdAt"]),
     updatedAt: DateTime.parse(json["updatedAt"]),
+    image:json["image"]
   );
 
   Map<String, dynamic> toJson() => {
@@ -130,5 +133,6 @@ class GetProfileResult {
     "verification": verification,
     "createdAt": createdAt!.toIso8601String(),
     "updatedAt": updatedAt!.toIso8601String(),
+    "image":image
   };
 }

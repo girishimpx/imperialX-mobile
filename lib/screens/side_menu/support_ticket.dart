@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:imperial/screens/side_menu/chat_screen.dart';
 import 'package:intl/intl.dart';
-import 'package:simple_gradient_text/simple_gradient_text.dart';
+
 import '../../common/custom_widget.dart';
 import '../../common/localization/localizations.dart';
 import '../../common/textformfield_custom.dart';
@@ -370,29 +370,29 @@ class _SupportTicketListState extends State<SupportTicketList> {
                               crossAxisAlignment: CrossAxisAlignment.center,
                               children: [
                                 Container(),
-                                GradientText(
-                                  "Create Ticket",
-                                  style: CustomWidget(context: context)
-                                      .CustomSizedTextStyle(
-                                      18.0,
-                                      CustomTheme.of(context).cardColor,
-                                      FontWeight.w600,
-                                      'FontRegular'),
-                                  colors: [
-                                    CustomTheme.of(context).primaryColorLight,
-                                    CustomTheme.of(context).primaryColorDark,
-                                  ],
-                                ),
-                                // Text(
+                                // GradientText(
                                 //   "Create Ticket",
-                                //   style: TextStyle(
-                                //       fontSize: 18.0,
-                                //       color: Theme.of(context)
-                                //           .cardColor,
-                                //       fontWeight: FontWeight.w700,
-                                //       fontFamily: 'FontRegular'),
-                                //   textAlign: TextAlign.center,
+                                //   style: CustomWidget(context: context)
+                                //       .CustomSizedTextStyle(
+                                //       18.0,
+                                //       CustomTheme.of(context).cardColor,
+                                //       FontWeight.w600,
+                                //       'FontRegular'),
+                                //   colors: [
+                                //     CustomTheme.of(context).primaryColorLight,
+                                //     CustomTheme.of(context).primaryColorDark,
+                                //   ],
                                 // ),
+                                Text(
+                                  "Create Ticket",
+                                  style: TextStyle(
+                                      fontSize: 18.0,
+                                      color: Theme.of(context)
+                                          .cardColor,
+                                      fontWeight: FontWeight.w700,
+                                      fontFamily: 'FontRegular'),
+                                  textAlign: TextAlign.center,
+                                ),
                                 InkWell(
                                   onTap: () {
                                     Navigator.pop(context);

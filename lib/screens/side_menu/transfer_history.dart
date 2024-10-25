@@ -137,18 +137,18 @@ class _Transfer_HistoryState extends State<Transfer_History> {
                                           textAlign: TextAlign.center,
                                         ),
                                        Container(
-                                         width: MediaQuery.of(context).size.width *0.4,
+                                         width: MediaQuery.of(context).size.width *0.52,
                                          child:  Text(
                                            trasactionListDetails[index].id.toString(),
                                            style: CustomWidget(
                                                context: context)
                                                .CustomSizedTextStyle(
-                                               14.0,
+                                               12.0,
                                                Theme.of(context)
                                                    .focusColor,
                                                FontWeight.w600,
                                                'FontRegular'),
-                                           textAlign: TextAlign.center,
+                                           textAlign: TextAlign.start,maxLines: 2,
                                            overflow: TextOverflow.ellipsis,
                                          ),
                                        )
@@ -171,7 +171,7 @@ class _Transfer_HistoryState extends State<Transfer_History> {
                                           textAlign: TextAlign.center,
                                         ),
                                         Text(
-                                          trasactionListDetails[index].createdAt.toString(),
+                                          trasactionListDetails[index].createdAt.toString().split(" ")[0],
                                           style: CustomWidget(
                                               context: context)
                                               .CustomSizedTextStyle(
@@ -180,6 +180,7 @@ class _Transfer_HistoryState extends State<Transfer_History> {
                                                   .focusColor,
                                               FontWeight.w500,
                                               'FontRegular'),
+                                          overflow: TextOverflow.ellipsis,
                                           textAlign: TextAlign.center,
                                         ),
                                       ],

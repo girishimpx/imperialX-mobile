@@ -1,10 +1,17 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:linear_progress_bar/linear_progress_bar.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../common/custom_widget.dart';
+import '../../common/theme/custom_theme.dart';
+import '../../data/api_utils.dart';
+import '../../data/crypt_model/profile_model.dart';
 import 'notification.dart';
 
 class Account_Screen extends StatefulWidget {
@@ -15,6 +22,28 @@ class Account_Screen extends StatefulWidget {
 }
 
 class _Account_ScreenState extends State<Account_Screen> {
+  APIUtils apiUtils = APIUtils();
+  String name="";
+  String gmail= "";
+  String userid="";
+  bool googleUpdate = false;
+  String secret  = "";
+  String profile="";
+  String token="";
+  String securitylevel="";
+  bool loading = false;
+
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    gettoken();
+    loading=true;
+    profileDetails();
+  }
+
+
   @override
   Widget build(BuildContext context) {
     final size=MediaQuery.of(context).size;
@@ -50,7 +79,8 @@ class _Account_ScreenState extends State<Account_Screen> {
           ),
           centerTitle: true,
         ),
-        body: Container(
+        body: Stack(children: [
+        Container(
           color: Theme.of(context).primaryColor,
           height: MediaQuery.of(context).size.height,
           width: MediaQuery.of(context).size.width,
@@ -173,15 +203,14 @@ class _Account_ScreenState extends State<Account_Screen> {
                                   CrossAxisAlignment.center,
                                   children: [
                                     Container(
+                                      height:50,
+                                      width:50,
                                       padding: EdgeInsets.all(1.0),
                                       decoration: BoxDecoration(
-                                        shape: BoxShape.circle,
+                                        //shape: BoxShape.circle,
+                                        borderRadius: BorderRadius.circular(100)
                                       ),
-                                      child: SvgPicture.asset(
-                                        "assets/icons/btc.svg",
-                                        height: 40.0,
-                                        // color: Theme.of(context).disabledColor,
-                                      ),
+                                      child: profile.isNotEmpty?ClipRRect(borderRadius: BorderRadius.circular(100),child:profile.endsWith(".svg")?SvgPicture.network(profile,fit: BoxFit.cover):Image.network(profile,fit: BoxFit.cover,) ,):Container(),
                                     ),
                                     const SizedBox(
                                       width: 10.0,
@@ -191,7 +220,7 @@ class _Account_ScreenState extends State<Account_Screen> {
                                       CrossAxisAlignment.start,
                                       children: [
                                         Text(
-                                          "Username",
+                                          "$name",
                                           style: CustomWidget(
                                               context: context)
                                               .CustomSizedTextStyle(
@@ -203,7 +232,7 @@ class _Account_ScreenState extends State<Account_Screen> {
                                           textAlign: TextAlign.start,
                                         ),
                                         Text(
-                                          "Ex***@gmail.com",
+                                          "$gmail",
                                           style: CustomWidget(
                                               context: context)
                                               .CustomSizedTextStyle(
@@ -224,10 +253,10 @@ class _Account_ScreenState extends State<Account_Screen> {
                               ),
 
                               Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                                 children: [
-                                  Column(
+                                  Flexible(fit:FlexFit.tight,child:Column(
                                     crossAxisAlignment:
                                     CrossAxisAlignment.start,
                                     children: [
@@ -248,18 +277,19 @@ class _Account_ScreenState extends State<Account_Screen> {
                                       ),
                                       Row(
                                         children: [
-                                          Text(
-                                            "66028542",
+                                          Flexible(child:Text(
+                                            "$userid",
                                             style: CustomWidget(
                                                 context: context)
                                                 .CustomSizedTextStyle(
-                                                16.0,
+                                                12.0,
                                                 Theme.of(context)
                                                     .primaryColor,
                                                 FontWeight.w700,
                                                 'FontRegular'),
                                             textAlign: TextAlign.start,
-                                          ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),),
                                           const SizedBox(
                                             width: 5.0,
                                           ),
@@ -274,14 +304,14 @@ class _Account_ScreenState extends State<Account_Screen> {
                                         ],
                                       )
                                     ],
-                                  ),
-                                  Column(
+                                  ),flex: 4),
+                                  Flexible(child:Column(
                                     crossAxisAlignment:
                                     CrossAxisAlignment.start,
                                     children: [
                                       Row(
                                         children: [
-                                          Text(
+                                          Flexible(child:Text(
                                             "Security Level",
                                             style: CustomWidget(
                                                 context: context)
@@ -289,13 +319,14 @@ class _Account_ScreenState extends State<Account_Screen> {
                                                 14.0,
                                                 Theme.of(context)
                                                     .primaryColor,
-                                                FontWeight.w600,
+                                                FontWeight.w500,
                                                 'FontRegular'),
                                             textAlign: TextAlign.start,
-                                          ),
-                                          const SizedBox(
-                                            width: 5.0,
-                                          ),
+                                            overflow: TextOverflow.ellipsis,
+                                          ),),
+                                          // const SizedBox(
+                                          //   width: 5.0,
+                                          // ),
                                           Icon(
                                             Icons.arrow_forward_ios_rounded,
                                             size: 14.0,
@@ -313,7 +344,7 @@ class _Account_ScreenState extends State<Account_Screen> {
                                         children: [
                                           Icon(
                                             Icons.info_outline,
-                                            size: 20.0,
+                                            size: 15.0,
                                             color: Theme.of(context)
                                                 .hoverColor,
                                           ),
@@ -321,11 +352,13 @@ class _Account_ScreenState extends State<Account_Screen> {
                                             width: 5.0,
                                           ),
                                           Text(
-                                            "Low",
+                                            "$securitylevel",
                                             style: CustomWidget(
                                                 context: context)
                                                 .CustomSizedTextStyle(
-                                                16.0,
+                                                12.0,
+                                                securitylevel=="High"?Theme.of(context)
+                                                    .indicatorColor:
                                                 Theme.of(context)
                                                     .hoverColor,
                                                 FontWeight.w700,
@@ -335,7 +368,7 @@ class _Account_ScreenState extends State<Account_Screen> {
                                         ],
                                       ),
                                     ],
-                                  )
+                                  ),flex:2),
                                 ],
                               ),
                               const SizedBox(
@@ -376,7 +409,7 @@ class _Account_ScreenState extends State<Account_Screen> {
                                     height: 5.0,
                                   ),
                                   Text(
-                                    "User.Ex***@gmail.com",
+                                    "User.$gmail",
                                     style: CustomWidget(
                                         context: context)
                                         .CustomSizedTextStyle(
@@ -427,7 +460,7 @@ class _Account_ScreenState extends State<Account_Screen> {
                                     height: 5.0,
                                   ),
                                   Text(
-                                    "Unverified",
+                                    "${googleUpdate==true?"Verified":"Not Verified"}",
                                     style: CustomWidget(
                                         context: context)
                                         .CustomSizedTextStyle(
@@ -454,9 +487,9 @@ class _Account_ScreenState extends State<Account_Screen> {
                           crossAxisAlignment: CrossAxisAlignment.center,
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Row(
+                            Flexible(fit:FlexFit.tight,child:Row(
                               children: [
-                                Text(
+                                Flexible(child:Text(
                                   "30,000 USDT Deposit Blast-Off Rewards",
                                   style: CustomWidget(
                                       context: context)
@@ -467,7 +500,8 @@ class _Account_ScreenState extends State<Account_Screen> {
                                       FontWeight.w600,
                                       'FontRegular'),
                                   textAlign: TextAlign.start,
-                                ),
+                                  overflow: TextOverflow.ellipsis,
+                                ),),
                                 const SizedBox(
                                   width: 2.0,
                                 ),
@@ -545,8 +579,9 @@ class _Account_ScreenState extends State<Account_Screen> {
                                   textAlign: TextAlign.start,
                                 ),
                               ],
-                            ),
-                            Row(
+                            ),flex: 4,),
+                            const SizedBox(width:5.0),
+                            Flexible(fit:FlexFit.tight,child:Row(
                               children: [
                                 Text(
                                   "Rewards Hub",
@@ -574,7 +609,7 @@ class _Account_ScreenState extends State<Account_Screen> {
                                           .disabledColor,
                                     )),
                               ],
-                            ),
+                            ),flex: 2,),
 
                           ],
                         ),
@@ -1368,7 +1403,46 @@ class _Account_ScreenState extends State<Account_Screen> {
             ),
           ),
         ),
+          loading
+              ? CustomWidget(context: context).loadingIndicator(
+            CustomTheme.of(context).disabledColor,
+          )
+              : Container()
+        ],)
       ),
     );
   }
+  gettoken() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    setState(() {
+      token=preferences.getString("token").toString();
+    });
+    print("token $token");
+  }
+  profileDetails() {
+    apiUtils.getProfileDetils().then((GetProfileModel loginData) {
+      if (loginData.success!) {
+        setState(() {
+          loading = false;
+          name=loginData.result!.name.toString();
+          gmail = loginData.result!.email.toString();
+          userid= loginData.result!.id.toString();
+          profile=loginData.result!.image.toString();
+          googleUpdate=loginData.result!.kycVerify.toString()=="true"?true:false;
+          securitylevel=loginData.result!.f2AStatus.toString()=="1"?"High":"Low";
+        });
+      } else {
+        setState(() {
+          loading = false;
+        });
+      }
+    }).catchError((Object error) {
+      print(error);
+      setState(() {
+        print("welcome");
+        loading = false;
+      });
+    });
+  }
+
 }

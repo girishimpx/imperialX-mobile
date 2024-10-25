@@ -4,6 +4,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:imperial/common/custom_widget.dart';
 import 'package:imperial/common/theme/custom_theme.dart';
 import 'package:imperial/screens/side_menu/chat_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class Support_Menu_Screen extends StatefulWidget {
   const Support_Menu_Screen({super.key});
@@ -131,6 +132,9 @@ class _Support_Menu_ScreenState extends State<Support_Menu_Screen> {
                     ],
                   ),
                 ),
+                onTap: () {
+                  _makeEmail("support@imperialx.exchange");
+                },
               ),
               const SizedBox(
                 height: 20.0,
@@ -242,6 +246,9 @@ class _Support_Menu_ScreenState extends State<Support_Menu_Screen> {
                     ],
                   ),
                 ),
+                onTap: () {
+                  _makePhoneCall("98765 90671");
+                },
               )
             ],
           ),
@@ -249,5 +256,40 @@ class _Support_Menu_ScreenState extends State<Support_Menu_Screen> {
       ),
     ));
   }
+  Future<void> _makePhoneCall(String phoneNumber) async {
+    final Uri launchUri = Uri(
+      scheme: 'tel',
+      path: phoneNumber,
+    );
+    await launchUrl(launchUri);
+  }
+
+
+  Future<void> _makeEmail(String email) async {
+    // Function to encode query parameters
+    String? encodeQueryParameters(Map<String, String> params) {
+      return params.entries
+          .map((MapEntry<String, String> e) =>
+      '${Uri.encodeComponent(e.key)}=${Uri.encodeComponent(e.value)}')
+          .join('&');
+    }
+
+    // Build the mailto URI with the provided email and subject
+    final Uri emailLaunchUri = Uri(
+      scheme: 'mailto',
+      path: email, // Use the passed email
+      query: encodeQueryParameters(<String, String>{
+        'subject': '', // You can pass a subject here
+      }),
+    );
+
+    // Launch the email app with the constructed URI
+    if (await canLaunchUrl(emailLaunchUri)) {
+      await launchUrl(emailLaunchUri);
+    } else {
+      throw 'Could not launch $emailLaunchUri';
+    }
+  }
+
 
 }

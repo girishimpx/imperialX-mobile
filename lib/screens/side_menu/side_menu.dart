@@ -1,17 +1,22 @@
+import 'dart:io';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:imperial/screens/side_menu/google_tfa.dart';
 import 'package:imperial/screens/side_menu/kyc_info.dart';
 import 'package:imperial/screens/side_menu/support_menu.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:simple_gradient_text/simple_gradient_text.dart';
+
 
 import '../../common/custom_widget.dart';
 import '../../common/localization/localizations.dart';
+import '../../common/theme/custom_theme.dart';
 import '../../data/api_utils.dart';
+import '../../data/crypt_model/image_upload_model.dart';
 import '../../data/crypt_model/profile_model.dart';
 import '../basic/login.dart';
 import '../basic/notification.dart';
@@ -32,15 +37,32 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
   APIUtils apiUtils = APIUtils();
   bool loading = false;
   String name= "";
+  String kycverified="";
   String referralid="";
+  String userid="";
   bool googleUpdate = false;
   String secret  = "";
+  String profile="";
+  String profileImage = "1";
+  bool? selectImg = false;
+  File? imageFile;
+  final ImagePicker picker = ImagePicker();
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
+    loading=true;
     profileDetails();
+    getDetails();
+  }
+  getDetails() async {
+    SharedPreferences preferences = await SharedPreferences.getInstance();
+    setState(() {
+      userid = preferences.getString("user_id").toString();
+      print(userid);
+      // orderDetails();
+    });
   }
 
   @override
@@ -51,7 +73,10 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
         backgroundColor: Theme.of(context).primaryColor,
         //leadingWidth: 1.0,
         leading: GestureDetector(onTap: () {
-          Navigator.pop(context);
+          setState(() {
+            Navigator.pop(context);
+          });
+
         },child: Padding(
           padding: EdgeInsets.only(right: 5.0),
           child:Icon(Icons.arrow_back,color: Theme.of(context).focusColor,size: 25,)
@@ -93,7 +118,8 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
       ]),),),
         ],
       ),
-      body: Container(
+      body:Stack(children: [
+      Container(
         width: MediaQuery.of(context).size.width,
         height: MediaQuery.of(context).size.height,
         color: Theme.of(context).primaryColor,
@@ -107,9 +133,28 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Flexible(flex:3,child: Row(children: [
-                    Image.asset("assets/images/image.png", height: 70.0,fit: BoxFit.contain,),
+                      GestureDetector(child:
+                      Container(
+                        height:50,
+                        width:50,
+                        padding: EdgeInsets.all(1.0),
+                        decoration: BoxDecoration(
+                          //shape: BoxShape.circle,
+                            borderRadius: BorderRadius.circular(100)
+                        ),
+                        child: profile.isNotEmpty?ClipRRect(borderRadius: BorderRadius.circular(100),child:profile.endsWith(".svg")?
+                        SvgPicture.network(profile,fit: BoxFit.cover):Image.network(profile,fit: BoxFit.cover,) ,): const CircleAvatar(
+                          maxRadius: 25,
+                          minRadius: 25,
+                          backgroundImage: AssetImage(
+                            "assets/icons/logo.png",
+                          ),
+                        ),
+                      ),onTap: () {
+                        _pickedImageDialog();
+                      },),
                     const SizedBox(width: 10.0,),
-                    Column(
+                   Flexible(child:Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
@@ -120,40 +165,55 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                               Theme.of(context).focusColor,
                               FontWeight.w600,
                               'FontRegular'),
+                          overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.start,
                         ),
                         const SizedBox(height: 5.0,),
-                        Container(
-                          padding: EdgeInsets.only(left: 8.0, right: 8.0, top: 2.0, bottom: 2.0),
+                        SizedBox(width: MediaQuery.of(context).size.width *0.35,child:Container(
+                          padding: EdgeInsets.only(left: 0.0, right: 0.0, top: 2.0, bottom: 2.0),
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(12.0),
                             color: Theme.of(context).canvasColor,
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              Text(
+                              kycverified.toString().toLowerCase()=="true"?Text(
                                 "Verified",
                                 style: CustomWidget(context: context).CustomSizedTextStyle(
                                     14.0,
                                     Theme.of(context).disabledColor,
                                     FontWeight.w400,
                                     'FontRegular'),
-                                textAlign: TextAlign.start,
+                                textAlign: TextAlign.center,
+                              ):
+                              Text(
+                                "Not Verified",
+                                style: CustomWidget(context: context).CustomSizedTextStyle(
+                                    14.0,
+                                    Theme.of(context).hoverColor,
+                                    FontWeight.w400,
+                                    'FontRegular'),
+                                textAlign: TextAlign.center,
                               ),
                               const SizedBox(width: 5.0,),
-                              Icon(
+                              kycverified.toString().toLowerCase()=="true"?Icon(
                                 Icons.verified,
                                 color: Theme.of(context).disabledColor,
+                                size: 14.0,
+                              ):Icon(
+                                Icons.close,
+                                color: Theme.of(context).hoverColor,
                                 size: 14.0,
                               )
                             ],
                           ),
-                        )
+                        )),
                       ],
-                    ),
+                    ),),
                   ],),),
-                    Flexible(flex: 2,child:
+                    Flexible(flex: 2,child:Column(children: [
                     Container(
 
                       decoration: BoxDecoration(
@@ -168,7 +228,7 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                             "Referral:$referralid",
                             style: CustomWidget(context: context).CustomSizedTextStyle(
                                 14.0,
-                                Theme.of(context).dividerColor,
+                                Theme.of(context).focusColor,
                                 FontWeight.w400,
                                 'FontRegular',),softWrap: true,
                             maxLines: 1,overflow: TextOverflow.ellipsis,
@@ -177,7 +237,7 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                           const SizedBox(width: 5.0,),
                           GestureDetector(child:Icon(
                             Icons.copy,
-                            color: Theme.of(context).dividerColor,
+                            color: Theme.of(context).focusColor,
                             size: 22.0,
                           ),onTap: () {
                             if (referralid == "") {
@@ -189,7 +249,19 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                           },),
                         ],
                       ),
-                    )),
+                    ),
+                      Text(
+                        "UID:$userid",
+                        style: CustomWidget(context: context).CustomSizedTextStyle(
+                          14.0,
+                          Theme.of(context).focusColor,
+                          FontWeight.w400,
+                          'FontRegular',),softWrap: true,
+                        maxLines: 1,overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.end,
+                      ),
+
+      ],),),
                   ],
                 ),
               ),
@@ -387,8 +459,14 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
                         children: [
                           InkWell(
                             onTap: (){
-                              Navigator.of(context).push(
-                                  MaterialPageRoute(builder: (context) => KYCPage()));
+                              if(kycverified.toString().toLowerCase()=="true"){
+                                CustomWidget(context: context).showSuccessAlertDialog("Kyc","Kyc has already verified for this user", "success");
+                              }
+                              else{
+                                Navigator.of(context).push(
+                                    MaterialPageRoute(builder: (context) => KYCPage()));
+                              }
+
                             },
                             child: Container(
                               padding: EdgeInsets.only(top: 5.0, bottom: 15.0),
@@ -695,6 +773,12 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
           ),
         ),
       ),
+        loading
+            ? CustomWidget(context: context).loadingIndicator(
+          CustomTheme.of(context).disabledColor,
+        )
+            : Container()
+      ],),
     );
   }
 
@@ -841,6 +925,204 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
           (Route route) => false,
     );
   }
+  getImage(ImageSource type) async {
+
+    var pickedFile = await picker.pickImage(source: type);
+    if (pickedFile != null) {
+      setState(() {
+        selectImg = true;
+        imageFile = File(pickedFile.path);
+        doUploadImage(imageFile!);
+
+      });
+    }
+  }
+  doUploadImage(File? img) {
+
+    setState(() {
+      loading=true;
+    });
+    apiUtils.updateKycFrontUpload(img!.path).then((ImageUploadingModel loginData) {
+      if (loginData.success!) {
+        setState(() {
+          doUploadsecondImage(loginData.result!.toString());
+
+        });
+      } else {
+        setState(() {
+          loading = false;
+          CustomWidget(context: context).showSuccessAlertDialog("Profile", loginData.message.toString(), "error");
+
+        });
+      }
+    }).catchError((Object error) {
+      setState(() {
+        loading = false;
+        print("jeeva");
+      });
+    });
+  }
+  doUploadsecondImage(String img) {
+    apiUtils.doUpload(img).then((ImageUploadingModel loginData) {
+      if (loginData.success!) {
+        setState(() {
+          loading = false;
+            CustomWidget(context: context).showSuccessAlertDialog("Profile","Profile Image uploaded successfully", "success");
+          profileDetails();
+        });
+      } else {
+        setState(() {
+          loading = false;
+          CustomWidget(context: context).showSuccessAlertDialog("Profile", loginData.message.toString(), "error");
+
+        });
+      }
+    }).catchError((Object error) {
+      setState(() {
+        loading = false;
+        print("jeeva");
+      });
+    });
+  }
+  _pickedImageDialog() {
+    showModalBottomSheet<void>(
+      //background color for modal bottom screen
+      backgroundColor: Theme.of(context).focusColor,
+      //elevates modal bottom screen
+      elevation: 10,
+      isScrollControlled: true,
+      // gives rounded corner to modal bottom screen
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(10.0),
+          topRight: Radius.circular(10.0),
+        ),
+      ),
+      // context and builder are
+      // required properties in this widget
+      context: context,
+      builder: (BuildContext context) {
+        // we set up a container inside which
+        // we create center column and display text
+
+        // Returning SizedBox instead of a Container
+        return SingleChildScrollView(
+            child: Container(
+              padding: EdgeInsets.all(10.0),
+              child: Column(
+                children: [
+                  Container(
+                    width: MediaQuery.of(context).size.width,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.center,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          "Choose image source",
+                          style: CustomWidget(context: context)
+                              .CustomSizedTextStyle(16.0, Theme.of(context).cardColor,
+                              FontWeight.w600, 'FontRegular'),
+                        ),
+                      ],
+                    ),
+                  ),
+                  SizedBox(
+                    height: 30.0,
+                  ),
+                  Container(
+                    child: Column(
+                      children: [
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Flexible(child: InkWell(
+                              onTap: (){
+                                setState(() {
+                                  Navigator.pop(context);
+                                  getImage(ImageSource.gallery);
+                                });
+                              },
+                              splashColor: Colors.transparent,
+                              hoverColor: Colors.transparent,
+                              highlightColor:Colors.transparent,
+                              focusColor: Colors.transparent,
+                              child: Container(
+                                padding: EdgeInsets.only(top: 12.0, bottom: 12.0),
+                                alignment: Alignment.center,
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    begin: Alignment.centerLeft,
+                                    end: Alignment.centerRight,
+                                    colors: <Color>[
+                                      CustomTheme.of(context).indicatorColor,
+                                      CustomTheme.of(context).indicatorColor,
+                                    ],
+                                    tileMode: TileMode.mirror,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8.0),
+                                ),
+                                child: Text(
+                                  "Gallery",
+                                  style: CustomWidget(context: context)
+                                      .CustomSizedTextStyle(
+                                      17.0,
+                                      CustomTheme.of(context).cardColor,
+                                      FontWeight.w500,
+                                      'FontRegular'),
+                                ),
+                              ),
+                            ),flex: 4,),
+                            SizedBox(
+                              width: 10.0,
+                            ),
+                            Flexible(
+                              child: InkWell(
+                                onTap: (){
+                                  setState(() {
+                                    Navigator.pop(context);
+                                    getImage(ImageSource.camera);
+                                  });
+                                },
+                                child: Container(
+                                  padding: EdgeInsets.only(top: 12.0, bottom: 12.0),
+                                  alignment: Alignment.center,
+                                  decoration: BoxDecoration(
+                                    gradient: LinearGradient(
+                                      begin: Alignment.centerLeft,
+                                      end: Alignment.centerRight,
+                                      colors: <Color>[
+                                        CustomTheme.of(context).indicatorColor,
+                                        CustomTheme.of(context).indicatorColor,
+                                      ],
+                                      tileMode: TileMode.mirror,
+                                    ),
+                                    borderRadius: BorderRadius.circular(8.0),
+                                  ),
+                                  child: Text(
+                                    "Camera",
+                                    style: CustomWidget(context: context)
+                                        .CustomSizedTextStyle(
+                                        17.0,
+                                        CustomTheme.of(context).cardColor,
+                                        FontWeight.w500,
+                                        'FontRegular'),
+                                  ),
+                                ),
+                              ),
+                              flex: 4,
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            ));
+      },
+    );
+  }
 
   profileDetails() {
     apiUtils.getProfileDetils().then((GetProfileModel loginData) {
@@ -848,7 +1130,10 @@ class _Side_Menu_SettingState extends State<Side_Menu_Setting> {
         setState(() {
           loading = false;
           name = loginData.result!.name.toString();
+          profile=loginData.result!.image.toString();
+          print("imagss ${profile}");
           referralid= loginData.result!.referralCode.toString();
+          kycverified=loginData.result!.kycVerify.toString();
           googleUpdate=loginData.result!.f2AStatus.toString()=="1"?true:false;
         });
       } else {

@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import 'package:carousel_slider/carousel_slider.dart';
+import 'package:carousel_slider_plus/carousel_slider_plus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/painting.dart';
@@ -21,6 +21,7 @@ import 'package:imperial/screens/basic/search_screen.dart';
 import 'package:imperial/screens/basic/subscription.dart';
 import 'package:imperial/screens/market.dart';
 import 'package:imperial/screens/side_menu/side_menu.dart';
+import 'package:imperial/screens/side_menu/transfer_history.dart';
 import 'package:web_socket_channel/io.dart';
 
 import '../../common/card/constants.dart';
@@ -28,12 +29,14 @@ import '../../common/card/data.dart';
 import '../../common/card/cool_swiper.dart';
 import '../../common/theme/custom_theme.dart';
 import '../../data/api_utils.dart';
+import '../../data/crypt_model/all_wallet_pairs.dart';
 import '../../data/crypt_model/coin_list_model.dart';
 import '../../data/crypt_model/dashboard_image_model.dart';
 import '../../data/crypt_model/profile_model.dart';
 import '../../data/crypt_model/trade_pair_model.dart';
 import '../copy_trade.dart';
 import '../copy_trade_history.dart';
+import '../side_menu/history.dart';
 import '../side_menu/support_menu.dart';
 import '../trade.dart';
 import '../wallet.dart';
@@ -54,6 +57,7 @@ class _Home_ScreenState extends State<Home_Screen> {
   int selectedIndex = 0;
   bool dashview = true;
   bool loading = false;
+  String walletBalance = "0.000";
   Widget screen = Container();
   InAppWebViewController? webViewController;
   List<Widget> bottomPage = [
@@ -62,6 +66,7 @@ class _Home_ScreenState extends State<Home_Screen> {
     Container(),
     Container()
   ];
+
   List<String> titleText = [
     "loc_side_home",
     "loc_side_market",
@@ -85,9 +90,9 @@ class _Home_ScreenState extends State<Home_Screen> {
     "Account",
     "Analytics",
     "Subscription",
-    "History",
+    "Transfer History",
     "Referral",
-    "Feed",
+    "Trade History",
     "Support",
     "Settings"
   ];
@@ -114,6 +119,7 @@ class _Home_ScreenState extends State<Home_Screen> {
 
   APIUtils apiUtils = APIUtils();
   String name= "";
+  String profile="";
   List<CoinList> tradePairListAll = [];
   List<MarketDetailsList> marketList = [];
   List<String> marketAseetList = ["All Assets"];
@@ -145,6 +151,26 @@ class _Home_ScreenState extends State<Home_Screen> {
         selectedIndex = index;
         screen = bottomPage[index - 1];
       }
+    });
+  }
+  getWallList() {
+    apiUtils.getWalletList().then((GetWalletAllPairsModel loginData) {
+      if (loginData.success!) {
+        setState(() {
+          // walletPair = loginData.result!;
+          // searchWalletPair= walletPair;
+          walletBalance = loginData.totalPriceInUsd!.toString();
+          // Future.delayed(Duration(seconds: 1));
+          loading = false;
+        });
+      } else {
+        setState(() {
+          loading = false;
+        });
+      }
+    }).catchError((Object error) {
+      print("Mano");
+      print(error);
     });
   }
 
@@ -179,6 +205,7 @@ class _Home_ScreenState extends State<Home_Screen> {
     getBannerDetails();
     profileDetails();
     getCoinList();
+    getWallList();
     verifysubAcc();
     channelOpenOrder = IOWebSocketChannel.connect(
         Uri.parse("wss://stream.bybit.com/v5/public/spot"),
@@ -188,17 +215,18 @@ class _Home_ScreenState extends State<Home_Screen> {
         urlRequest: URLRequest(
       url: Uri.parse("https://app.imperialx.exchange/dashboard/chart/"+coinname),
     ));
-    timerS = Timer.periodic(const Duration(seconds: 5), (Timer t) => socketClose());
+    //timerS = Timer.periodic(const Duration(seconds: 5), (Timer t) => socketClose());
   }
 
 
   socketData() {
     channelOpenOrder!.stream.listen(
           (data) {
+           // print(data);
 
         if (data != null || data != "null") {
           var decode = jsonDecode(data);
-          if (data is Map && data.containsKey('lastPrice')) {
+
             if (mounted) {
               setState(() {
                 String last = decode["data"]['lastPrice'].toString();
@@ -211,15 +239,18 @@ class _Home_ScreenState extends State<Home_Screen> {
                 for (int m = 0; m < marketList.length; m++) {
                   if (marketList[m].name.toString().toLowerCase() ==
                       decode["data"]['symbol'].toString().toLowerCase()) {
+                    //print("heloo");
                     marketList[m].last = last;
                     marketList[m].change = lastChangge;
+
                   }
+                 // print("check");
                 }
               });
             }
           }
 
-        }
+
       },
       onDone: () async {
         await Future.delayed(const Duration(seconds: 10));
@@ -305,10 +336,14 @@ class _Home_ScreenState extends State<Home_Screen> {
             statusBarBrightness: Brightness.light, // For iOS (dark icons)
           ),
         ),
-        body: CurvedNavBar(
+        body:
+        // WillPopScope(child:
+        CurvedNavBar(
+
           actionButton: CurvedActionBar(
               onTab: (value) {
                 /// perform action here
+                /// Cur
 
               },
               activeIcon: Container(
@@ -386,8 +421,8 @@ class _Home_ScreenState extends State<Home_Screen> {
            const Wallet_Screen()
 
           ],
-          actionBarView: const TradeScreen()
-        )
+          actionBarView:  TradeScreen( selectedcoin: "",fromtype: "",)
+        ),
       ),
     );
   }
@@ -423,11 +458,20 @@ class _Home_ScreenState extends State<Home_Screen> {
                                     Navigator.of(context).push(MaterialPageRoute(
                                         builder: (context) => const Side_Menu_Setting()));
                                   },
-                                  child: const CircleAvatar(
-                                    maxRadius: 25,
-                                    minRadius: 25,
-                                    backgroundImage: AssetImage(
-                                      "assets/icons/logo.png",
+                                  child:Container(
+                                    height:50,
+                                    width:50,
+                                    padding: EdgeInsets.all(1.0),
+                                    decoration: BoxDecoration(
+                                      //shape: BoxShape.circle,
+                                        borderRadius: BorderRadius.circular(100)
+                                    ),
+                                    child: profile.isNotEmpty?ClipRRect(borderRadius: BorderRadius.circular(100),child:profile.endsWith(".svg")?SvgPicture.network(profile,fit: BoxFit.cover):Image.network(profile,fit: BoxFit.cover,) ,): const CircleAvatar(
+                                      maxRadius: 25,
+                                      minRadius: 25,
+                                      backgroundImage: AssetImage(
+                                        "assets/icons/logo.png",
+                                      ),
                                     ),
                                   ),
                                 ),
@@ -534,186 +578,215 @@ class _Home_ScreenState extends State<Home_Screen> {
                         marketList.length>0?      Container(
                          // margin: EdgeInsets.only(top: 35.0),
                           width: MediaQuery.of(context).size.width,
-                          height: MediaQuery.of(context).size.height * 0.26,
-                          child: CoolSwiper(
+                          height: MediaQuery.of(context).size.height * 0.22,
+                          child:
+                          // CoolSwiper(
+                          //
+                          //   children: List.generate(
+                          //     marketList.length>0 ? 3 : 0,
+                          //         (index) => Container(
+                          //       height: Constants.cardHeight*1.2,
+                          //       padding:
+                          //       EdgeInsets.fromLTRB(10.0, 20.0, 20.0, 1.0),
+                          //       decoration: BoxDecoration(
+                          //         //color: Theme.of(context).disabledColor.withOpacity(0.8),
+                          //         gradient: LinearGradient(
+                          //         begin: Alignment.centerLeft,end: Alignment.centerRight,colors: [
+                          //           Color(0xff258070),
+                          //           Color(0xff2CAF93),
+                          //           Color(0xff258070),
+                          //         ]),
+                          //         image: DecorationImage(
+                          //
+                          //             image: AssetImage("assets/images/back.png"),
+                          //             fit: BoxFit.cover),
+                          //
+                          //         borderRadius: BorderRadius.circular(30),
+                          //       ),
+                          //       child:Container(width: MediaQuery.of(context).size.width,child: Row(mainAxisAlignment: MainAxisAlignment.center,children: [
+                          //
+                          //       Flexible(flex:3,child:
+                          //         Container(padding: EdgeInsets.only(left: 10),child:
+                          //
+                          //       Column(
+                          //         crossAxisAlignment: CrossAxisAlignment.start,
+                          //         children: [
+                          //           Text(
+                          //             marketList[index].name.toString(),
+                          //             style: CustomWidget(context: context)
+                          //                 .CustomSizedTextStyle(
+                          //                 12.0,
+                          //                 Theme.of(context).focusColor,
+                          //                 FontWeight.w700,
+                          //                 'FontRegular'),
+                          //             textAlign: TextAlign.start,
+                          //           ),
+                          //           Text(
+                          //             "\$" + double.parse(marketList[index].last.toString()).toStringAsFixed(4),
+                          //             style: CustomWidget(context: context)
+                          //                 .CustomSizedTextStyle(
+                          //                 28.0,
+                          //                 Theme.of(context).focusColor,
+                          //                 FontWeight.w600,
+                          //                 'FontRegular'),
+                          //             maxLines: 2,overflow: TextOverflow.ellipsis,
+                          //             textAlign: TextAlign.start,
+                          //           ),
+                          //           const SizedBox(
+                          //             height: 10.0,
+                          //           ),
+                          //           Container(
+                          //             width:MediaQuery.of(context).size.width ,
+                          //             child: Row(
+                          //               crossAxisAlignment:
+                          //               CrossAxisAlignment.center,
+                          //               mainAxisAlignment:
+                          //               MainAxisAlignment.spaceBetween,
+                          //               children: [
+                          //                 Row(
+                          //                   crossAxisAlignment:
+                          //                   CrossAxisAlignment.center,
+                          //                   children: [
+                          //                     InkWell(
+                          //                         onTap: () {},
+                          //                         child: SvgPicture.asset(
+                          //                           "assets/images/trade.svg",
+                          //                           height: 20.0,
+                          //                           fit: BoxFit.fill,
+                          //                           color: Theme.of(context)
+                          //                               .secondaryHeaderColor,
+                          //                         )),
+                          //                     const SizedBox(
+                          //                       width: 3.0,
+                          //                     ),
+                          //                     Text(
+                          //                       double.parse(marketList[index]
+                          //                           .change
+                          //                           .toString())
+                          //                           .toStringAsFixed(2) +
+                          //                           " %",
+                          //                       style: CustomWidget(
+                          //                           context: context)
+                          //                           .CustomSizedTextStyle(
+                          //                           14.0,
+                          //                           double.parse(
+                          //                               marketList[index]
+                          //                                   .change
+                          //                                   .toString()) >=
+                          //                               0
+                          //                               ? Theme.of(context)
+                          //                               .secondaryHeaderColor
+                          //                               : Theme.of(context).hoverColor,
+                          //                           FontWeight.w600,
+                          //                           'FontRegular'),
+                          //                       textAlign: TextAlign.center,
+                          //                     ),
+                          //                     const SizedBox(
+                          //                       width: 5.0,
+                          //                     ),
+                          //                     Text(
+                          //                       "USD",
+                          //                       style: CustomWidget(
+                          //                           context: context)
+                          //                           .CustomSizedTextStyle(
+                          //                           12.0,
+                          //                           Theme.of(context).cardColor,
+                          //                           FontWeight.w600,
+                          //                           'FontRegular'),
+                          //                       textAlign: TextAlign.center,
+                          //                     ),
+                          //                   ],
+                          //                 ),
+                          //                 // Image.asset("assets/images/btc.png",height: 80.0,width: 120.0,fit: BoxFit.contain),
+                          //               ],
+                          //             ),
+                          //           )
+                          //         ],
+                          //       ),
+                          //
+                          //
+                          //       ),),
+                          //         Flexible(flex: 2,child:Container(child:Padding(padding:EdgeInsets.all(0),child:
+                          //         Column(mainAxisAlignment: MainAxisAlignment.start,children: [
+                          //         Align(child:Container(child:Image.asset("assets/images/leftbtc.png",fit: BoxFit.cover,height: MediaQuery.of(context).size.width*0.10,width: MediaQuery.of(context).size.width*0.10,),alignment: Alignment.topLeft,),),
+                          //         //   SizedBox(height: 10,),
+                          //           Align(child:Container(child:Image.asset("assets/images/btc.png",fit: BoxFit.cover,height: MediaQuery.of(context).size.width*0.28,width: MediaQuery.of(context).size.width*0.28,),alignment: Alignment.bottomRight,),),
+                          //         ],),))),
+                          //       ],),),
+                          //         ),
+                          //     ),
+                          //
+                          // ),
+                        //):
 
-                            children: List.generate(
-                              marketList.length>0 ? 3 : 0,
-                                  (index) => Container(
-                                height: Constants.cardHeight*1.2,
-                                padding:
-                                EdgeInsets.fromLTRB(10.0, 20.0, 20.0, 1.0),
-                                decoration: BoxDecoration(
-                                  //color: Theme.of(context).disabledColor.withOpacity(0.8),
-                                  gradient: LinearGradient(
-                                  begin: Alignment.centerLeft,end: Alignment.centerRight,colors: [
-                                    Color(0xff258070),
-                                    Color(0xff2CAF93),
-                                    Color(0xff258070),
-                                  ]),
-                                  image: DecorationImage(
 
-                                      image: AssetImage("assets/images/back.png"),
-                                      fit: BoxFit.cover),
-
-                                  borderRadius: BorderRadius.circular(30),
-                                ),
-                                child:Container(width: MediaQuery.of(context).size.width,child: Row(mainAxisAlignment: MainAxisAlignment.center,children: [
-
-                                Flexible(flex:3,child:
-                                  Container(padding: EdgeInsets.only(left: 10),child:
-
-                                Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      marketList[index].name.toString(),
-                                      style: CustomWidget(context: context)
-                                          .CustomSizedTextStyle(
-                                          12.0,
-                                          Theme.of(context).focusColor,
-                                          FontWeight.w700,
-                                          'FontRegular'),
-                                      textAlign: TextAlign.start,
-                                    ),
-                                    Text(
-                                      "\$" + double.parse(marketList[index].last.toString()).toStringAsFixed(4),
-                                      style: CustomWidget(context: context)
-                                          .CustomSizedTextStyle(
-                                          28.0,
-                                          Theme.of(context).focusColor,
-                                          FontWeight.w600,
-                                          'FontRegular'),
-                                      maxLines: 2,overflow: TextOverflow.ellipsis,
-                                      textAlign: TextAlign.start,
-                                    ),
-                                    const SizedBox(
-                                      height: 10.0,
-                                    ),
-                                    Container(
-                                      width:MediaQuery.of(context).size.width ,
-                                      child: Row(
-                                        crossAxisAlignment:
-                                        CrossAxisAlignment.center,
-                                        mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                        children: [
-                                          Row(
-                                            crossAxisAlignment:
-                                            CrossAxisAlignment.center,
-                                            children: [
-                                              InkWell(
-                                                  onTap: () {},
-                                                  child: SvgPicture.asset(
-                                                    "assets/images/trade.svg",
-                                                    height: 20.0,
-                                                    fit: BoxFit.fill,
-                                                    color: Theme.of(context)
-                                                        .secondaryHeaderColor,
-                                                  )),
-                                              const SizedBox(
-                                                width: 3.0,
-                                              ),
-                                              Text(
-                                                double.parse(marketList[index]
-                                                    .change
-                                                    .toString())
-                                                    .toStringAsFixed(2) +
-                                                    " %",
-                                                style: CustomWidget(
-                                                    context: context)
-                                                    .CustomSizedTextStyle(
-                                                    14.0,
-                                                    double.parse(
-                                                        marketList[index]
-                                                            .change
-                                                            .toString()) >=
-                                                        0
-                                                        ? Theme.of(context)
-                                                        .secondaryHeaderColor
-                                                        : Theme.of(context).hoverColor,
-                                                    FontWeight.w600,
-                                                    'FontRegular'),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                              const SizedBox(
-                                                width: 5.0,
-                                              ),
-                                              Text(
-                                                "USD",
-                                                style: CustomWidget(
-                                                    context: context)
-                                                    .CustomSizedTextStyle(
-                                                    12.0,
-                                                    Theme.of(context).cardColor,
-                                                    FontWeight.w600,
-                                                    'FontRegular'),
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            ],
-                                          ),
-                                          // Image.asset("assets/images/btc.png",height: 80.0,width: 120.0,fit: BoxFit.contain),
-                                        ],
+                           CarouselSlider.builder(
+                            options: CarouselOptions(
+                              onPageChanged: (index, reason) {
+                                setState(() {
+                                  slideIndex = index;
+                                });
+                              },
+                              autoPlay: true,
+                              aspectRatio: 1.0,
+                              enlargeCenterPage: true,
+                              viewportFraction: 1,
+                            ),
+                            itemCount:dashImage.length ,
+                            itemBuilder: (context, index, realIndex) {
+                              return
+                                Container(
+                                      width: MediaQuery.of(context).size.width,
+                                      padding: const EdgeInsets.all(0),
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(12.0),
+                                        // color: Theme.of(context).disabledColor,
+                                        //   image: const DecorationImage(
+                                        //       image: AssetImage("assets/images/back.png"),
+                                        //       fit: BoxFit.cover),
+                                        gradient: LinearGradient(
+                                          begin: Alignment.centerLeft,
+                                          end: Alignment.centerLeft,
+                                          colors: <Color>[
+                                            // Theme.of(context).disabledColor,
+                                            // Theme.of(context).disabledColor.withOpacity(0.5),
+                                            Colors.transparent,
+                                            Colors.transparent
+                                            // Theme.of(context).primaryColor,
+                                          ],
+                                          tileMode: TileMode.mirror,
+                                        ),
                                       ),
-                                    )
-                                  ],
-                                ),
-
-
-                                ),),
-                                  Flexible(flex: 2,child:Container(child:Padding(padding:EdgeInsets.all(0),child:
-                                  Column(mainAxisAlignment: MainAxisAlignment.start,children: [
-                                  Align(child:Container(child:Image.asset("assets/images/leftbtc.png",fit: BoxFit.cover,height: MediaQuery.of(context).size.width*0.10,width: MediaQuery.of(context).size.width*0.10,),alignment: Alignment.topLeft,),),
-                                  //   SizedBox(height: 10,),
-                                    Align(child:Container(child:Image.asset("assets/images/btc.png",fit: BoxFit.cover,height: MediaQuery.of(context).size.width*0.28,width: MediaQuery.of(context).size.width*0.28,),alignment: Alignment.bottomRight,),),
-                                  ],),))),
-                                ],),),
-                                  ),
-                              ),
+                                      child:ClipRRect(child:Image.network(dashImage[index].image.toString(), fit: BoxFit.cover,),borderRadius: BorderRadius.circular(12),)
+                                  );
+                            },
+                            // items: dashImage
+                            //     .map((item) =>
+                            //     Container(
+                            //     width: MediaQuery.of(context).size.width,
+                            //     padding: const EdgeInsets.all(1),
+                            //     decoration: BoxDecoration(
+                            //       borderRadius: BorderRadius.circular(12.0),
+                            //       // color: Theme.of(context).disabledColor,
+                            //       //   image: const DecorationImage(
+                            //       //       image: AssetImage("assets/images/back.png"),
+                            //       //       fit: BoxFit.cover),
+                            //       gradient: LinearGradient(
+                            //         begin: Alignment.centerLeft,
+                            //         end: Alignment.centerLeft,
+                            //         colors: <Color>[
+                            //           Theme.of(context).disabledColor,
+                            //           Theme.of(context).disabledColor.withOpacity(0.5),
+                            //           // Theme.of(context).primaryColor,
+                            //         ],
+                            //         tileMode: TileMode.mirror,
+                            //       ),
+                            //     ),
+                            //     child: Image.network(item.image.toString(), fit: BoxFit.fitHeight,)
+                            // )
 
                           ),
                         ):Container(),
-
-                        //   width: MediaQuery.of(context).size.width,
-                        //   child: CarouselSlider(
-                        //     options: CarouselOptions(
-                        //       onPageChanged: (index, reason) {
-                        //         setState(() {
-                        //           slideIndex = index;
-                        //         });
-                        //       },
-                        //       autoPlay: true,
-                        //       aspectRatio: 1.0,
-                        //       enlargeCenterPage: true,
-                        //       viewportFraction: 1,
-                        //     ),
-                        //     items: dashImage
-                        //         .map((item) =>
-                        //         Container(
-                        //         width: MediaQuery.of(context).size.width,
-                        //         padding: const EdgeInsets.all(1),
-                        //         decoration: BoxDecoration(
-                        //           borderRadius: BorderRadius.circular(12.0),
-                        //           // color: Theme.of(context).disabledColor,
-                        //           //   image: const DecorationImage(
-                        //           //       image: AssetImage("assets/images/back.png"),
-                        //           //       fit: BoxFit.cover),
-                        //           gradient: LinearGradient(
-                        //             begin: Alignment.centerLeft,
-                        //             end: Alignment.centerLeft,
-                        //             colors: <Color>[
-                        //               Theme.of(context).disabledColor,
-                        //               Theme.of(context).disabledColor.withOpacity(0.5),
-                        //               // Theme.of(context).primaryColor,
-                        //             ],
-                        //             tileMode: TileMode.mirror,
-                        //           ),
-                        //         ),
-                        //         child: Image.network(item.image.toString(), fit: BoxFit.fitHeight,)
-                        //     ))
-                        //         .toList(),
-                        //   ),
-                        // ),
                         const SizedBox(
                           height: 40.0,
                         ),
@@ -746,11 +819,16 @@ class _Home_ScreenState extends State<Home_Screen> {
                                   }
                                   else if (index== 3) {
                                     Navigator.of(context).push(
-                                        MaterialPageRoute(builder: (context) => const Copy_Trade_History()));
+                                        MaterialPageRoute(builder: (context) => const Transfer_History()));
                                   }  else if (index== 4) {
                                     Navigator.of(context).push(
                                         MaterialPageRoute(builder: (context) => const Referral_Screen()));
-                                  } else if (index== 6) {
+                                  }
+                                  else if (index== 5) {
+                                    Navigator.of(context).push(
+                                        MaterialPageRoute(builder: (context) => const History_Screen()));
+                                  }
+                                  else if (index== 6) {
                                     Navigator.of(context).push(
                                         MaterialPageRoute(builder: (context) => const Support_Menu_Screen()));
                                   } else if (index== 7) {
@@ -825,23 +903,21 @@ class _Home_ScreenState extends State<Home_Screen> {
                           height: 20.0,
                         ),
                         Container(
-                          child: GridView.builder(
+                          width: MediaQuery.of(context).size.width,
+                          height: MediaQuery.of(context).size.height*0.20,
+                          child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
                             padding: EdgeInsets.zero,
                             controller: _scrollController,
-                            gridDelegate:
-                                const SliverGridDelegateWithFixedCrossAxisCount(
-                              crossAxisCount: 2,
-                              crossAxisSpacing: 20,
-                              mainAxisSpacing: 20,
-                              childAspectRatio: 2.5 / 3,
-                            ),
                             // physics: ScrollPhysics(),
                             shrinkWrap: true,
-                            itemCount: 2,
+                            itemCount: marketList.length>0?10:0,
                             itemBuilder: (BuildContext context, index) {
                               return InkWell(
                                 onTap: () {},
-                                child: Container(
+                                child: Padding(padding: EdgeInsets.only( right: 10),child:
+                                marketList.length>0?
+                                Container(
                                   height: MediaQuery.of(context).size.height*0.35,
                                     padding: EdgeInsets.only(
                                         top: 7.0,
@@ -872,8 +948,8 @@ class _Home_ScreenState extends State<Home_Screen> {
                                               decoration: BoxDecoration(
                                                 shape: BoxShape.circle,
                                               ),
-                                              child: SvgPicture.asset(
-                                                grid_imgs[index].toString(),
+                                              child: SvgPicture.asset("",
+                                                //grid_imgs[index].toString(),
                                                 height: 28.0,
                                                 // color: Theme.of(context).disabledColor,
                                               ),
@@ -882,8 +958,9 @@ class _Home_ScreenState extends State<Home_Screen> {
                                               width: 6.0,
                                             ),
                                             Text(
+                                              "${marketList[index].name}",
                                               // AppLocalizations.instance.text("loc_widthdraw"),
-                                              grid_names[index].toString(),
+                                              //grid_names[index].toString(),
                                               style:
                                                   CustomWidget(context: context)
                                                       .CustomSizedTextStyle(
@@ -900,7 +977,7 @@ class _Home_ScreenState extends State<Home_Screen> {
                                           height: 5.0,
                                         ),
                                         Text(
-                                          "\$ 45.898,16",
+                                          "\$ ${double.parse(marketList[index].last.toString()).toStringAsFixed(4)}",
                                           style: CustomWidget(context: context)
                                               .CustomSizedTextStyle(
                                                   16,
@@ -917,22 +994,45 @@ class _Home_ScreenState extends State<Home_Screen> {
                                               CrossAxisAlignment.center,
                                           children: [
                                             Text(
-                                              "24,55%",
+                                              "${double.parse(marketList[index].change.toString()).toStringAsFixed(4)}%",
                                               style: CustomWidget(
                                                       context: context)
                                                   .CustomSizedTextStyle(
                                                       16,
-                                                      Theme.of(context)
-                                                          .secondaryHeaderColor,
+                                                  double.parse(marketList[
+                                                  index]
+                                                      .change
+                                                      .toString()) >=
+                                                      0
+                                                      ? Theme.of(
+                                                      context)
+                                                      .indicatorColor
+                                                      : Theme.of(
+                                                      context)
+                                                      .hoverColor,
                                                       FontWeight.w400,
                                                       'FontRegular'),
                                               textAlign: TextAlign.center,
                                             ),
                                             Icon(
-                                              Icons.arrow_drop_up,
+                                              double.parse(marketList[
+                                              index]
+                                                  .change
+                                                  .toString()) >=
+                                                  0
+                                                  ? Icons.arrow_drop_up:Icons.arrow_drop_down,
                                               size: 18.0,
-                                              color: Theme.of(context)
-                                                  .secondaryHeaderColor,
+                                              color: double.parse(marketList[
+                                              index]
+                                                  .change
+                                                  .toString()) >=
+                                                  0
+                                                  ? Theme.of(
+                                                  context)
+                                                  .indicatorColor
+                                                  : Theme.of(
+                                                  context)
+                                                  .hoverColor,
                                             )
                                           ],
                                         ),
@@ -940,265 +1040,312 @@ class _Home_ScreenState extends State<Home_Screen> {
                                           height: 5.0,
                                         ),
                                         SvgPicture.asset(
-                                          "assets/icons/line.svg",
-                                          fit: BoxFit.fill,
-                                          height: MediaQuery.of(context).size.height*0.06,
-                                        )
+                                          "assets/menu/line.svg",
+                                          height: 50.0,
+                                          fit: BoxFit.fitWidth,
+                                          color: double.parse(marketList[
+                                          index]
+                                              .change
+                                              .toString()) >=
+                                              0
+                                              ? Theme.of(
+                                              context)
+                                              .indicatorColor
+                                              : Theme.of(
+                                              context)
+                                              .hoverColor,
+                                        ),
                                       ],
-                                    )),
-                              );
+                                    )):Container(),
+                              ));
                             },
                           ),
                         ),
                         const SizedBox(
                           height: 20.0,
                         ),
+                        // marketList.length>0?Row(
+                        //   crossAxisAlignment: CrossAxisAlignment.center,
+                        //   mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        //   children: [
+                        //     Text(
+                        //       "\$ ${marketList[0].last.toString() ?? ""}",
+                        //       style: CustomWidget(context: context)
+                        //           .CustomSizedTextStyle(
+                        //               24.0,
+                        //               Theme.of(context).focusColor,
+                        //               FontWeight.w600,
+                        //               'FontRegular'),
+                        //       textAlign: TextAlign.center,
+                        //     ),
+                        //     marketList.length>0?Container(
+                        //       padding: EdgeInsets.only(
+                        //           left: 8.0, right: 8.0, top: 1.0, bottom: 1.0),
+                        //       decoration: BoxDecoration(
+                        //         borderRadius: BorderRadius.circular(25.0),
+                        //         color: Theme.of(context).canvasColor,
+                        //       ),
+                        //       child: Row(
+                        //         crossAxisAlignment: CrossAxisAlignment.center,
+                        //         children: [
+                        //           // Icon(
+                        //           //   Icons.arrow_drop_up,
+                        //           //   size: 18.0,
+                        //           //   color:
+                        //           //       Theme.of(context).secondaryHeaderColor,
+                        //           // ),
+                        //           Text(
+                        //             "${double.parse(marketList[0].change.toString()).toStringAsFixed(4) ?? ""}%",
+                        //             style: CustomWidget(context: context)
+                        //                 .CustomSizedTextStyle(
+                        //                     12,
+                        //                 double.parse(marketList.first
+                        //                     .change
+                        //                     .toString()) >=
+                        //                     0
+                        //                     ? Theme.of(
+                        //                     context)
+                        //                     .indicatorColor
+                        //                     : Theme.of(
+                        //                     context)
+                        //                     .hoverColor,
+                        //                     FontWeight.w400,
+                        //                     'FontRegular'),
+                        //             textAlign: TextAlign.center,
+                        //           ),
+                        //         ],
+                        //       ),
+                        //     ):Container(),
+                        //   ],
+                        // ):Container(),
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.start,
                           crossAxisAlignment: CrossAxisAlignment.center,
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             Text(
-                              "44.826,12 USDT",
+                              // "0.00",
+                              double.parse( walletBalance.toString()).toStringAsFixed(8),
                               style: CustomWidget(context: context)
                                   .CustomSizedTextStyle(
-                                      24.0,
-                                      Theme.of(context).focusColor,
-                                      FontWeight.w600,
-                                      'FontRegular'),
-                              textAlign: TextAlign.center,
+                                  24.0,
+                                  Theme.of(context).focusColor,
+                                  FontWeight.w500,
+                                  'FontRegular'),
                             ),
-                            Container(
-                              padding: EdgeInsets.only(
-                                  left: 8.0, right: 8.0, top: 1.0, bottom: 1.0),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(25.0),
-                                color: Theme.of(context).canvasColor,
-                              ),
-                              child: Row(
-                                crossAxisAlignment: CrossAxisAlignment.center,
-                                children: [
-                                  Icon(
-                                    Icons.arrow_drop_up,
-                                    size: 18.0,
-                                    color:
-                                        Theme.of(context).secondaryHeaderColor,
-                                  ),
-                                  Text(
-                                    "24,55%",
-                                    style: CustomWidget(context: context)
-                                        .CustomSizedTextStyle(
-                                            12,
-                                            Theme.of(context)
-                                                .secondaryHeaderColor,
-                                            FontWeight.w400,
-                                            'FontRegular'),
-                                    textAlign: TextAlign.center,
-                                  ),
-                                ],
-                              ),
+                            const SizedBox(
+                              width: 10.0,
+                            ),
+                            Text(
+                              "USD",
+                              style: CustomWidget(context: context)
+                                  .CustomSizedTextStyle(
+                                  18.0,
+                                  Theme.of(context).focusColor,
+                                  FontWeight.w400,
+                                  'FontRegular'),
                             ),
                           ],
                         ),
                         const SizedBox(
                           height: 20.0,
                         ),
-                        Center(child:Container(height: 40,width: MediaQuery.of(context).size.width *0.90,child: ListView.builder(scrollDirection: Axis.horizontal,itemCount: times.length,
-                          itemBuilder: (context, index) {
-                          return GestureDetector(child: Container(decoration: BoxDecoration(color: selectedtimeIndex==index?Theme.of(context).dividerColor:Colors.transparent,
-                              borderRadius: BorderRadius.circular(5)),width: MediaQuery.of(context).size.width *0.18,height: 20,child:Center(child:
-                          Text("${times[index]}",style: CustomWidget(context: context)
-                              .CustomSizedTextStyle(
-                              14,
-                              selectedtimeIndex==index?Theme.of(context).disabledColor:Theme.of(context)
-                                  .dividerColor,
-                              FontWeight.w600,
-                              'FontRegular'),
-                              textAlign: TextAlign.center,),),),onTap: () {
-                            setState(() {
-                              selectedtimeIndex=index;
-                            });
+                        // Center(child:Container(height: 40,width: MediaQuery.of(context).size.width *0.90,child: ListView.builder(scrollDirection: Axis.horizontal,itemCount: times.length,
+                        //   itemBuilder: (context, index) {
+                        //   return GestureDetector(child: Container(decoration: BoxDecoration(color: selectedtimeIndex==index?Theme.of(context).dividerColor:Colors.transparent,
+                        //       borderRadius: BorderRadius.circular(5)),width: MediaQuery.of(context).size.width *0.18,height: 20,child:Center(child:
+                        //   Text("${times[index]}",style: CustomWidget(context: context)
+                        //       .CustomSizedTextStyle(
+                        //       14,
+                        //       selectedtimeIndex==index?Theme.of(context).disabledColor:Theme.of(context)
+                        //           .dividerColor,
+                        //       FontWeight.w600,
+                        //       'FontRegular'),
+                        //       textAlign: TextAlign.center,),),),onTap: () {
+                        //     setState(() {
+                        //       selectedtimeIndex=index;
+                        //     });
+                        //
+                        //   },);
+                        // },),),),
+                        // Container(width: MediaQuery.of(context).size.width,height: MediaQuery.of(context).size.height*0.40,
+                        //   child: SvgPicture.asset("assets/images/Chart.svg"),),
 
-                          },);
-                        },),),),
-                        Container(width: MediaQuery.of(context).size.width,height: MediaQuery.of(context).size.height*0.40,
-                          child: SvgPicture.asset("assets/images/Chart.svg"),),
-
-                        Container(
-                          height: 145.0,
-                          child: marketList.length>0 ? ListView.builder(
-                            itemCount: marketList.length>0? 100 : 0,
-                            shrinkWrap: true,
-                            controller: controller,
-                            scrollDirection: Axis.horizontal,
-                            itemBuilder: (BuildContext context, int index) {
-                              return Row(
-                                children: [
-                                  Container(
-                                      // width: MediaQuery.of(context).size.width * 0.4,
-                                      decoration: BoxDecoration(
-                                        // color: Theme.of(context).splashColor,
-                                        // border: Border.all(width: 1.0, color: Theme.of(context).disabledColor,),
-                                        gradient: LinearGradient(
-                                          begin: Alignment.centerLeft,
-                                          end: Alignment.centerLeft,
-                                          colors: <Color>[
-                                            Theme.of(context).disabledColor,
-                                            Theme.of(context)
-                                                .disabledColor
-                                                .withOpacity(0.5),
-                                            Theme.of(context).primaryColor,
-                                          ],
-                                          tileMode: TileMode.mirror,
-                                        ),
-                                        borderRadius:
-                                            BorderRadius.circular(12.0),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Container(
-                                            padding: const EdgeInsets.only(
-                                                top: 8.0,
-                                                right: 10.0,
-                                                left: 10.0),
-                                            child: Column(
-                                              crossAxisAlignment:
-                                                  CrossAxisAlignment.start,
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment.center,
-                                              children: [
-                                                Row(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.center,
-                                                  children: [
-                                                    // Container(
-                                                    //   padding:
-                                                    //       EdgeInsets.all(1.0),
-                                                    //   decoration: BoxDecoration(
-                                                    //     shape: BoxShape.circle,
-                                                    //   ),
-                                                    //   child: SvgPicture.asset(
-                                                    //     "assets/icons/btc.svg",
-                                                    //     height: 20.0,
-                                                    //     // color: Theme.of(context).disabledColor,
-                                                    //   ),
-                                                    // ),
-                                                    // SizedBox(
-                                                    //   width: 4.0,
-                                                    // ),
-                                                    Text(
-                                                      // AppLocalizations.instance.text("loc_widthdraw"),
-                                                      marketList[index].name.toString(),
-                                                      style: CustomWidget(
-                                                              context: context)
-                                                          .CustomSizedTextStyle(
-                                                              9.0,
-                                                              Theme.of(context)
-                                                                  .focusColor,
-                                                              FontWeight.w500,
-                                                              'FontRegular'),
-                                                      textAlign:
-                                                          TextAlign.center,
-                                                    ),
-                                                  ],
-                                                ),
-                                                const SizedBox(
-                                                  height: 5.0,
-                                                ),
-                                                Text(
-                                                  //"12,32 USD",
-                                                "\$" + double.parse(marketList[index].last.toString()).toStringAsFixed(4),
-                                                  style: CustomWidget(
-                                                          context: context)
-                                                      .CustomSizedTextStyle(
-                                                          13,
-                                                          Theme.of(context)
-                                                              .focusColor,
-                                                          FontWeight.w500,
-                                                          'FontRegular'),
-                                                  textAlign: TextAlign.center,
-                                                ),
-                                                const SizedBox(
-                                                  height: 5.0,
-                                                ),
-                                                // Row(
-                                                //   crossAxisAlignment:
-                                                //       CrossAxisAlignment.center,
-                                                //   children: [
-                                                //     Icon(
-                                                //       Icons.arrow_drop_up,
-                                                //       size: 12.0,
-                                                //       color: Theme.of(context)
-                                                //           .secondaryHeaderColor,
-                                                //     ),
-                                                //     Text(
-                                                //       // "+1.31%",
-                                                //       double.parse(marketList[index].change.toString()).toStringAsFixed(2) + " %",
-                                                //       style: CustomWidget(
-                                                //               context: context)
-                                                //           .CustomSizedTextStyle(
-                                                //               9,
-                                                //               Theme.of(context)
-                                                //                   .secondaryHeaderColor,
-                                                //               FontWeight.w500,
-                                                //               'FontRegular'),
-                                                //       textAlign:
-                                                //           TextAlign.center,
-                                                //     ),
-                                                //   ],
-                                                // ),
-                                                Text(
-                                                  // "+1.31%",
-                                                  double.parse(marketList[index].change.toString()).toStringAsFixed(2) + " %",
-                                                  style: CustomWidget(
-                                                      context: context)
-                                                      .CustomSizedTextStyle(
-                                                      9,
-                                                      double.parse(marketList[index].change.toString()) >= 0 ? Theme.of(context).indicatorColor : Theme.of(context).hoverColor,
-                                                      FontWeight.w500,
-                                                      'FontRegular'),
-                                                  textAlign:
-                                                  TextAlign.center,
-                                                ),
-                                                const SizedBox(
-                                                  height: 10.0,
-                                                ),
-                                              ],
-                                            ),
-                                          ),
-                                          SvgPicture.asset(
-                                            "assets/icons/map.svg",
-                                            height: 60.0,
-                                            fit: BoxFit.fitWidth,
-                                          )
-                                        ],
-                                      )),
-                                  const SizedBox(
-                                    width: 10.0,
-                                  ),
-                                ],
-                              );
-                            },
-                          ) : Container(
-                            height: MediaQuery.of(context).size.height * 0.2,
-                            decoration: BoxDecoration(
-                              color: Theme.of(context).primaryColor,
-                            ),
-                            child: Center(
-                              child: Text(
-                                " No records Found..!",
-                                style: TextStyle(
-                                  fontFamily: "FontRegular",
-                                  color: Theme.of(context).focusColor,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
+                        // Container(
+                        //   height: 145.0,
+                        //   child: marketList.length>0 ? ListView.builder(
+                        //     itemCount: marketList.length>0? 100 : 0,
+                        //     shrinkWrap: true,
+                        //     controller: controller,
+                        //     scrollDirection: Axis.horizontal,
+                        //     itemBuilder: (BuildContext context, int index) {
+                        //       return Row(
+                        //         children: [
+                        //           Container(
+                        //               // width: MediaQuery.of(context).size.width * 0.4,
+                        //               decoration: BoxDecoration(
+                        //                 // color: Theme.of(context).splashColor,
+                        //                 // border: Border.all(width: 1.0, color: Theme.of(context).disabledColor,),
+                        //                 gradient: LinearGradient(
+                        //                   begin: Alignment.centerLeft,
+                        //                   end: Alignment.centerLeft,
+                        //                   colors: <Color>[
+                        //                     Theme.of(context).disabledColor,
+                        //                     Theme.of(context)
+                        //                         .disabledColor
+                        //                         .withOpacity(0.5),
+                        //                     Theme.of(context).primaryColor,
+                        //                   ],
+                        //                   tileMode: TileMode.mirror,
+                        //                 ),
+                        //                 borderRadius:
+                        //                     BorderRadius.circular(12.0),
+                        //               ),
+                        //               alignment: Alignment.center,
+                        //               child: Column(
+                        //                 crossAxisAlignment:
+                        //                     CrossAxisAlignment.start,
+                        //                 mainAxisAlignment:
+                        //                     MainAxisAlignment.center,
+                        //                 children: [
+                        //                   Container(
+                        //                     padding: const EdgeInsets.only(
+                        //                         top: 8.0,
+                        //                         right: 10.0,
+                        //                         left: 10.0),
+                        //                     child: Column(
+                        //                       crossAxisAlignment:
+                        //                           CrossAxisAlignment.start,
+                        //                       mainAxisAlignment:
+                        //                           MainAxisAlignment.center,
+                        //                       children: [
+                        //                         Row(
+                        //                           crossAxisAlignment:
+                        //                               CrossAxisAlignment.center,
+                        //                           children: [
+                        //                             // Container(
+                        //                             //   padding:
+                        //                             //       EdgeInsets.all(1.0),
+                        //                             //   decoration: BoxDecoration(
+                        //                             //     shape: BoxShape.circle,
+                        //                             //   ),
+                        //                             //   child: SvgPicture.asset(
+                        //                             //     "assets/icons/btc.svg",
+                        //                             //     height: 20.0,
+                        //                             //     // color: Theme.of(context).disabledColor,
+                        //                             //   ),
+                        //                             // ),
+                        //                             // SizedBox(
+                        //                             //   width: 4.0,
+                        //                             // ),
+                        //                             Text(
+                        //                               // AppLocalizations.instance.text("loc_widthdraw"),
+                        //                               marketList[index].name.toString(),
+                        //                               style: CustomWidget(
+                        //                                       context: context)
+                        //                                   .CustomSizedTextStyle(
+                        //                                       9.0,
+                        //                                       Theme.of(context)
+                        //                                           .focusColor,
+                        //                                       FontWeight.w500,
+                        //                                       'FontRegular'),
+                        //                               textAlign:
+                        //                                   TextAlign.center,
+                        //                             ),
+                        //                           ],
+                        //                         ),
+                        //                         const SizedBox(
+                        //                           height: 5.0,
+                        //                         ),
+                        //                         Text(
+                        //                           //"12,32 USD",
+                        //                         "\$" + double.parse(marketList[index].last.toString()).toStringAsFixed(4),
+                        //                           style: CustomWidget(
+                        //                                   context: context)
+                        //                               .CustomSizedTextStyle(
+                        //                                   13,
+                        //                                   Theme.of(context)
+                        //                                       .focusColor,
+                        //                                   FontWeight.w500,
+                        //                                   'FontRegular'),
+                        //                           textAlign: TextAlign.center,
+                        //                         ),
+                        //                         const SizedBox(
+                        //                           height: 5.0,
+                        //                         ),
+                        //                         // Row(
+                        //                         //   crossAxisAlignment:
+                        //                         //       CrossAxisAlignment.center,
+                        //                         //   children: [
+                        //                         //     Icon(
+                        //                         //       Icons.arrow_drop_up,
+                        //                         //       size: 12.0,
+                        //                         //       color: Theme.of(context)
+                        //                         //           .secondaryHeaderColor,
+                        //                         //     ),
+                        //                         //     Text(
+                        //                         //       // "+1.31%",
+                        //                         //       double.parse(marketList[index].change.toString()).toStringAsFixed(2) + " %",
+                        //                         //       style: CustomWidget(
+                        //                         //               context: context)
+                        //                         //           .CustomSizedTextStyle(
+                        //                         //               9,
+                        //                         //               Theme.of(context)
+                        //                         //                   .secondaryHeaderColor,
+                        //                         //               FontWeight.w500,
+                        //                         //               'FontRegular'),
+                        //                         //       textAlign:
+                        //                         //           TextAlign.center,
+                        //                         //     ),
+                        //                         //   ],
+                        //                         // ),
+                        //                         Text(
+                        //                           // "+1.31%",
+                        //                           double.parse(marketList[index].change.toString()).toStringAsFixed(2) + " %",
+                        //                           style: CustomWidget(
+                        //                               context: context)
+                        //                               .CustomSizedTextStyle(
+                        //                               9,
+                        //                               double.parse(marketList[index].change.toString()) >= 0 ? Theme.of(context).indicatorColor : Theme.of(context).hoverColor,
+                        //                               FontWeight.w500,
+                        //                               'FontRegular'),
+                        //                           textAlign:
+                        //                           TextAlign.center,
+                        //                         ),
+                        //                         const SizedBox(
+                        //                           height: 10.0,
+                        //                         ),
+                        //                       ],
+                        //                     ),
+                        //                   ),
+                        //                   SvgPicture.asset(
+                        //                     "assets/icons/map.svg",
+                        //                     height: 60.0,
+                        //                     fit: BoxFit.fitWidth,
+                        //                   )
+                        //                 ],
+                        //               )),
+                        //           const SizedBox(
+                        //             width: 10.0,
+                        //           ),
+                        //         ],
+                        //       );
+                        //     },
+                        //   ) : Container(
+                        //     height: MediaQuery.of(context).size.height * 0.2,
+                        //     decoration: BoxDecoration(
+                        //       color: Theme.of(context).primaryColor,
+                        //     ),
+                        //     child: Center(
+                        //       child: Text(
+                        //         " No records Found..!",
+                        //         style: TextStyle(
+                        //           fontFamily: "FontRegular",
+                        //           color: Theme.of(context).focusColor,
+                        //         ),
+                        //       ),
+                        //     ),
+                        //   ),
+                        // ),
                         const SizedBox(
                           height: 20.0,
                         ),
@@ -1269,7 +1416,7 @@ class _Home_ScreenState extends State<Home_Screen> {
                         ),
                         marketList.length>0 ? ListView.builder(
                           // itemCount: tradePairList.length,
-                          itemCount: marketList.length> 0 ?10 :0,
+                          itemCount: marketList.length> 0 ?10:0,
                           shrinkWrap: true,
                           controller: controller,
                           itemBuilder: (BuildContext context, int index) {
@@ -1459,6 +1606,7 @@ class _Home_ScreenState extends State<Home_Screen> {
         setState(() {
           loading = false;
           name = loginData.result!.name.toString();
+          profile=loginData.result!.image.toString();
         });
       } else {
         setState(() {

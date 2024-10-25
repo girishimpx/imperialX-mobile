@@ -96,7 +96,7 @@ class _Welcome_ScreenState extends State<Welcome_Screen> {
                       const SizedBox(width: 20.0,),
                       Flexible(child: InkWell(
                         onTap: (){
-                          Navigator.of(context).push(
+                          Navigator.of(context).pushReplacement(
                               MaterialPageRoute(builder: (context) => Login_Screen()));
                         },
                         child: Container(
